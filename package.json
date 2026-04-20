@@ -9,9 +9,10 @@
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "automation:petitions": "tsx src/scripts/automation/fetch-petitions.ts",
+    "automation:votes": "tsx src/scripts/automation/fetch-votes.ts",
     "automation:agenda": "tsx src/scripts/automation/fetch-an-agenda.ts && tsx src/scripts/automation/fetch-senat-agenda.ts",
     "automation:laws": "tsx src/scripts/automation/fetch-laws.ts",
-    "automation:all": "npm run automation:petitions; npm run automation:agenda; npm run automation:laws"
+    "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws"
   },
   "keywords": [],
   "author": "",

@@ -1,11 +1,10 @@
-name: Daily Petitions Scraping
+name: Daily Political Data Sync
 
 on:
   schedule:
-    # Tous les jours à minuit UTC
-    - cron: '0 0 * * *'
+    # Tous les jours à Minuit et Midi UTC
+    - cron: '0 0,12 * * *'
   workflow_dispatch:
-    # Permet de lancer le job manuellement depuis l'interface GitHub
 
 jobs:
   scrape:
@@ -26,6 +25,12 @@ jobs:
 
       - name: Run petitions scraper
         run: npm run automation:petitions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Run votes scraper
+        run: npm run automation:votes
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
