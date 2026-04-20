@@ -29,6 +29,16 @@ async function fetchAndParseVotes() {
     const zipEntries = zip.getEntries();
     
     console.log(`> Found ${zipEntries.length} entries in ZIP`);
+    
+    // NEW: Fetch existing deputies to filter votes
+    console.log(`> Fetching active deputies from DB...`);
+    const { data: activeDeputies, error: dError } = await supabase
+        .from('deputies')
+        .select('an_id');
+    
+    if (dError) throw new Error(`Could not fetch deputies: ${dError.message}`);
+    const activeAnIds = new Set(activeDeputies.map(d => d.an_id.trim().toUpperCase()));
+    console.log(`  - Found ${activeAnIds.size} active deputies in your database.`);
 
     let scrutinsCount = 0;
     let votesCount = 0;
@@ -51,14 +61,7 @@ async function fetchAndParseVotes() {
       };
 
       // 1. Upsert Scrutin
-      const { error: sError } = await supabase
-        .from('scrutins')
-        .upsert(scrutinData, { onConflict: 'id' });
-
-      if (sError) {
-        console.error(`Error upserting scrutin ${s.uid}:`, sError.message);
-        continue;
-      }
+      await supabase.from('scrutins').upsert(scrutinData, { onConflict: 'id' });
       scrutinsCount++;
 
       // 2. Extract and Flatten Votes
@@ -67,54 +70,52 @@ async function fetchAndParseVotes() {
       
       if (!groups) continue;
 
-      const processPositions = (decideurs: any, position: string) => {
-        if (!decideurs) return;
-        const list = Array.isArray(decideurs) ? decideurs : [decideurs];
-        list.forEach((d: any) => {
-          if (d.acteurRef) {
-            votes.push({
-              deputy_an_id: d.acteurRef,
-              scrutin_id: s.uid,
-              position: position
-            });
-          }
+      const processNominatif = (nominatif: any) => {
+        if (!nominatif) return;
+        
+        const categories = [
+          { key: 'pours', subKey: 'votant', pos: 'POUR' },
+          { key: 'contres', subKey: 'votant', pos: 'CONTRE' },
+          { key: 'abstentions', subKey: 'votant', pos: 'ABSTENTION' },
+          { key: 'nonVotants', subKey: 'votant', pos: 'NON_VOTANT' }
+        ];
+
+        categories.forEach(({ key, subKey, pos }) => {
+          const catObj = nominatif[key];
+          if (!catObj || !catObj[subKey]) return;
+          const list = Array.isArray(catObj[subKey]) ? catObj[subKey] : [catObj[subKey]];
+          list.forEach((d: any) => {
+            if (d.acteurRef) {
+              const actorId = d.acteurRef.trim().toUpperCase();
+              if (activeAnIds.has(actorId)) {
+                votes.push({
+                  deputy_an_id: actorId,
+                  scrutin_id: s.uid,
+                  position: pos
+                });
+              }
+            }
+          });
         });
       };
 
       const groupsList = Array.isArray(groups) ? groups : [groups];
       groupsList.forEach((g: any) => {
-        const v = g.vote;
-        if (!v) return;
-        
-        processPositions(v.pours?.decideur, 'POUR');
-        processPositions(v.contres?.decideur, 'CONTRE');
-        processPositions(v.abstentions?.decideur, 'ABSTENTION');
-        processPositions(v.nonVotants?.decideur, 'NON_VOTANT');
+        processNominatif(g.vote?.decompteNominatif);
       });
 
       if (votes.length > 0) {
-        // Chunked UPSERT to avoid hitting Supabase limits
-        const chunkSize = 100;
-        for (let i = 0; i < votes.length; i += chunkSize) {
-            const chunk = votes.slice(i, i + chunkSize);
-            const { error: vError } = await supabase
-                .from('deputy_votes')
-                .upsert(chunk, { onConflict: 'deputy_an_id, scrutin_id' });
-            
-            if (vError) {
-                // If some deputy_an_id doesn't exist in DB, this might fail
-                // We should ideally filter to only existing deputies, but let's see
-                if (!vError.message.includes('foreign key constraint')) {
-                    console.warn(`Partial failure in votes upsert for ${s.uid}:`, vError.message);
-                }
-            } else {
-                votesCount += chunk.length;
-            }
+        const { error: vError } = await supabase.from('deputy_votes').upsert(votes, { onConflict: 'deputy_an_id, scrutin_id' });
+        if (!vError) {
+            votesCount += votes.length;
+            console.log(`  [OK] ${s.uid}: Found and updated ${votes.length} votes.`);
+        } else {
+            console.warn(`  [FAIL] ${s.uid}: Upsert error:`, vError.message);
         }
       }
 
-      if (scrutinsCount % 10 === 0) {
-        console.log(`  - Processed ${scrutinsCount} scrutins...`);
+      if (scrutinsCount % 100 === 0) {
+        console.log(`\n--- Status Update: Processed ${scrutinsCount} files. Total votes in DB: ${votesCount} ---\n`);
       }
       
       // Limit for testing (uncomment for full run)
