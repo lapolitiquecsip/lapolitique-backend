@@ -30,7 +30,7 @@ async function summarizeScrutins() {
     .eq('type', 'LOI')
     .is('summary', null)
     .order('date_scrutin', { ascending: false })
-    .limit(50); // Process in small batches
+    .limit(100); // Process in small batches
 
   if (error) {
     console.error('Error fetching scrutins:', error.message);
