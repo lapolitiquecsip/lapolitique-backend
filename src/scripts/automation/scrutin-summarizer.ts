@@ -44,7 +44,7 @@ async function summarizeScrutins() {
       console.log(`Processing: ${s.objet}`);
 
       let response;
-      const models = ['claude-3-5-sonnet-latest', 'claude-3-5-sonnet-20240620', 'claude-3-haiku-20240307'];
+      const models = ['claude-3-5-sonnet-20241022', 'claude-3-5-sonnet-20240620', 'claude-3-haiku-20240307'];
       
       for (const model of models) {
         try {
@@ -57,12 +57,23 @@ async function summarizeScrutins() {
               Sois très concis (2 phrases max). 
               Explique aussi brièvement "L'enjeu" (pourquoi c'est important).
               
+              Classe aussi ce scrutin dans l'une des catégories suivantes :
+              - Sécurité & Justice
+              - Économie & Budget
+              - Santé & Social
+              - Environnement & Énergie
+              - Éducation & Culture
+              - International & Défense
+              - Institution & Citoyenneté
+              - Autre
+              
               Titre du scrutin : "${s.objet}"
               
               Réponds au format JSON strict :
               {
                 "summary": "Résumé vulgarisé ici...",
-                "why_it_matters": "Enjeu principal ici..."
+                "why_it_matters": "Enjeu principal ici...",
+                "category": "Catégorie choisie ici"
               }`
             }]
           });
@@ -81,7 +92,8 @@ async function summarizeScrutins() {
         .from('scrutins')
         .update({
           summary: result.summary,
-          why_it_matters: result.why_it_matters
+          why_it_matters: result.why_it_matters,
+          category: result.category
         })
         .eq('id', s.id);
 
