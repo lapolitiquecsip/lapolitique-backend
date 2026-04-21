@@ -49,13 +49,43 @@ async function fetchAndParseVotes() {
       const content = JSON.parse(entry.getData().toString('utf8'));
       const s = content.scrutin;
       
-      if (!s) continue;
+
+      // Classification (Loi vs Amendement)
+      const titre = (s.titre || s.objet.libelle || "").toLowerCase();
+      let type = "AUTRE";
+      if (titre.includes("amendement")) {
+        type = "AMENDEMENT";
+      } else if (titre.includes("projet de loi") || titre.includes("proposition de loi")) {
+        type = "LOI";
+      }
+
+      // Catégorisation par thématique
+      const themes = [
+        { name: "Économie & Finances", keywords: ["finances", "budget", "fiscal", "pib", "impôt", "taxe", "économie", "sociale", "secteur public"] },
+        { name: "Sécurité & Intérieur", keywords: ["sécurité", "police", "gendarmerie", "terrorisme", "intérieur", "ordre public", "immigration"] },
+        { name: "Santé & Social", keywords: ["santé", "hôpital", "médical", "soins", "sécurité sociale", "retraites", "travail"] },
+        { name: "Environnement", keywords: ["climat", "écologie", "environnement", "biodiversité", "énergie", "nucléaire", "eau", "transition"] },
+        { name: "Éducation & Culture", keywords: ["école", "enseignement", "université", "éducation", "culture", "médias", "sport"] },
+        { name: "Justice", keywords: ["justice", "pénal", "tribunal", "magistrat", "prison", "loi"] },
+        { name: "International", keywords: ["affaires étrangères", "international", "europe", "union européenne", "diplomatie", "traité"] },
+        { name: "Agriculture", keywords: ["agriculture", "ferme", "agricole", "pêche", "alimentation"] }
+      ];
+
+      let category = "Autres";
+      for (const t of themes) {
+        if (t.keywords.some(k => titre.includes(k))) {
+          category = t.name;
+          break;
+        }
+      }
 
       const scrutinData = {
         id: s.uid,
         numero: parseInt(s.numero),
         date_scrutin: s.dateScrutin,
         objet: s.objet.libelle,
+        type: type,
+        category: category,
         resultat: s.sort.libelle,
         institution: 'AN'
       };
