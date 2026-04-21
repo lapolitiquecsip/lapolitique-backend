@@ -121,7 +121,8 @@ async function fetchAndParseVotes() {
                 votes.push({
                   deputy_an_id: actorId,
                   scrutin_id: s.uid,
-                  position: pos
+                  position: pos,
+                  date_scrutin: s.dateScrutin
                 });
               }
             }
