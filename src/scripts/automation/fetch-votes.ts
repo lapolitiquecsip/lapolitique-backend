@@ -79,6 +79,14 @@ async function fetchAndParseVotes() {
         }
       }
 
+      // Dossier URL construction
+      let dossierUrl = null;
+      const refLeg = s.objet.referenceLegislative;
+      if (refLeg) {
+        // Simple heuristic for AN dossier URLs
+        dossierUrl = `https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${refLeg}`;
+      }
+
       const scrutinData = {
         id: s.uid,
         numero: parseInt(s.numero),
@@ -87,7 +95,8 @@ async function fetchAndParseVotes() {
         type: type,
         category: category,
         resultat: s.sort.libelle,
-        institution: 'AN'
+        institution: 'AN',
+        dossier_url: dossierUrl
       };
 
       // 1. Upsert Scrutin
