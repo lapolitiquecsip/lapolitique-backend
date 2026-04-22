@@ -57,26 +57,35 @@ async function scrapeSource(source: typeof SOURCES[0]) {
     const $ = cheerio.load(html);
     const petitions: any[] = [];
 
-    $('.card--initiative, .card.card--initiative').each((i, el) => {
-      const titleEl = $(el).find('.card__title');
+    $('.card--initiative, .card.card--initiative, article.card--initiative').each((i, el) => {
+      const titleEl = $(el).find('.card__title, .card__link span');
       const title = titleEl.text().trim();
-      const relativeUrl = titleEl.find('a').attr('href') || $(el).attr('href') || '';
+      
+      const linkEl = $(el).find('a.card__link, .card__title a, a.card__button');
+      const relativeUrl = linkEl.attr('href') || $(el).attr('href') || '';
       const fullUrl = relativeUrl.startsWith('http') ? relativeUrl : `${source.baseUrl}${relativeUrl}`;
       
-      const signaturesRaw = $(el).find('.card__support__count').text().trim();
-      // Extract number
-      const signatures = parseInt(signaturesRaw.replace(/\s/g, '').split('/')[0].replace(/[^0-9]/g, '')) || 0;
+      const signaturesRaw = $(el).find('.card__support__count, .card__support-count, .card__support__number').text().trim();
+      // Extract number: handle "123 456" and "123 456 / 500 000"
+      const signaturesNormalized = signaturesRaw.split('/')[0].replace(/[^0-9]/g, '');
+      const signatures = parseInt(signaturesNormalized) || 0;
+      
+      // Try to find a real threshold from the page
+      const thresholdRaw = $(el).find('.card__support-total, .card__support__total').text().trim();
+      const thresholdNormalized = thresholdRaw.replace(/[^0-9]/g, '');
+      const parsedThreshold = parseInt(thresholdNormalized);
+      const threshold = parsedThreshold || (signatures > 100000 ? 500000 : 100000);
       
       const description = $(el).find('.card__text, .card__content').first().text().trim().substring(0, 300);
       
-      const category = $(el).find('.card__label, .label').first().text().trim() || 'Général';
+      const category = $(el).find('a[href*="filter[area_id]"], .card__label, .label').first().text().trim() || 'Général';
 
-      if (title && fullUrl) {
+      if (title && fullUrl && fullUrl !== source.baseUrl) {
         petitions.push({
           title,
           description,
           signatures,
-          threshold: signatures > 100000 ? 500000 : 100000,
+          threshold,
           institution: source.name,
           category,
           url: fullUrl
