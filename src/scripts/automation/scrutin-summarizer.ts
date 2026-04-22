@@ -1,14 +1,13 @@
 
-import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
+import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
-import path from 'path';
 
 dotenv.config();
 
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
 const anthropic = new Anthropic({
@@ -18,22 +17,16 @@ const anthropic = new Anthropic({
 async function summarizeScrutins() {
   console.log('--- START SCRUTIN SUMMARIZATION ---');
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('❌ ANTHROPIC_API_KEY is missing in .env');
-    return;
-  }
-
-  // Fetch scrutins without summary
+  // Fetch scrutins without summary or category
   const { data: scrutins, error } = await supabase
     .from('scrutins')
-    .select('id, objet, type')
-    .eq('type', 'LOI')
-    .is('summary', null)
+    .select('id, objet')
+    .or('summary.is.null,category.is.null')
     .order('date_scrutin', { ascending: false })
-    .limit(100); // Process in small batches
+    .limit(100);
 
   if (error) {
-    console.error('Error fetching scrutins:', error.message);
+    console.error('Error fetching scrutins:', error);
     return;
   }
 
@@ -43,69 +36,78 @@ async function summarizeScrutins() {
     try {
       console.log(`Processing: ${s.objet}`);
 
-      let response;
-      const models = ['claude-3-5-sonnet-20241022', 'claude-3-5-sonnet-20240620', 'claude-3-haiku-20240307'];
-      
-      for (const model of models) {
+      // Models available in 2026 - Optimized for this environment
+      const CLAUDE_MODELS = [
+        'claude-sonnet-4-20250514',
+        'claude-sonnet-4-6',
+        'claude-opus-4-20250514'
+      ];
+
+      let success = false;
+      for (const model of CLAUDE_MODELS) {
         try {
-          response = await anthropic.messages.create({
+          const response = await anthropic.messages.create({
             model: model,
             max_tokens: 1000,
-            messages: [{
-              role: 'user',
-              content: `Tu es un expert en politique française. Résume l'enjeu de ce scrutin parlementaire pour un citoyen non-expert. 
-              Sois très concis (2 phrases max). 
-              Explique aussi brièvement "L'enjeu" (pourquoi c'est important).
-              
-              Classe aussi ce scrutin dans l'une des catégories suivantes :
-              - Sécurité & Justice
-              - Économie & Budget
-              - Santé & Social
-              - Environnement & Énergie
-              - Éducation & Culture
-              - International & Défense
-              - Institution & Citoyenneté
-              - Autre
-              
-              Titre du scrutin : "${s.objet}"
-              
-              Réponds au format JSON strict :
+            messages: [
               {
-                "summary": "Résumé vulgarisé ici...",
-                "why_it_matters": "Enjeu principal ici...",
-                "category": "Catégorie choisie ici"
-              }`
-            }]
+                role: 'user',
+                content: `Résume cette loi de l'Assemblée Nationale pour un citoyen.
+                Sois simple, neutre et pédagogique.
+                
+                Loi : ${s.objet}
+                
+                Réponds au format JSON STRICT :
+                {
+                  "summary": "Résumé en 2-3 phrases",
+                  "why_it_matters": "Pourquoi c'est important pour le citoyen",
+                  "category": "Choisir parmi: Économie, Social, Santé, Éducation, Environnement, Sécurité, Justice, Institutions, International, Culture"
+                }
+                
+                RENVOIE UNIQUEMENT LE JSON.`
+              }
+            ],
           });
-          console.log(`✅ Success with model ${model}`);
-          break;
+
+          const content = response.content[0];
+          const responseBody = content.type === 'text' ? content.text : '';
+          
+          // Robust JSON extraction
+          const jsonMatch = responseBody.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) throw new Error('No JSON found in response');
+          
+          const result = JSON.parse(jsonMatch[0]);
+
+          const { error: uError } = await supabase
+            .from('scrutins')
+            .update({
+              summary: result.summary,
+              why_it_matters: result.why_it_matters,
+              category: result.category
+            })
+            .eq('id', s.id);
+
+          if (uError) throw uError;
+          
+          console.log(`✅ Success for ${s.id} using ${model}`);
+          success = true;
+          break; // Next scrutin
         } catch (mErr: any) {
-          console.error(`⚠️ Model ${model} failed: ${mErr.status}`);
-          if (model === models[models.length - 1]) throw mErr;
+          console.error(`⚠️ Model ${model} failed for ${s.id}: ${mErr.status || mErr.message}`);
+          continue; // Try next model
         }
       }
 
-      const text = response.content[0].type === 'text' ? response.content[0].text : '';
-      const result = JSON.parse(text);
-
-      const { error: uError } = await supabase
-        .from('scrutins')
-        .update({
-          summary: result.summary,
-          why_it_matters: result.why_it_matters,
-          category: result.category
-        })
-        .eq('id', s.id);
-
-      if (uError) throw uError;
-      console.log(`✅ Summarized ${s.id}`);
+      if (!success) {
+        console.error(`❌ All models failed for ${s.id}`);
+      }
 
     } catch (err: any) {
-      console.error(`❌ Failed to summarize ${s.id}:`, err.message);
+      console.error(`❌ Global error for ${s.id}:`, err.message);
     }
   }
 
-  console.log('--- SUMMARIZATION COMPLETED ---');
+  console.log('--- END SCRUTIN SUMMARIZATION ---');
 }
 
 summarizeScrutins();
