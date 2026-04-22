@@ -3,8 +3,8 @@ name: Sync Parliamentary Votes
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Every 6 hours
-  workflow_dispatch: # Enable manual trigger
+    - cron: '0 0 * * *' # Every day at midnight
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -21,9 +21,14 @@ jobs:
       - name: Install dependencies
         run: npm install
         
-      - name: Run Scraper
+      - name: Install Playwright Browsers
+        run: npx playwright install chromium --with-deps
+        
+      - name: Run Scrapers
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: npm run automation:votes
+        run: |
+          npm run automation:votes
+          npm run automation:petitions

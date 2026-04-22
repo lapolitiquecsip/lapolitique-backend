@@ -1,127 +1,123 @@
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
-import * as cheerio from 'cheerio';
+import { chromium } from 'playwright';
+import dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Load environment variables
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-dotenv.config();
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ ERREUR : SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquante dans le .env');
-  process.exit(1);
-}
-
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const SOURCES = [
   {
     name: 'AN',
-    url: 'https://petitions.assemblee-nationale.fr/initiatives?order=most_voted',
-    baseUrl: 'https://petitions.assemblee-nationale.fr'
+    baseUrl: 'https://petitions.assemblee-nationale.fr',
+    endpoints: [
+      'https://petitions.assemblee-nationale.fr/initiatives?order=most_voted',
+      'https://petitions.assemblee-nationale.fr/initiatives?order=recent'
+    ]
   },
   {
     name: 'Sénat',
-    url: 'https://petitions.senat.fr/initiatives?order=most_voted',
-    baseUrl: 'https://petitions.senat.fr'
+    baseUrl: 'https://petitions.senat.fr',
+    endpoints: [
+      'https://petitions.senat.fr/initiatives?order=most_voted',
+      'https://petitions.senat.fr/initiatives?order=recent'
+    ]
   }
 ];
 
-async function scrapeSource(source: typeof SOURCES[0]) {
-  console.log(`> Scraping ${source.name} Petitions...`);
-  
+async function scrapeWithBrowser(url: string, source: typeof SOURCES[0]) {
+  console.log(`  > Opening browser for: ${url}`);
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+  });
+  const page = await context.newPage();
+
   try {
-    const response = await fetch(source.url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`  - HTTP error ${response.status} for ${source.name}`);
-      const text = await response.text();
-      console.log(`  - Response snippet: ${text.substring(0, 200)}`);
-      return [];
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    const petitions: any[] = [];
-
-    $('.card--initiative, .card.card--initiative, article.card--initiative').each((i, el) => {
-      const titleEl = $(el).find('.card__title, .card__link span');
-      const title = titleEl.text().trim();
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+    
+    // Wait for the cards and signature numbers to load
+    await page.waitForSelector('.card--initiative', { timeout: 30000 });
+    
+    // Scrape signatures and metadata
+    const petitions = await page.evaluate((sourceBaseUrl) => {
+      const results: any[] = [];
+      const cards = document.querySelectorAll('.card--initiative, [data-initiative]');
       
-      const linkEl = $(el).find('a.card__link, .card__title a, a.card__button');
-      const relativeUrl = linkEl.attr('href') || $(el).attr('href') || '';
-      const fullUrl = relativeUrl.startsWith('http') ? relativeUrl : `${source.baseUrl}${relativeUrl}`;
-      
-      const signaturesRaw = $(el).find('.card__support__count, .card__support-count, .card__support__number').text().trim();
-      // Extract number: handle "123 456" and "123 456 / 500 000"
-      const signaturesNormalized = signaturesRaw.split('/')[0].replace(/[^0-9]/g, '');
-      const signatures = parseInt(signaturesNormalized) || 0;
-      
-      // Try to find a real threshold from the page
-      const thresholdRaw = $(el).find('.card__support-total, .card__support__total').text().trim();
-      const thresholdNormalized = thresholdRaw.replace(/[^0-9]/g, '');
-      const parsedThreshold = parseInt(thresholdNormalized);
-      const threshold = parsedThreshold || (signatures > 100000 ? 500000 : 100000);
-      
-      const description = $(el).find('.card__text, .card__content').first().text().trim().substring(0, 300);
-      
-      const category = $(el).find('a[href*="filter[area_id]"], .card__label, .label').first().text().trim() || 'Général';
+      cards.forEach(card => {
+        const title = card.querySelector('.card__title, .card__link')?.textContent?.trim() || '';
+        let relUrl = card.querySelector('a')?.getAttribute('href') || '';
+        if (relUrl.includes('?')) relUrl = relUrl.split('?')[0];
+        const fullUrl = relUrl.startsWith('http') ? relUrl : `${sourceBaseUrl}${relUrl}`;
+        
+        // Signatures (normalized)
+        const sigText = card.querySelector('.card__support__number, .card__support-count')?.textContent?.trim() || '0';
+        const signatures = parseInt(sigText.replace(/[^0-9]/g, '')) || 0;
+        
+        // Threshold
+        let threshold = 100000;
+        if (signatures > 100000) threshold = 500000;
+        const fullCardText = card.textContent || '';
+        const thresholdMatch = fullCardText.match(/sur\s*(\d[\s\d]*)/i);
+        if (thresholdMatch) {
+          threshold = parseInt(thresholdMatch[1].replace(/[^0-9]/g, '')) || threshold;
+        }
 
-      if (title && fullUrl && fullUrl !== source.baseUrl) {
-        petitions.push({
-          title,
-          description,
-          signatures,
-          threshold,
-          institution: source.name,
-          category,
-          url: fullUrl
-        });
-      }
-    });
+        const category = card.querySelector('.card__label, .label')?.textContent?.trim() || 'Pétition';
 
-    console.log(`  - Found ${petitions.length} petitions for ${source.name}`);
+        if (title && fullUrl.includes('/initiatives/')) {
+          results.push({ title, signatures, threshold, category, url: fullUrl });
+        }
+      });
+      return results;
+    }, source.baseUrl);
+
     return petitions;
-
   } catch (error) {
-    console.error(`  - Error scraping ${source.name}:`, (error as Error).message);
+    console.error(`    ❌ Browser Error: ${(error as Error).message}`);
     return [];
+  } finally {
+    await browser.close();
   }
 }
 
 async function main() {
-  console.log('--- SYNC PETITIONS PORTALS ---');
+  console.log('--- SYNC PETITIONS WITH PLAYWRIGHT (Browser-based) ---');
 
   for (const source of SOURCES) {
-    const petitions = await scrapeSource(source);
-    
-    if (petitions.length === 0) continue;
+    console.log(`\n> Site: ${source.name}`);
+    for (const url of source.endpoints) {
+      const petitions = await scrapeWithBrowser(url, source);
+      
+      for (const p of petitions) {
+        const { error } = await supabase
+          .from('petitions')
+          .update({ 
+            signatures: p.signatures, 
+            threshold: p.threshold,
+            category: p.category,
+            updated_at: new Date().toISOString()
+          })
+          .eq('url', p.url);
 
-    for (const p of petitions) {
-      const { error } = await supabase
-        .from('petitions')
-        .upsert(p, { onConflict: 'url' });
-
-      if (error) {
-        console.error(`  - Failed to upsert "${p.title}":`, error.message);
+        if (error) {
+           // If update fails (e.g. doesn't exist), upsert a fresh one
+           const { error: upsertError } = await supabase
+            .from('petitions')
+            .upsert({ ...p, institution: source.name }, { onConflict: 'url' });
+           if (upsertError) console.error(`    ⚠️ DB Error:`, upsertError.message);
+        }
+        
+        console.log(`    ✅ Updated "${p.title.substring(0, 30)}..." : ${p.signatures} sig`);
       }
     }
   }
 
-  console.log('\nTERMINE : Synchronisation des pétitions effectuée.');
+  console.log('\nSUCCESS : Synchronisation par navigateur terminée.');
 }
 
 main().catch(console.error);
