@@ -17,13 +17,14 @@ const anthropic = new Anthropic({
 async function summarizeScrutins() {
   console.log('--- START SCRUTIN SUMMARIZATION ---');
 
-  // Fetch scrutins without summary or category
+  // Fetch scrutins without summary (strictly empty to respect user's "don't change already done" wish)
   const { data: scrutins, error } = await supabase
     .from('scrutins')
     .select('id, objet')
-    .or('summary.is.null,category.is.null')
+    .in('type', ['LOI', 'ARTICLE'])
+    .is('summary', null)
     .order('date_scrutin', { ascending: false })
-    .limit(100);
+    .limit(500);
 
   if (error) {
     console.error('Error fetching scrutins:', error);
@@ -61,6 +62,7 @@ async function summarizeScrutins() {
                 {
                   "summary": "Résumé en 2-3 phrases",
                   "why_it_matters": "Pourquoi c'est important pour le citoyen",
+                  "detailed_summary": "Un résumé long et exhaustif (mini 4 phrases) des mesures concrètes proposées par la loi. INCLUS OBLIGATOIREMENT : les budgets prévus, les sommes d'argent exactes, les organismes ou outils créés, et les dates d'application cibles. Pousse le détail au maximum pour une analyse 'premium'.",
                   "category": "Choisir parmi: Économie, Social, Santé, Éducation, Environnement, Sécurité, Justice, Institutions, International, Culture"
                 }
                 
@@ -78,13 +80,13 @@ async function summarizeScrutins() {
           
           const result = JSON.parse(jsonMatch[0]);
 
-          const { error: uError } = await supabase
-            .from('scrutins')
-            .update({
-              summary: result.summary,
-              why_it_matters: result.why_it_matters,
-              category: result.category
-            })
+            const { error: uError } = await supabase
+              .from('scrutins')
+              .update({
+                summary: result.summary,
+                why_it_matters: `${result.why_it_matters}|||DETAILED|||${result.detailed_summary || "Détails supplémentaires non disponibles."}`,
+                category: result.category
+              })
             .eq('id', s.id);
 
           if (uError) throw uError;

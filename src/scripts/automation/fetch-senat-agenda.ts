@@ -2,7 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import * as cheerio from 'cheerio';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { parseFrenchDate } from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,16 +18,16 @@ const supabase = createClient(
 
 const SENAT_AGENDA_URL = 'https://www.senat.fr/ordre-du-jour/ordre-du-jour.html';
 
+function generateDeterministicUUID(input: string): string {
+  const hash = crypto.createHash('sha1').update(input).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
+
 async function main() {
   console.log('--- SYNC SENAT AGENDA ---');
 
   try {
-    const response = await fetch(SENAT_AGENDA_URL, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-
+    const response = await fetch(SENAT_AGENDA_URL);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const html = await response.text();
@@ -34,52 +36,52 @@ async function main() {
 
     $('.accordion-item').each((i, dayEl) => {
       const dateRaw = $(dayEl).find('.accordion-header .accordion-button').text().trim();
-      // Date is like "Mardi 28 avril 2026"
-      // We'll need a basic parser for this if we want it strictly as DATE type, 
-      // otherwise we store it as title/description for now.
+      const isoDate = parseFrenchDate(dateRaw);
       
-      $(dayEl).find('.accordion-body .card-title').each((j, sessionEl) => {
-        const sessionTime = $(sessionEl).text().trim();
+      $(dayEl).find('.timeline-item').each((j, eventEl) => {
+        const sessionTime = $(eventEl).find('.timeline-title').text().trim();
+        const body = $(eventEl).find('.timeline-body');
         
-        // Find the next UL or P siblings until next card-title
-        let next = $(sessionEl).next();
-        while (next.length && !next.hasClass('card-title')) {
-          if (next.is('ul')) {
-            next.find('li').each((k, itemEl) => {
-              const text = $(itemEl).text().trim();
-              if (text) {
-                events.push({
-                  external_id: `senat-${dateRaw}-${sessionTime}-${k}`.replace(/\s/g, '-'),
-                  date: new Date().toISOString().split('T')[0], // Fallback to today for sorting if parsing fails
-                  title: `${dateRaw} - ${sessionTime}`,
-                  description: text,
-                  institution: 'Sénat',
-                  category: 'Séance Publique',
-                  type: 'Commission / Séance',
-                  source_url: SENAT_AGENDA_URL
-                });
-              }
-            });
-          }
-          next = next.next();
+        // Clean description: join all paragraphs and list items
+        const paragraphs: string[] = [];
+        body.find('p, li').each((_, el) => {
+          const txt = $(el).text().trim();
+          if (txt) paragraphs.push(txt);
+        });
+        
+        const description = paragraphs.join('\n');
+        const title = sessionTime || 'Séance';
+
+        if (description) {
+          const externalId = `senat-${isoDate}-${sessionTime}-${description.slice(0, 30)}`;
+          events.push({
+            id: generateDeterministicUUID(externalId),
+            date: isoDate,
+            title: title,
+            description: description,
+            institution: 'Sénat',
+            category: 'Séance Publique',
+            source_url: SENAT_AGENDA_URL
+          });
         }
       });
     });
 
-    console.log(`> Found ${events.length} items for Senate agenda.`);
+    console.log(`> Found ${events.length} items for Senat agenda.`);
 
     let updatedCount = 0;
     for (const event of events) {
       const { error } = await supabase
         .from('events')
-        .upsert(event, { onConflict: 'external_id' });
+        .upsert(event, { onConflict: 'id' });
       if (!error) updatedCount++;
+      else console.error(`Error for ${event.id}:`, error.message);
     }
 
     console.log(`\nTERMINE : ${updatedCount} événements du Sénat synchronisés.`);
 
   } catch (error) {
-    console.error('Error syncing Senate agenda:', error);
+    console.error('Error syncing Senat agenda:', error);
   }
 }
 

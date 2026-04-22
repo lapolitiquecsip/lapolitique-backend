@@ -50,12 +50,18 @@ async function fetchAndParseVotes() {
       const s = content.scrutin;
       
 
-      // Classification (Loi vs Amendement)
+      // Classification (Loi vs Article vs Amendement)
       const titre = (s.titre || s.objet.libelle || "").toLowerCase();
       let type = "AUTRE";
+      
       if (titre.includes("amendement")) {
         type = "AMENDEMENT";
+      } else if (titre.startsWith("l'ensemble du") || titre.startsWith("l'ensemble de la")) {
+        type = "LOI";
+      } else if (titre.startsWith("l'article")) {
+        type = "ARTICLE";
       } else if (titre.includes("projet de loi") || titre.includes("proposition de loi")) {
+        // Fallback catch-all for laws if not explicitly 'ensemble' or 'article'
         type = "LOI";
       }
 

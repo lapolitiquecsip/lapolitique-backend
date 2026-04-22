@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { downloadAndUnzip } from './utils.js';
 
@@ -15,8 +16,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const AGENDA_URL = 'https://data.assemblee-nationale.fr/static/openData/repository/17/vp/agenda/Agenda_json.zip';
+const AGENDA_URL = 'https://data.assemblee-nationale.fr/static/openData/repository/17/vp/reunions/Agenda.json.zip';
 const DATA_DIR = path.join(__dirname, '../../../data/agenda_an');
+
+function generateDeterministicUUID(input: string): string {
+  const hash = crypto.createHash('sha1').update(input).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
 
 async function main() {
   console.log('--- SYNC ASSEMBLEE NATIONALE AGENDA ---');
@@ -32,33 +38,60 @@ async function main() {
   const files = fs.readdirSync(entriesDir);
   console.log(`> Processing ${files.length} agenda items...`);
 
-  let updatedCount = 0;
+  const events: any[] = [];
 
   for (const file of files) {
     if (!file.endsWith('.json')) continue;
 
-    const raw = fs.readFileSync(path.join(entriesDir, file), 'utf8');
-    const data = JSON.parse(raw).reunion;
+    try {
+      const raw = fs.readFileSync(path.join(entriesDir, file), 'utf8');
+      const reunion = JSON.parse(raw).reunion;
 
-    const event = {
-      external_id: data.uid,
-      date: data.cycleDeVie.chrono.jourSeance || data.dateSeance || data.timestampDebut.split('T')[0],
-      title: data.libelle || data.typeReunion,
-      description: data.resume || data.typeReunion,
-      institution: 'AN',
-      category: data.organeReuniRef || 'Plénière',
-      type: data.typeReunion,
-      source_url: `https://www.assemblee-nationale.fr/dyn/17/agenda/${data.uid}`
-    };
+      const externalId = reunion.uid;
+      const eventId = generateDeterministicUUID(`an-${externalId}`);
 
-    const { error } = await supabase
-      .from('events')
-      .upsert(event, { onConflict: 'external_id' });
+      // Handle the case where some fields might be missing
+      const dateRaw = reunion.timeStampDebut || reunion.timestampDebut;
+      if (!dateRaw) continue;
 
-    if (!error) updatedCount++;
+      const date = dateRaw.split('T')[0];
+      const title = reunion.ODJ?.convocationODJ?.item || reunion.libelle || reunion.typeReunion || 'Réunion';
+      const description = reunion.ODJ?.resumeODJ?.item || title;
+
+      events.push({
+        id: eventId,
+        date: date,
+        title: title.length > 255 ? title.slice(0, 252) + '...' : title,
+        description: description,
+        institution: 'Assemblée nationale',
+        category: reunion.organeReuniRef || 'Réunion',
+        source_url: `https://www.assemblee-nationale.fr/dyn/17/agenda/${externalId}`
+      });
+    } catch (e) {
+      console.error(`Error parsing file ${file}:`, e);
+    }
   }
 
-  console.log(`\nTERMINE : ${updatedCount} événements d'agenda synchronisés.`);
+  console.log(`> Upserting ${events.length} events...`);
+
+  // Batch upsert (Supabase handles up to ~1000 items well in one request)
+  const BATCH_SIZE = 500;
+  let successCount = 0;
+
+  for (let i = 0; i < events.length; i += BATCH_SIZE) {
+    const batch = events.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase
+      .from('events')
+      .upsert(batch, { onConflict: 'id' });
+
+    if (error) {
+      console.error(`Error in batch ${i / BATCH_SIZE}:`, error.message);
+    } else {
+      successCount += batch.length;
+    }
+  }
+
+  console.log(`\nTERMINE : ${successCount} événements d'agenda de l'AN synchronisés.`);
 }
 
 main().catch(console.error);
