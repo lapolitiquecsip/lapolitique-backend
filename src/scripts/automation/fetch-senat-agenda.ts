@@ -50,7 +50,13 @@ async function main() {
         });
         
         const description = paragraphs.join('\n');
-        const title = sessionTime || 'Séance';
+        
+        // Improve title: [Time] - [First paragraph]
+        const firstLine = paragraphs[0] || '';
+        let title = sessionTime ? `${sessionTime} : ${firstLine}` : (firstLine || 'Séance');
+        
+        // Limit title length for DB
+        if (title.length > 250) title = title.substring(0, 247) + '...';
 
         if (description) {
           const externalId = `senat-${isoDate}-${sessionTime}-${description.slice(0, 30)}`;
