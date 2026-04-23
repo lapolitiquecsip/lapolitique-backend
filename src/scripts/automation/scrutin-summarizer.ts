@@ -21,10 +21,10 @@ async function summarizeScrutins() {
   const { data: scrutins, error } = await supabase
     .from('scrutins')
     .select('id, objet')
-    .in('type', ['LOI', 'ARTICLE'])
+    .in('type', ['LOI']) // Focus on Laws as requested
     .is('summary', null)
     .order('date_scrutin', { ascending: false })
-    .limit(500);
+    .limit(5); // Only 5 per day to save costs
 
   if (error) {
     console.error('Error fetching scrutins:', error);
