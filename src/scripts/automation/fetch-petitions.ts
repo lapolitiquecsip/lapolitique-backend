@@ -18,14 +18,6 @@ const SOURCES = [
       'https://petitions.assemblee-nationale.fr/initiatives?order=most_voted',
       'https://petitions.assemblee-nationale.fr/initiatives?order=recent'
     ]
-  },
-  {
-    name: 'Sénat',
-    baseUrl: 'https://petitions.senat.fr',
-    endpoints: [
-      'https://petitions.senat.fr/initiatives?order=most_voted',
-      'https://petitions.senat.fr/initiatives?order=recent'
-    ]
   }
 ];
 
@@ -40,34 +32,36 @@ async function scrapeWithBrowser(url: string, source: typeof SOURCES[0]) {
   try {
     await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
     
-    // Wait for the cards and signature numbers to load
+    // Wait for the cards to load
     await page.waitForSelector('.card--initiative', { timeout: 30000 });
     
     // Scrape signatures and metadata
     const petitions = await page.evaluate((sourceBaseUrl) => {
       const results: any[] = [];
-      const cards = document.querySelectorAll('.card--initiative, [data-initiative]');
+      const cards = document.querySelectorAll('.card--initiative');
       
       cards.forEach(card => {
-        const title = card.querySelector('.card__title, .card__link')?.textContent?.trim() || '';
-        let relUrl = card.querySelector('a')?.getAttribute('href') || '';
+        const titleEl = card.querySelector('.card__title');
+        const title = titleEl?.textContent?.trim() || '';
+        
+        let relUrl = card.querySelector('a.card__link')?.getAttribute('href') || '';
         if (relUrl.includes('?')) relUrl = relUrl.split('?')[0];
         const fullUrl = relUrl.startsWith('http') ? relUrl : `${sourceBaseUrl}${relUrl}`;
         
-        // Signatures (normalized)
-        const sigText = card.querySelector('.card__support__number, .card__support-count')?.textContent?.trim() || '0';
+        // Signatures
+        const sigEl = card.querySelector('.progress__bar__number');
+        const sigText = sigEl?.textContent?.trim() || '0';
         const signatures = parseInt(sigText.replace(/[^0-9]/g, '')) || 0;
         
         // Threshold
+        const thresholdEl = card.querySelector('.progress__bar__total');
+        const thresholdText = thresholdEl?.textContent?.trim() || '';
         let threshold = 100000;
-        if (signatures > 100000) threshold = 500000;
-        const fullCardText = card.textContent || '';
-        const thresholdMatch = fullCardText.match(/sur\s*(\d[\s\d]*)/i);
-        if (thresholdMatch) {
-          threshold = parseInt(thresholdMatch[1].replace(/[^0-9]/g, '')) || threshold;
+        if (thresholdText) {
+          threshold = parseInt(thresholdText.replace(/[^0-9]/g, '')) || threshold;
         }
 
-        const category = card.querySelector('.card__label, .label')?.textContent?.trim() || 'Pétition';
+        const category = card.querySelector('.tags--initiative a')?.textContent?.trim() || 'Pétition';
 
         if (title && fullUrl.includes('/initiatives/')) {
           results.push({ title, signatures, threshold, category, url: fullUrl });
