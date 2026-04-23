@@ -43,6 +43,16 @@ export function parseFrenchDate(dateStr: string): string {
   const parts = normalizedStr.split(' ');
   
   // Handle "Mardi 28 avril 2026" or "1er avril 2026"
+  // First, remove days of the week to avoid confusion (e.g. "mar" for mardi vs "mar" for mars)
+  const daysOfWeek = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'];
+  
+  // We need to be careful not to remove 'mar' if it's actually the month.
+  // Usually the format is "DayOfWeek Day Number Month Year".
+  // So the day of week is the FIRST part. Let's just skip the first part if it's a day of the week.
+  if (daysOfWeek.includes(parts[0])) {
+    parts.shift();
+  }
+
   // Extract just the digits for the day
   const dayMatch = parts.find(p => /^\d+(er)?$/.test(p));
   const day = dayMatch ? dayMatch.replace('er', '').padStart(2, '0') : null;
