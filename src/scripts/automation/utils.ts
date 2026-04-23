@@ -38,9 +38,15 @@ export function parseFrenchDate(dateStr: string): string {
     'décembre': '12', 'déc': '12'
   };
 
-  const parts = dateStr.toLowerCase().split(' ');
-  // Handle "Mardi 28 avril 2026" or "28 avril 2026"
-  const day = parts.find(p => /^\d+$/.test(p))?.padStart(2, '0');
+  // Replace non-breaking spaces and multiple spaces with a single space, then split
+  const normalizedStr = dateStr.toLowerCase().replace(/\s+/g, ' ').replace(/\u00A0/g, ' ');
+  const parts = normalizedStr.split(' ');
+  
+  // Handle "Mardi 28 avril 2026" or "1er avril 2026"
+  // Extract just the digits for the day
+  const dayMatch = parts.find(p => /^\d+(er)?$/.test(p));
+  const day = dayMatch ? dayMatch.replace('er', '').padStart(2, '0') : null;
+  
   const month = months[parts.find(p => months[p]) || ''];
   const year = parts.find(p => /^\d{4}$/.test(p));
 
@@ -48,5 +54,6 @@ export function parseFrenchDate(dateStr: string): string {
     return `${year}-${month}-${day}`;
   }
   
+  console.log(`Failed to parse date: "${dateStr}" (normalized: "${normalizedStr}")`);
   return new Date().toISOString().split('T')[0];
 }
