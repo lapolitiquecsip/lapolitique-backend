@@ -51,30 +51,37 @@ async function fetchAndParseVotes() {
       
 
       // Classification (Loi vs Article vs Amendement)
-      const titre = (s.titre || s.objet.libelle || "").toLowerCase();
+      const titreOrig = (s.titre || s.objet.libelle || "");
+      const titre = titreOrig.toLowerCase();
       let type = "AUTRE";
       
       if (titre.includes("amendement")) {
         type = "AMENDEMENT";
-      } else if (titre.startsWith("l'ensemble du") || titre.startsWith("l'ensemble de la")) {
+      } else if (
+        titre.startsWith("l'ensemble du") || 
+        titre.startsWith("l'ensemble de la") ||
+        titre.includes("vote sur l'ensemble") ||
+        titre.includes("adoption du projet de loi") ||
+        titre.includes("adoption de la proposition de loi")
+      ) {
         type = "LOI";
       } else if (titre.startsWith("l'article")) {
         type = "ARTICLE";
       } else if (titre.includes("projet de loi") || titre.includes("proposition de loi")) {
-        // Fallback catch-all for laws if not explicitly 'ensemble' or 'article'
+        // Still might be a law if it's the main vote
         type = "LOI";
       }
 
       // Catégorisation par thématique
       const themes = [
-        { name: "Économie & Finances", keywords: ["finances", "budget", "fiscal", "pib", "impôt", "taxe", "économie", "sociale", "secteur public"] },
-        { name: "Sécurité & Intérieur", keywords: ["sécurité", "police", "gendarmerie", "terrorisme", "intérieur", "ordre public", "immigration"] },
-        { name: "Santé & Social", keywords: ["santé", "hôpital", "médical", "soins", "sécurité sociale", "retraites", "travail"] },
-        { name: "Environnement", keywords: ["climat", "écologie", "environnement", "biodiversité", "énergie", "nucléaire", "eau", "transition"] },
-        { name: "Éducation & Culture", keywords: ["école", "enseignement", "université", "éducation", "culture", "médias", "sport"] },
-        { name: "Justice", keywords: ["justice", "pénal", "tribunal", "magistrat", "prison", "loi"] },
-        { name: "International", keywords: ["affaires étrangères", "international", "europe", "union européenne", "diplomatie", "traité"] },
-        { name: "Agriculture", keywords: ["agriculture", "ferme", "agricole", "pêche", "alimentation"] }
+        { name: "Économie & Finances", keywords: ["finances", "budget", "fiscal", "pib", "impôt", "taxe", "économie", "sociale", "secteur public", "pouvoir d'achat"] },
+        { name: "Sécurité & Intérieur", keywords: ["sécurité", "police", "gendarmerie", "terrorisme", "intérieur", "ordre public", "immigration", "frontières"] },
+        { name: "Santé & Social", keywords: ["santé", "hôpital", "médical", "soins", "sécurité sociale", "retraites", "travail", "chômage", "handicap"] },
+        { name: "Environnement", keywords: ["climat", "écologie", "environnement", "biodiversité", "énergie", "nucléaire", "eau", "transition", "pollution"] },
+        { name: "Éducation & Culture", keywords: ["école", "enseignement", "université", "éducation", "culture", "médias", "sport", "jeunesse"] },
+        { name: "Justice", keywords: ["justice", "pénal", "tribunal", "magistrat", "prison", "loi", "libertés"] },
+        { name: "International", keywords: ["affaires étrangères", "international", "europe", "union européenne", "diplomatie", "traité", "défense"] },
+        { name: "Agriculture", keywords: ["agriculture", "ferme", "agricole", "pêche", "alimentation", "rural"] }
       ];
 
       let category = "Autres";
@@ -89,9 +96,15 @@ async function fetchAndParseVotes() {
       let dossierUrl = null;
       const refLeg = s.objet.referenceLegislative;
       if (refLeg) {
-        // Simple heuristic for AN dossier URLs
         dossierUrl = `https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${refLeg}`;
       }
+
+      // Extraction des compteurs
+      const synth = s.syntheseVote?.decompte;
+      const pour = parseInt(synth?.pour || "0");
+      const contre = parseInt(synth?.contre || "0");
+      const abstention = parseInt(synth?.abstentions || "0");
+      const nonVotant = parseInt(synth?.nonVotants || "0");
 
       const scrutinData = {
         id: s.uid,
@@ -102,12 +115,21 @@ async function fetchAndParseVotes() {
         category: category,
         resultat: s.sort.libelle,
         institution: 'AN',
-        dossier_url: dossierUrl
+        dossier_url: dossierUrl,
+        pour: pour,
+        contre: contre,
+        abstention: abstention,
+        non_votant: nonVotant,
+        title: titreOrig
       };
 
       // 1. Upsert Scrutin
-      await supabase.from('scrutins').upsert(scrutinData, { onConflict: 'id' });
-      scrutinsCount++;
+      const { error: sError } = await supabase.from('scrutins').upsert(scrutinData, { onConflict: 'id' });
+      if (sError) {
+        console.error(`  [ERROR] Scrutin ${s.uid}:`, sError.message);
+      } else {
+        scrutinsCount++;
+      }
 
       // 2. Extract and Flatten Votes
       const votes: any[] = [];
