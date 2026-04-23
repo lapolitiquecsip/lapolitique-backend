@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import AdmZip from 'adm-zip';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,42 +16,39 @@ const supabase = createClient(
 );
 
 const SCRUTINS_ZIP_URL = 'https://data.assemblee-nationale.fr/static/openData/repository/17/loi/scrutins/Scrutins.json.zip';
+const TEMP_ZIP_PATH = path.join(process.cwd(), 'scrutins_temp.zip');
 
 async function fetchAndParseVotes() {
   console.log('--- START VOTES SYNCHRONIZATION ---');
   
   try {
-    console.log(`> Downloading archive from ${SCRUTINS_ZIP_URL}...`);
+    console.log(`> Downloading archive to disk...`);
     const response = await fetch(SCRUTINS_ZIP_URL);
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);
     
-    const buffer = await response.arrayBuffer();
-    const zip = new AdmZip(Buffer.from(buffer));
-    const zipEntries = zip.getEntries();
+    const arrayBuffer = await response.arrayBuffer();
+    fs.writeFileSync(TEMP_ZIP_PATH, Buffer.from(arrayBuffer));
+    console.log(`> Archive saved to disk (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB).`);
+
+    const zip = new AdmZip(TEMP_ZIP_PATH);
+    const allEntries = zip.getEntries();
+    const jsonEntries = allEntries.filter(e => e.entryName.endsWith('.json'));
+    console.log(`> Found ${jsonEntries.length} files to process.`);
     
-    console.log(`> Found ${zipEntries.length} entries in ZIP`);
-    
-    // NEW: Fetch existing deputies to filter votes
-    console.log(`> Fetching active deputies from DB...`);
+    // Fetch active deputies
     const { data: activeDeputies, error: dError } = await supabase
         .from('deputies')
         .select('an_id');
     
     if (dError) throw new Error(`Could not fetch deputies: ${dError.message}`);
     const activeAnIds = new Set(activeDeputies.map(d => d.an_id.trim().toUpperCase()));
-    console.log(`  - Found ${activeAnIds.size} active deputies in your database.`);
 
     let scrutinsCount = 0;
-    let votesCount = 0;
 
-    for (const entry of zipEntries) {
-      if (!entry.entryName.endsWith('.json')) continue;
-      
+    for (const entry of jsonEntries) {
       const content = JSON.parse(entry.getData().toString('utf8'));
       const s = content.scrutin;
       
-
-      // Classification (Loi vs Article vs Amendement)
       const titreOrig = (s.titre || s.objet.libelle || "");
       const titre = titreOrig.toLowerCase();
       let type = "AUTRE";
@@ -68,11 +66,9 @@ async function fetchAndParseVotes() {
       } else if (titre.startsWith("l'article")) {
         type = "ARTICLE";
       } else if (titre.includes("projet de loi") || titre.includes("proposition de loi")) {
-        // Still might be a law if it's the main vote
         type = "LOI";
       }
 
-      // Catégorisation par thématique
       const themes = [
         { name: "Économie & Finances", keywords: ["finances", "budget", "fiscal", "pib", "impôt", "taxe", "économie", "sociale", "secteur public", "pouvoir d'achat"] },
         { name: "Sécurité & Intérieur", keywords: ["sécurité", "police", "gendarmerie", "terrorisme", "intérieur", "ordre public", "immigration", "frontières"] },
@@ -84,6 +80,18 @@ async function fetchAndParseVotes() {
         { name: "Agriculture", keywords: ["agriculture", "ferme", "agricole", "pêche", "alimentation", "rural"] }
       ];
 
+      let dossierUrl = null;
+      const refLeg = s.objet.referenceLegislative;
+      if (refLeg) {
+        dossierUrl = `https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${refLeg}`;
+      }
+
+      const synth = s.syntheseVote?.decompte;
+      const pour = parseInt(synth?.pour || "0");
+      const contre = parseInt(synth?.contre || "0");
+      const abstention = parseInt(synth?.abstentions || "0");
+      const nonVotant = parseInt(synth?.nonVotants || "0");
+
       let category = "Autres";
       for (const t of themes) {
         if (t.keywords.some(k => titre.includes(k))) {
@@ -92,19 +100,31 @@ async function fetchAndParseVotes() {
         }
       }
 
-      // Dossier URL construction
-      let dossierUrl = null;
-      const refLeg = s.objet.referenceLegislative;
-      if (refLeg) {
-        dossierUrl = `https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${refLeg}`;
+      const groupResults: any[] = [];
+      const groups = s.ventilationVotes?.organe?.groupes?.groupe;
+      if (groups) {
+        const groupsList = Array.isArray(groups) ? groups : [groups];
+        groupsList.forEach((g: any) => {
+          groupResults.push({
+            group_id: g.organeRef,
+            pour: parseInt(g.vote?.decompteVoix?.pour || "0"),
+            contre: parseInt(g.vote?.decompteVoix?.contre || "0"),
+            abstention: parseInt(g.vote?.decompteVoix?.abstentions || "0"),
+            total: parseInt(g.nombreMembresGroupe || "0")
+          });
+        });
       }
 
-      // Extraction des compteurs
-      const synth = s.syntheseVote?.decompte;
-      const pour = parseInt(synth?.pour || "0");
-      const contre = parseInt(synth?.contre || "0");
-      const abstention = parseInt(synth?.abstentions || "0");
-      const nonVotant = parseInt(synth?.nonVotants || "0");
+      const isAdopted = s.sort.libelle.includes('adopté');
+      const statusDetail = isAdopted ? "En application" : "Rejeté";
+      const impactDetail = isAdopted ? `Impacte le secteur ${category}` : "Aucun impact (texte rejeté)";
+      
+      let entryDateDetail = "N/A";
+      if (isAdopted) {
+        const voteDate = new Date(s.dateScrutin);
+        voteDate.setMonth(voteDate.getMonth() + 3);
+        entryDateDetail = voteDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      }
 
       const scrutinData = {
         id: s.uid,
@@ -120,80 +140,26 @@ async function fetchAndParseVotes() {
         contre: contre,
         abstention: abstention,
         non_votant: nonVotant,
-        title: titreOrig
+        title: titreOrig,
+        group_results: groupResults,
+        status_detail: statusDetail,
+        impact_detail: impactDetail,
+        entry_date_detail: entryDateDetail
       };
 
-      // 1. Upsert Scrutin
-      const { error: sError } = await supabase.from('scrutins').upsert(scrutinData, { onConflict: 'id' });
-      if (sError) {
-        console.error(`  [ERROR] Scrutin ${s.uid}:`, sError.message);
-      } else {
-        scrutinsCount++;
-      }
-
-      // 2. Extract and Flatten Votes
-      const votes: any[] = [];
-      const groups = s.ventilationVotes?.organe?.groupes?.groupe;
-      
-      if (!groups) continue;
-
-      const processNominatif = (nominatif: any) => {
-        if (!nominatif) return;
-        
-        const categories = [
-          { key: 'pours', subKey: 'votant', pos: 'POUR' },
-          { key: 'contres', subKey: 'votant', pos: 'CONTRE' },
-          { key: 'abstentions', subKey: 'votant', pos: 'ABSTENTION' },
-          { key: 'nonVotants', subKey: 'votant', pos: 'NON_VOTANT' }
-        ];
-
-        categories.forEach(({ key, subKey, pos }) => {
-          const catObj = nominatif[key];
-          if (!catObj || !catObj[subKey]) return;
-          const list = Array.isArray(catObj[subKey]) ? catObj[subKey] : [catObj[subKey]];
-          list.forEach((d: any) => {
-            if (d.acteurRef) {
-              const actorId = d.acteurRef.trim().toUpperCase();
-              if (activeAnIds.has(actorId)) {
-                votes.push({
-                  deputy_an_id: actorId,
-                  scrutin_id: s.uid,
-                  position: pos,
-                  date_scrutin: s.dateScrutin
-                });
-              }
-            }
-          });
-        });
-      };
-
-      const groupsList = Array.isArray(groups) ? groups : [groups];
-      groupsList.forEach((g: any) => {
-        processNominatif(g.vote?.decompteNominatif);
-      });
-
-      if (votes.length > 0) {
-        const { error: vError } = await supabase.from('deputy_votes').upsert(votes, { onConflict: 'deputy_an_id, scrutin_id' });
-        if (!vError) {
-            votesCount += votes.length;
-            console.log(`  [OK] ${s.uid}: Found and updated ${votes.length} votes.`);
-        } else {
-            console.warn(`  [FAIL] ${s.uid}: Upsert error:`, vError.message);
-        }
-      }
-
-      if (scrutinsCount % 100 === 0) {
-        console.log(`\n--- Status Update: Processed ${scrutinsCount} files. Total votes in DB: ${votesCount} ---\n`);
-      }
-      
-      // Limit for testing (uncomment for full run)
-      // if (scrutinsCount >= 50) break;
+      await supabase.from('scrutins').upsert(scrutinData, { onConflict: 'id' });
+      scrutinsCount++;
+      if (scrutinsCount % 100 === 0) console.log(`  - Processed ${scrutinsCount} files...`);
     }
 
-    console.log(`\n✅ SYNC COMPLETED: ${scrutinsCount} scrutins and ~${votesCount} votes updated.`);
+    console.log(`\n--- SYNCHRONIZATION COMPLETE ---`);
+    console.log(`> Scrutins updated: ${scrutinsCount}`);
+    
+    // Cleanup
+    if (fs.existsSync(TEMP_ZIP_PATH)) fs.unlinkSync(TEMP_ZIP_PATH);
 
   } catch (err) {
-    console.error('FAILED to sync votes:', err);
+    console.error(`\n[FATAL ERROR]`, err);
   }
 }
 
