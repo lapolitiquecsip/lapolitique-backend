@@ -126,11 +126,28 @@ async function fetchAndParseVotes() {
         entryDateDetail = voteDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
       }
 
+      let cleanedObjet = s.objet.libelle;
+      
+      // Clean up technical titles to make them more readable
+      if (cleanedObjet.includes("motion de rejet préalable")) {
+        const parts = cleanedObjet.split(" du ");
+        if (parts.length > 1) {
+          const subject = parts[1].replace("(première lecture).", "").replace("(deuxième lecture).", "").trim();
+          cleanedObjet = `Motion de Rejet : ${subject}`;
+        }
+      } else if (cleanedObjet.includes("l'ensemble du")) {
+        const parts = cleanedObjet.split(" du ");
+        if (parts.length > 1) {
+          const subject = parts[1].replace("(première lecture).", "").trim();
+          cleanedObjet = `Loi complète : ${subject}`;
+        }
+      }
+
       const scrutinData = {
         id: s.uid,
         numero: parseInt(s.numero),
         date_scrutin: s.dateScrutin,
-        objet: s.objet.libelle,
+        objet: cleanedObjet,
         type: type,
         category: category,
         resultat: s.sort.libelle,

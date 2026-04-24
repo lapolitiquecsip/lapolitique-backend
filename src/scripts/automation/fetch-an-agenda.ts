@@ -55,15 +55,20 @@ async function main() {
       if (!dateRaw) continue;
 
       const date = dateRaw.split('T')[0];
-      const title = reunion.ODJ?.convocationODJ?.item || reunion.libelle || reunion.typeReunion || 'Réunion';
-      const description = reunion.ODJ?.resumeODJ?.item || title;
+      const timeMatch = dateRaw.match(/T(\d{2}:\d{2})/);
+      const time = timeMatch ? timeMatch[1] : '';
+      
+      const rawTitle = reunion.ODJ?.convocationODJ?.item || reunion.libelle || reunion.typeReunion || 'Réunion';
+      const title = time ? `[${time}] ${rawTitle}` : rawTitle;
+      
+      const description = reunion.ODJ?.resumeODJ?.item || rawTitle;
 
       events.push({
         id: eventId,
         date: date,
         title: title.length > 255 ? title.slice(0, 252) + '...' : title,
         description: description,
-        institution: 'Assemblée nationale',
+        institution: 'AN',
         category: reunion.organeReuniRef || 'Réunion',
         source_url: `https://www.assemblee-nationale.fr/dyn/17/agenda/${externalId}`
       });

@@ -71,11 +71,13 @@ async function main() {
 
         if (title) {
           const externalId = `elysee-${isoDate}-${hour}-${title.slice(0, 20)}`;
+          const displayTitle = hour ? `[${hour}] ${title}` : title;
+          
           events.push({
             id: generateDeterministicUUID(externalId),
             date: isoDate,
-            title: title,
-            description: `${hour} - ${type}${links.length ? '\n\n' + links.join('\n') : ''}`,
+            title: displayTitle.length > 255 ? displayTitle.slice(0, 252) + '...' : displayTitle,
+            description: `${type}${links.length ? '\n\n' + links.join('\n') : ''}`,
             institution: 'Élysée',
             category: type || 'Agenda Présidentiel',
             source_url: ELYSEE_AGENDA_URL
