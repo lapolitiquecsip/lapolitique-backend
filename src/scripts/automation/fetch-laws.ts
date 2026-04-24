@@ -15,7 +15,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const LAWS_URL = 'https://data.assemblee-nationale.fr/static/openData/repository/17/loi/dossiers_legislatifs/Dossiers_Legislatifs_json.zip';
+const LAWS_URL = 'http://data.assemblee-nationale.fr/static/openData/repository/17/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip';
 const DATA_DIR = path.join(__dirname, '../../../data/laws_an');
 
 async function main() {
@@ -23,7 +23,7 @@ async function main() {
 
   await downloadAndUnzip(LAWS_URL, DATA_DIR);
 
-  const entriesDir = path.join(DATA_DIR, 'json/dossier');
+  const entriesDir = path.join(DATA_DIR, 'json/dossierParlementaire');
   if (!fs.existsSync(entriesDir)) {
     console.error('Error: json/dossier directory not found in zip.');
     return;
@@ -38,29 +38,31 @@ async function main() {
     if (!file.endsWith('.json')) continue;
 
     const raw = fs.readFileSync(path.join(entriesDir, file), 'utf8');
-    const data = JSON.parse(raw).dossier;
+    const dossier = JSON.parse(raw).dossierParlementaire;
 
-    // Filter interesting ones (e.g. PJL or PPL)
-    const title = data.titreAbsolu || data.libelle;
-    const date = data.initiateur?.acteurs?.acteur?.mandat?.dateDebut || new Date().toISOString().split('T')[0];
+    if (!dossier) continue;
+
+    const title = dossier.titreDossier?.titre || dossier.libelle || "Titre inconnu";
+    const category = dossier.procedureParlementaire?.libelle || 'Législation';
+    const uid = dossier.uid;
 
     const law = {
       title,
-      summary: data.resume || "Pas de résumé disponible pour le moment.",
-      context: `Dossier législatif n°${data.uid}`,
-      content: data.exposeMotif || "En cours de discussion...",
+      summary: `Dossier législatif n°${uid}. Ce document regroupe l'ensemble des étapes et actes relatifs à cette proposition ou ce projet de loi.`,
+      context: `Procédure : ${category}`,
+      content: "Détails du dossier disponibles sur le site de l'Assemblée nationale.",
       impact: "À évaluer suite aux débats parlementaires.",
-      date_adopted: data.cycleDeVie.etatId === 'Adopté' ? data.cycleDeVie.chrono.dateAdoption : null,
-      category: data.indexation?.thematiques?.thematique?.libelle || 'Législation',
-      source_urls: [`https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${data.uid}`]
+      category: category,
+      source_urls: [`https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${uid}`]
     };
 
-    // We only import the most recent or major ones for now to avoid overloading
-    if (updatedCount < 100) { // Limit for first batch
+    // We only import the most recent or major ones for now
+    if (updatedCount < 100) {
       const { error } = await supabase
         .from('laws')
-        .upsert(law, { onConflict: 'title' }); // Simplistic conflict check
+        .upsert(law, { onConflict: 'title' });
       if (!error) updatedCount++;
+      else console.error(`Error upserting ${uid}:`, error.message);
     }
   }
 
