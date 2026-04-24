@@ -13,7 +13,8 @@
     "automation:summarize": "tsx src/scripts/automation/scrutin-summarizer.ts",
     "automation:agenda": "tsx src/scripts/automation/fetch-an-agenda.ts && tsx src/scripts/automation/fetch-senat-agenda.ts && tsx src/scripts/automation/fetch-elysee-agenda.ts",
     "automation:laws": "tsx src/scripts/automation/fetch-laws.ts",
-    "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws"
+    "automation:legal": "tsx src/scripts/import-legal.ts",
+    "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws; npm run automation:legal"
   },
   "keywords": [],
   "author": "",
