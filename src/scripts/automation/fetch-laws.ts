@@ -60,7 +60,7 @@ async function main() {
     if (updatedCount < 100) {
       const { error } = await supabase
         .from('laws')
-        .upsert(law, { onConflict: 'title' });
+        .insert(law);
       if (!error) updatedCount++;
       else console.error(`Error upserting ${uid}:`, error.message);
     }
