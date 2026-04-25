@@ -1,21 +1,15 @@
-import { chromium } from 'playwright';
+import * as cheerio from 'cheerio';
 
-async function debug() {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.goto('https://petitions.assemblee-nationale.fr/initiatives?order=most_voted', { waitUntil: 'networkidle' });
-  await page.waitForSelector('.card');
+async function run() {
+  const r = await fetch('https://www2.assemblee-nationale.fr/documents/liste?type=propositions-loi');
+  const html = await r.text();
+  const $ = cheerio.load(html);
   
-  const cardHtml = await page.evaluate(() => {
-    const card = document.querySelector('.card');
-    return card ? card.innerHTML : 'No card found';
+  $('ul.liens-liste li').slice(0, 3).each((i, el) => {
+    console.log(`\n--- ITEM ${i} ---`);
+    console.log('Title:', $(el).find('h3').text().trim());
+    console.log('Description:', $(el).find('p').text().trim());
   });
-  
-  console.log('--- CARD HTML ---');
-  console.log(cardHtml);
-  console.log('--- END CARD HTML ---');
-  
-  await browser.close();
 }
 
-debug().catch(console.error);
+run().catch(console.error);

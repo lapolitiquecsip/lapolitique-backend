@@ -12,7 +12,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function test() {
   const { data, error } = await supabase
     .from('laws')
-    .select('id, title, context')
+    .select('id, title, context, author')
     .order('context', { ascending: false })
     .limit(5);
 
@@ -23,7 +23,7 @@ async function test() {
 
   console.log('Top 5 laws by context DESC:');
   data.forEach((law, i) => {
-    console.log(`${i + 1}. [${law.context}] ${law.title}`);
+    console.log(`${i + 1}. [${law.context}] ${law.title} (Author: ${law.author})`);
   });
 }
 

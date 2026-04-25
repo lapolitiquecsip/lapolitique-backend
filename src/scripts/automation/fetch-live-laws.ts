@@ -43,6 +43,17 @@ async function fetchLiveLaws() {
         const dateTextRaw = $(el).find('span.heure, .date').text().trim();
         const subtitle = $(el).find('p').first().text().trim();
         
+        // Extract author
+        let author = source.category === 'Projet de loi' ? 'Le Gouvernement' : '';
+        if (source.category === 'Proposition de loi') {
+          const authorMatch = subtitle.match(/(?:de loi organique de|de loi de)\s+([^,.]+?)(?:\s+et plusieurs|\s+relative|\s+déposée|$)/i);
+          if (authorMatch) {
+            author = authorMatch[1].trim();
+          } else {
+            author = "Député(s)";
+          }
+        }
+
         // Regex to find "20 avril 2026"
         const dateMatch = dateTextRaw.match(/(\d{1,2})\s+([a-zéû]+)\s+(\d{4})/i);
         let publishedAt: number = 0;
@@ -65,6 +76,7 @@ async function fetchLiveLaws() {
             summary: subtitle || `${source.category} mis à jour le ${dateTextRaw || 'récemment'}. Récupéré en direct.`,
             context: `[${dateIso}] Dossier n°${id.split('B')[1] || id}`,
             category: source.category,
+            author: author,
             source_urls: [fullDossierLink],
             published_at: publishedAt,
             created_at: new Date().toISOString()
