@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import path from 'path';
@@ -14,33 +13,34 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function fixContext() {
-  console.log('--- FIXING DATABASE CONTEXT PREFIXES ---');
-  
+async function fixContexts() {
+  console.log('--- FIXING LAWS CONTEXTS FOR SORTING ---');
+
   const { data: laws, error } = await supabase
     .from('laws')
-    .select('id, context');
+    .select('id, context, title');
 
   if (error) {
-    console.error(error);
+    console.error('Error fetching laws:', error);
     return;
   }
 
-  console.log(`Found ${laws.length} laws. Checking for missing prefixes...`);
+  console.log(`> Processing ${laws.length} laws...`);
 
-  let count = 0;
+  let fixedCount = 0;
   for (const law of laws) {
-    if (law.context && !law.context.startsWith('[')) {
+    // If context starts with "Procédure :" or doesn't have [YYYY-MM-DD]
+    if (law.context && (law.context.startsWith('Procédure :') || !law.context.startsWith('['))) {
       const newContext = `[1900-01-01] ${law.context}`;
       await supabase
         .from('laws')
         .update({ context: newContext })
         .eq('id', law.id);
-      count++;
+      fixedCount++;
     }
   }
 
-  console.log(`Updated ${count} laws with default [1900-01-01] prefix.`);
+  console.log(`\nTERMINE : ${fixedCount} contextes mis à jour.`);
 }
 
-fixContext();
+fixContexts().catch(console.error);
