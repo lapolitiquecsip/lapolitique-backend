@@ -46,7 +46,7 @@ async function fetchLiveLaws() {
         // Extract author
         let author = source.category === 'Projet de loi' ? 'Le Gouvernement' : '';
         if (source.category === 'Proposition de loi') {
-          const authorMatch = subtitle.match(/(?:de loi organique de|de loi de)\s+([^,.]+?)(?:\s+et plusieurs|\s+relative|\s+déposée|$)/i);
+          const authorMatch = subtitle.match(/(?:de loi organique de|de loi de)\s+([^,]+?)(?:\s+et plusieurs|\s+relative|\s+déposée|$)/i);
           if (authorMatch) {
             author = authorMatch[1].trim();
           } else {
