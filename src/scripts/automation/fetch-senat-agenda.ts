@@ -56,7 +56,7 @@ async function main() {
         let title = sessionTime ? `[${sessionTime}] ${firstLine}` : (firstLine || 'Séance');
         
         // Limit title length for DB
-        if (title.length > 250) title = title.substring(0, 247) + '...';
+        // No truncation needed for title
 
         if (description) {
           const externalId = `senat-${isoDate}-${sessionTime}-${description.slice(0, 30)}`;

@@ -66,7 +66,7 @@ async function main() {
       events.push({
         id: eventId,
         date: date,
-        title: title.length > 255 ? title.slice(0, 252) + '...' : title,
+        title: title,
         description: description,
         institution: 'AN',
         category: reunion.organeReuniRef || 'Réunion',
