@@ -28,7 +28,7 @@ async function shortenTitle(longTitle: string): Promise<string> {
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 100,
       system: "Tu es un assistant expert en politique française. Ta mission est de raccourcir des titres d'événements parlementaires complexes en titres simples, clairs et percutants (max 10 mots). Réponds uniquement par le nouveau titre, sans ponctuation inutile au début.",
       messages: [

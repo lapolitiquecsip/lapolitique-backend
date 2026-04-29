@@ -16,31 +16,43 @@ const supabase = createClient(
 async function fixContexts() {
   console.log('--- FIXING LAWS CONTEXTS FOR SORTING ---');
 
-  const { data: laws, error } = await supabase
-    .from('laws')
-    .select('id, context, title');
+  let hasMore = true;
+  let offset = 0;
+  let totalFixed = 0;
 
-  if (error) {
-    console.error('Error fetching laws:', error);
-    return;
-  }
+  while (hasMore) {
+    const { data: laws, error } = await supabase
+      .from('laws')
+      .select('id, context, title')
+      .range(offset, offset + 99);
 
-  console.log(`> Processing ${laws.length} laws...`);
-
-  let fixedCount = 0;
-  for (const law of laws) {
-    // If context starts with "Procédure :" or doesn't have [YYYY-MM-DD]
-    if (law.context && (law.context.startsWith('Procédure :') || !law.context.startsWith('['))) {
-      const newContext = `[1900-01-01] ${law.context}`;
-      await supabase
-        .from('laws')
-        .update({ context: newContext })
-        .eq('id', law.id);
-      fixedCount++;
+    if (error) {
+      console.error('Error fetching laws:', error);
+      break;
     }
+
+    if (!laws || laws.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    console.log(`> Processing batch from ${offset}...`);
+
+    for (const law of laws) {
+      if (law.context && (law.context.startsWith('Procédure :') || !law.context.startsWith('['))) {
+        const newContext = `[1900-01-01] ${law.context}`;
+        await supabase
+          .from('laws')
+          .update({ context: newContext })
+          .eq('id', law.id);
+        totalFixed++;
+      }
+    }
+
+    offset += 100;
   }
 
-  console.log(`\nTERMINE : ${fixedCount} contextes mis à jour.`);
+  console.log(`\nTERMINE : ${totalFixed} contextes mis à jour.`);
 }
 
 fixContexts().catch(console.error);
