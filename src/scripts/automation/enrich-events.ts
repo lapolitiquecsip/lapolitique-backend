@@ -1,9 +1,9 @@
 
 import { createClient } from '@supabase/supabase-js';
+import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Anthropic from '@anthropic-ai/sdk';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,82 +16,88 @@ const supabase = createClient(
 );
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
+  apiKey: process.env.ANTHROPIC_API_KEY!,
 });
-console.log('ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? 'Present' : 'MISSING');
 
-async function shortenTitle(longTitle: string): Promise<string> {
-  // Clean the title from existing time tags [HH:MM] if any
-  const cleanedTitle = longTitle.replace(/^\[\d{2}:\d{2}\]\s*/, '').replace(/^-+\s*/, '').trim();
-  
-  if (cleanedTitle.length < 30) return cleanedTitle; // Already short enough
+async function enrichEvent(title: string, description: string) {
+  const content = `Titre original: ${title}\nDescription: ${description}`;
 
   try {
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 100,
-      system: "Tu es un assistant expert en politique française. Ta mission est de raccourcir des titres d'événements parlementaires complexes en titres simples, clairs et percutants (max 10 mots). Réponds uniquement par le nouveau titre, sans ponctuation inutile au début.",
+      max_tokens: 300,
+      system: `Tu es un assistant expert en politique française. Ta mission est de transformer des événements parlementaires complexes en informations simples pour le grand public.
+
+RÈGLES CRITIQUES :
+1. Titre Court (short_title) : Maximum 8 mots. Très percutant. 
+   - SI le titre original est "Suite de l'ordre du jour" ou similaire, analyse la description pour trouver le VRAI sujet (ex: "Suite de l'examen de la loi agricole").
+2. Résumé (short_summary) : Une seule phrase, maximum 20 mots. Doit expliquer l'enjeu principal simplement.
+
+Réponds UNIQUEMENT au format JSON suivant :
+{
+  "short_title": "...",
+  "short_summary": "..."
+}`,
       messages: [
-        {
-          role: "user",
-          content: `Raccourcis ce titre : "${cleanedTitle}"`
-        }
-      ]
+        { role: "user", content: `Simplifie cet événement :\n${content}` }
+      ],
     });
 
-    const content = response.content[0];
-    if (content && content.type === 'text') {
-      return content.text.trim().replace(/^"/, '').replace(/"$/, '');
+    let text = (response.content[0] as any).text;
+    
+    // Nettoyage si Claude met des blocs markdown
+    if (text.includes('```')) {
+      text = text.replace(/```json\n?/, '').replace(/```\n?/, '').trim();
     }
-    return cleanedTitle;
+    
+    return JSON.parse(text);
   } catch (error) {
-    console.error(`Error shortening title: ${longTitle}`, error);
-    return cleanedTitle;
+    console.error("Erreur Claude:", error);
+    return null;
   }
 }
 
-async function main() {
-  console.log('--- ENRICH EVENTS WITH AI TITLES ---');
+async function start() {
+  const today = new Date().toLocaleDateString('en-CA');
+  console.log(`Enrichissement des événements pour ${today}...`);
 
-  const today = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-
-  // Fetch all events that don't have a short_title
   const { data: events, error } = await supabase
     .from('events')
-    .select('id, title, short_title');
+    .select('*')
+    .eq('date', today)
+    .is('short_summary', null); // On traite ceux qui n'ont pas encore de résumé
 
   if (error) {
-    console.error('Error fetching events:', error);
+    console.error("Erreur Supabase:", error);
     return;
   }
 
-  // Filter in JS to be safe
-  const toEnrich = events?.filter(e => !e.short_title || e.short_title.trim() === '') || [];
+  console.log(`${events?.length || 0} événements à traiter.`);
 
-  if (toEnrich.length === 0) {
-    console.log('No events to enrich.');
-    return;
-  }
+  if (!events) return;
 
-  console.log(`Processing ${toEnrich.length} events...`);
+  for (const event of events) {
+    console.log(`Traitement de : ${event.title.substring(0, 50)}...`);
+    const enrichment = await enrichEvent(event.title, event.description);
+    
+    if (enrichment) {
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({
+          short_title: enrichment.short_title,
+          short_summary: enrichment.short_summary
+        })
+        .eq('id', event.id);
 
-  for (const event of toEnrich) {
-    console.log(`Shortening: ${event.title.substring(0, 50)}...`);
-    const shortTitle = await shortenTitle(event.title);
-    console.log(`Result: ${shortTitle}`);
-
-    const { error: updateError } = await supabase
-      .from('events')
-      .update({ short_title: shortTitle })
-      .eq('id', event.id);
-
-    if (updateError) {
-      console.error(`Error updating event ${event.id}:`, updateError);
+      if (updateError) console.error("Erreur update:", updateError);
+      else console.log(`✅ ${enrichment.short_title}`);
     }
+
+    // Petit délai pour l'API
+    await new Promise(r => setTimeout(r, 500));
   }
 
-  console.log('Enrichment complete.');
+  console.log("Enrichissement terminé !");
 }
 
-main().catch(console.error);
+start();

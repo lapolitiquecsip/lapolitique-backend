@@ -15,28 +15,26 @@ const supabase = createClient(
 );
 
 async function check() {
-  const today = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
+  
+  console.log(`Checking events for institution AN on ${today}...`);
 
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('events')
-    .select('*', { count: 'exact', head: true })
-    .gte('date', today)
-    .lte('date', tomorrow);
+    .select('*')
+    .eq('institution', 'AN')
+    .eq('date', today)
+    .order('title', { ascending: true });
 
   if (error) {
-    console.error('Error:', error);
-  } else {
-    console.log(`Total events for ${today} to ${tomorrow}:`, count);
+    console.error('Error fetching events:', error);
+    return;
   }
-  
-  const { data: sample } = await supabase
-    .from('events')
-    .select('date, title, short_title')
-    .gte('date', today)
-    .lte('date', tomorrow)
-    .limit(5);
-  console.log('Sample events in range:', sample);
+
+  console.log(`Found ${data.length} events for AN on ${today}:`);
+  data.forEach(e => {
+    console.log(`- ${e.title} (Short: ${e.short_title})`);
+  });
 }
 
 check();
