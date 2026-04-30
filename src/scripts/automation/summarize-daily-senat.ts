@@ -60,9 +60,9 @@ async function main() {
         {
           role: 'user',
           content: `Voici l'ordre du jour du Sénat français pour aujourd'hui (${today}). 
-          Résume les points clés de manière factuelle, neutre et pédagogique pour un citoyen.
-          Fais un paragraphe unique d'environ 3 à 4 phrases. 
-          Ne commence pas par "Voici un résumé", va droit au but.
+          Résume les points clés de manière factuelle et ultra-concise.
+          Fais un paragraphe de MAXIMUM 2 phrases courtes. 
+          Sois percutant, va droit à l'essentiel.
           
           Ordre du jour :
           ${eventsList}`
