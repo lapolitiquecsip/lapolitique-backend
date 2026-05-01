@@ -96,11 +96,18 @@ async function fetchLiveLaws() {
         
         let author = source.category === 'Projet de loi' ? 'Le Gouvernement' : '';
         if (source.category === 'Proposition de loi') {
-          const authorMatch = subtitle.match(/(?:de loi organique de|de loi de)\s+([^,]+?)(?:\s+et plusieurs|\s+relative|\s+déposée|$)/i);
-          if (authorMatch) {
-            author = authorMatch[1].trim();
+          // 1. Try to find the author link (usually cleanest)
+          const authorLink = $(el).find('p a[href*="/deputes/"]').first();
+          if (authorLink.length > 0) {
+            author = authorLink.text().trim();
           } else {
-            author = "Député(s)";
+            // 2. Fallback to subtitle parsing with refined regex
+            const authorMatch = subtitle.match(/(?:de loi organique de|de loi de)\s+([^,]+?)(?:\s+et plusieurs|\s+relative|\s+visant|\s+déposée|$)/i);
+            if (authorMatch) {
+              author = authorMatch[1].trim();
+            } else {
+              author = "Député(s)";
+            }
           }
         }
 
