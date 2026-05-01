@@ -14,10 +14,31 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+
 const ACTOR_DIR = path.join(__dirname, '../../dep_17_data/json/acteur');
+const ORGANE_DIR = path.join(__dirname, '../../dep_17_data/json/organe');
+
+// Cache pour les noms d'organes
+const organNames: Record<string, string> = {};
+
+function loadOrgans() {
+  if (!fs.existsSync(ORGANE_DIR)) return;
+  const files = fs.readdirSync(ORGANE_DIR);
+  console.log(`> Chargement de ${files.length} organes...`);
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue;
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(ORGANE_DIR, file), 'utf8'));
+      const org = data.organe;
+      organNames[org.uid] = org.libelle;
+    } catch (e) {}
+  }
+}
 
 async function main() {
-  console.log('--- ENRICHISSEMENT HISTORIQUE POLITIQUE ---');
+  console.log('--- ENRICHISSEMENT HISTORIQUE POLITIQUE (NOMS CLAIRS) ---');
+  
+  loadOrgans();
 
   const { data: deputies, error: depError } = await supabase
     .from('deputies')
@@ -39,15 +60,20 @@ async function main() {
       const mandats = Array.isArray(actor.mandats.mandat) ? actor.mandats.mandat : [actor.mandats.mandat];
       
       const history = mandats
-        .filter((m: any) => m.dateDebut) // On ne garde que les mandats avec date
-        .map((m: any) => ({
-          type: m.typeOrgane,
-          label: m.libelleQualite || m.infosQualite?.libQualite || "Membre",
-          startDate: m.dateDebut,
-          endDate: m.dateFin || null,
-          legislature: m.legislature || null,
-          organe: m.organes?.organeRef || null
-        }))
+        .filter((m: any) => m.dateDebut)
+        .map((m: any) => {
+          const organeId = m.organes?.organeRef || null;
+          const organeName = organeId ? (organNames[organeId] || organeId) : null;
+          
+          return {
+            type: m.typeOrgane,
+            label: m.libelleQualite || m.infosQualite?.libQualite || "Membre",
+            startDate: m.dateDebut,
+            endDate: m.dateFin || null,
+            legislature: m.legislature || null,
+            organe: organeName
+          };
+        })
         .sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
       const { error: upError } = await supabase
@@ -61,7 +87,7 @@ async function main() {
     }
   }
 
-  console.log(`\nTERMINE : ${updated} historiques politiques injectés.`);
+  console.log(`\nTERMINE : ${updated} historiques politiques traduits.`);
 }
 
 main().catch(console.error);

@@ -17,7 +17,8 @@
     "automation:enrich": "tsx src/scripts/automation/enrich-events.ts",
     "automation:browseract": "tsx src/scripts/automation/browseract-scraper.ts",
     "automation:legal": "tsx src/scripts/import-legal.ts",
-    "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws; npm run automation:browseract; npm run automation:legal"
+    "automation:weekly-stats": "tsx src/scripts/automation/generate-weekly-stats.ts",
+    "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws; npm run automation:browseract; npm run automation:legal; npm run automation:weekly-stats"
   },
   "keywords": [],
   "author": "",

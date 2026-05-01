@@ -1,0 +1,542 @@
+[
+  {
+    "id": "da830a65-0d0d-4d52-b4f7-07fb29b9427a",
+    "slug": "benjamin-lucas-lundy",
+    "name": "Benjamin Lucas-Lundy",
+    "birth": "Amiens (Somme)",
+    "profession": "(85) - Personne diverse sans activité professionnelle de moins de 60 ans (sauf r",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "54aa12e8-fec1-4c59-a026-336f111b477c",
+    "slug": "christophe-barthes",
+    "name": "Christophe Barthès",
+    "birth": "Carcassonne (Aude)",
+    "profession": "Agriculteur sur moyenne exploitation",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "65075b2b-d1aa-4ceb-af2c-ad40f522c8b3",
+    "slug": "christophe-bex",
+    "name": "Christophe Bex",
+    "birth": "Neufchâteau (Vosges)",
+    "profession": "Retraité",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "c1761126-0d8f-4dab-9486-892f72469f1d",
+    "slug": "cyrille-isaac-sibille",
+    "name": "Cyrille Isaac-Sibille",
+    "birth": "Lyon (Rhône)",
+    "profession": "Médecin",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "1bcfa12d-bb78-4c1b-9eb9-5d59112144ed",
+    "slug": "elisabeth-de-maistre",
+    "name": "Élisabeth de Maistre",
+    "birth": "Paris (Paris)",
+    "profession": "Avocat",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "7b450289-79ca-43c6-b2f2-7b66acc21129",
+    "slug": "elise-leboucher",
+    "name": "Élise Leboucher",
+    "birth": "Ernée (Mayenne)",
+    "profession": "Educatrice spécialisée",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "2eb4cf4a-8ed7-49bd-85bb-972ac06ea713",
+    "slug": "elsa-faucillon",
+    "name": "Elsa Faucillon",
+    "birth": "Amiens (Somme)",
+    "profession": "Employée du secteur privé",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "4ebfbcd6-0913-480a-9786-70d3e1d7025c",
+    "slug": "emeline-k-bidi",
+    "name": "Émeline K/Bidi",
+    "birth": "Saint-Denis (Réunion)",
+    "profession": "Avocate",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "e6036765-b2f1-4c9c-b341-cc06e316fafe",
+    "slug": "emeric-salmon",
+    "name": "Emeric Salmon",
+    "birth": "Vannes (Morbihan)",
+    "profession": "Cadre administratif et commercial d'entreprise",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "9128965a-e213-4f61-83a5-3d35b005d8e8",
+    "slug": "emilie-bonnivard",
+    "name": "Émilie Bonnivard",
+    "birth": "Chambéry (Savoie)",
+    "profession": "Cadre à la Caisse des Dépôts et Consignations",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "c61fee5d-9dd2-4ce1-a1c3-d063a4d2ddba",
+    "slug": "emmanuel-duplessy",
+    "name": "Emmanuel Duplessy",
+    "birth": "Pontoise (Oise)",
+    "profession": "(33) - Cadre de la fonction publique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "803a14d7-70fc-419f-b47c-68036ce1793c",
+    "slug": "emmanuel-fernandes",
+    "name": "Emmanuel Fernandes",
+    "birth": "Thann (Haut-Rhin)",
+    "profession": "Profession intermédiaire administrative et commerciale des entreprises",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "dfe8ff62-f404-4d74-8a78-0dcccea3cfa8",
+    "slug": "emmanuel-fouquart",
+    "name": "Emmanuel Fouquart",
+    "birth": "Maubeuge (Nord)",
+    "profession": "Retraité militaire",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "6f27c0d5-7e3b-48b4-83cc-44532a83a16a",
+    "slug": "emmanuel-gregoire",
+    "name": "Emmanuel Grégoire",
+    "birth": "Les Lilas (Seine-Saint-Denis)",
+    "profession": "(37) - Cadre administratif et commercial d'entreprise",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "de928594-303c-49ed-a834-612fade44790",
+    "slug": "eric-liegeon",
+    "name": "Eric Liégeon",
+    "birth": "Pontarlier (Doubs)",
+    "profession": "Exploitant agricole",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "4cfa3194-f908-4461-9827-b14c9bb70046",
+    "slug": "ersilia-soudais",
+    "name": "Ersilia Soudais",
+    "birth": "Aubervilliers (Seine-Saint-Denis)",
+    "profession": "Professeur, profession scientifique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "496fd586-9388-49da-930b-d155e5c96584",
+    "slug": "fabrice-roussel",
+    "name": "Fabrice Roussel",
+    "birth": "Nantes (Loire-Atlantique)",
+    "profession": "(34) - Professeur, profession scientifique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "ea8a8f72-df5d-4c31-8a9d-05b8df1c77b4",
+    "slug": "fatiha-keloua-hachi",
+    "name": "Fatiha Keloua Hachi",
+    "birth": "Paris (Paris)",
+    "profession": "Professeur, profession scientifique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "7e2deb25-47e4-4b41-ac11-7eb507397f9c",
+    "slug": "frank-giletti",
+    "name": "Frank Giletti",
+    "birth": "Evreux (Eure)",
+    "profession": "Fonctionnaire",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "7f1b6c9a-ef44-495a-be78-ce03a671385a",
+    "slug": "frantz-gumbs",
+    "name": "Frantz Gumbs",
+    "birth": "Saint-Martin ([object Object])",
+    "profession": "Personnel de direction de l'éducation nationale retraité",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "92386990-b53d-47fc-8797-bfb9179dad2a",
+    "slug": "gabriel-attal",
+    "name": "Gabriel Attal",
+    "birth": "Clamart (Hauts-de-Seine)",
+    "profession": "Consultant",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "6d9cb922-11c3-49dd-afdd-9428bdf1e909",
+    "slug": "gabrielle-cathala",
+    "name": "Gabrielle Cathala",
+    "birth": "Talence (Gironde)",
+    "profession": "Secrétaire générale de groupe parlementaire",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "97fe2632-1a40-4cff-b645-61b991c5e57b",
+    "slug": "guillaume-florquin",
+    "name": "Guillaume Florquin",
+    "birth": "Roncq (Nord)",
+    "profession": "(33) - Cadre de la fonction publique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "3a4b5738-e78d-495c-a5ad-f4e8893fe645",
+    "slug": "hendrik-davi",
+    "name": "Hendrik Davi",
+    "birth": "Athis-Mons (Essonne)",
+    "profession": "Professeur, profession scientifique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "8a476073-cb67-490a-9703-4724ce467ea0",
+    "slug": "herve-berville",
+    "name": "Hervé Berville",
+    "birth": "Madanzh Buhimga ([object Object])",
+    "profession": "Economiste",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "b450e056-88d0-4989-bd0e-27cf95ff548c",
+    "slug": "tiffany-joncour",
+    "name": "Tiffany Joncour",
+    "birth": "Lyon 8 (Rhône)",
+    "profession": "(37) - Cadre administratif et commercial d'entreprise",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "608c2fc6-14ff-438f-bea7-08987c9ec9c1",
+    "slug": "timothee-houssin",
+    "name": "Timothée Houssin",
+    "birth": "Lille (Nord)",
+    "profession": "Cadre",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "09b6aef4-76ac-468f-a0dc-a41478fd05c0",
+    "slug": "tristan-lahais",
+    "name": "Tristan Lahais",
+    "birth": "Rennes (Ille-et-Vilaine)",
+    "profession": "(37) - Cadre administratif et commercial d'entreprise",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "8f713be5-4faf-4878-9a37-4d305c2eb57f",
+    "slug": "ugo-bernalicis",
+    "name": "Ugo Bernalicis",
+    "birth": "Arras (Pas-de-Calais)",
+    "profession": "Fonctionnaire de catégorie A",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "3e6debba-cbbc-4ebf-b249-7eafffd034b6",
+    "slug": "valerie-bazin-malgras",
+    "name": "Valérie Bazin-Malgras",
+    "birth": "Romilly-sur-Seine (Aube)",
+    "profession": "Commerçante",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "08551614-21c8-468c-912b-e8fdc99f632c",
+    "slug": "valerie-letard",
+    "name": "Valérie Létard",
+    "birth": "Orchies (Nord)",
+    "profession": "Cadre de la fonction publique territoriale",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "ebd4efac-f6f4-4da4-b2e2-ea9d286f1895",
+    "slug": "valerie-rossi",
+    "name": "Valérie Rossi",
+    "birth": "Marseille (Bouches-du-Rhône)",
+    "profession": "(37) - Cadre administratif et commercial d'entreprise",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "af3431c2-f314-4e36-8d1e-bf2929e3098e",
+    "slug": "veronique-besse",
+    "name": "Véronique Besse",
+    "birth": "La Roche-sur-Yon (Vendée)",
+    "profession": "Journaliste",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "6975ad4c-f1a3-4af6-8e26-f189bea19522",
+    "slug": "veronique-louwagie",
+    "name": "Véronique Louwagie",
+    "birth": "Buis Sur Damville (Eure)",
+    "profession": "Expert-comptable",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "9e087d76-532c-449e-bc49-4dd1d5264886",
+    "slug": "veronique-ludmann",
+    "name": "Véronique Ludmann",
+    "birth": "La Bassée (Nord)",
+    "profession": "Directrice d'école",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "20d40d19-ad96-4295-ad51-166aaa5649f5",
+    "slug": "veronique-riotton",
+    "name": "Véronique Riotton",
+    "birth": "Bonneville (Haute-Savoie)",
+    "profession": "Consultante-Coach en Ressources Humaines",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "c84f149b-e3a7-4eb0-93da-34d0cf9d1fb2",
+    "slug": "vincent-caure",
+    "name": "Vincent Caure",
+    "birth": "Castres (Tarn)",
+    "profession": "(33) - Cadre de la fonction publique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "ee4dd008-5731-4a67-a76c-540d747710a5",
+    "slug": "vincent-descoeur",
+    "name": "Vincent Descoeur",
+    "birth": "Aurillac (Cantal)",
+    "profession": "Professeur agrégé de biologie",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "c7f6fa65-3209-4e10-b557-58fd5323370b",
+    "slug": "vincent-ledoux",
+    "name": "Vincent Ledoux",
+    "birth": "Watermael Boitsfort ([object Object])",
+    "profession": "Sans profession déclarée",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "d0aed0c1-732c-4278-9dc9-4452997fb86f",
+    "slug": "vincent-rolland",
+    "name": "Vincent Rolland",
+    "birth": "Moutiers (Savoie)",
+    "profession": "Collaborateur parlementaire",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "510bd08d-9c87-4301-8c8b-d5e4d18e7c66",
+    "slug": "vincent-thiebaut",
+    "name": "Vincent Thiébaut",
+    "birth": "Toulouse (Haute-Garonne)",
+    "profession": "Autre cadre (secteur privé)",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "fb64eaa0-f7dd-463b-b092-7ed48109adf1",
+    "slug": "vincent-trebuchet",
+    "name": "Vincent Trébuchet",
+    "birth": "Paris (Paris)",
+    "profession": "(37) - Cadre administratif et commercial d'entreprise",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "f76c5334-b518-48de-b2ff-1472d3dd2e5c",
+    "slug": "violette-spillebout",
+    "name": "Violette Spillebout",
+    "birth": "Lyon (Rhône)",
+    "profession": "Cadre administratif et commercial d'entreprise",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "c7c0e12a-e920-4348-ab07-824d73b22328",
+    "slug": "xavier-albertini",
+    "name": "Xavier Albertini",
+    "birth": "Royan (Charente-Maritime)",
+    "profession": "Profession libérale",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "63dd79bc-c477-4785-ae5b-c93b87f53604",
+    "slug": "xavier-breton",
+    "name": "Xavier Breton",
+    "birth": "Darney (Vosges)",
+    "profession": "Cadre territorial",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "f9de3d3f-e061-4ae5-b0c2-e57bf9511c27",
+    "slug": "xavier-roseren",
+    "name": "Xavier Roseren",
+    "birth": "Chamonix Mont-Blanc (Haute-Savoie)",
+    "profession": "Commerçant",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "54b79f27-11df-460d-a70b-20cb7d15d2b0",
+    "slug": "yael-braun-pivet",
+    "name": "Yaël Braun-Pivet",
+    "birth": "Nancy (Meurthe-et-Moselle)",
+    "profession": "Avocate",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "ebacd338-dbcd-4391-8d5c-12b18cbfe9bf",
+    "slug": "yael-menache",
+    "name": "Yaël Ménaché",
+    "birth": "Péronne (Somme)",
+    "profession": "Commerciale",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "79bf232c-c229-4ddb-a538-656f6dc295c0",
+    "slug": "yannick-chenevard",
+    "name": "Yannick Chenevard",
+    "birth": "Toulon (Var)",
+    "profession": "Profession libérale",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "04920278-477e-4e39-8073-8cfd38541609",
+    "slug": "yannick-favennec-becot",
+    "name": "Yannick Favennec-Bécot",
+    "birth": "Chaudron-en-Mauges (Maine-et-Loire)",
+    "profession": "Directeur de cabinet",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "8cf0c66f-4fdc-46f5-b654-2e620b74a22d",
+    "slug": "yannick-monnet",
+    "name": "Yannick Monnet",
+    "birth": "Moulins (Allier)",
+    "profession": "Cadre de la fonction publique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "4a43ee3b-ba09-4bcb-bed4-45cfd69edc4f",
+    "slug": "yannick-neuder",
+    "name": "Yannick Neuder",
+    "birth": "Tullins (Isère)",
+    "profession": "Cardiologue",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "e02c0496-64d1-498b-9fd9-05205033a863",
+    "slug": "yoann-gillet",
+    "name": "Yoann Gillet",
+    "birth": "Rennes (Ille-et-Vilaine)",
+    "profession": "Cadre de la fonction publique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "b0d94279-6a48-4c16-af31-24fe17e0e258",
+    "slug": "zahia-hamdane",
+    "name": "Zahia Hamdane",
+    "birth": "Amiens (Somme)",
+    "profession": "(43) - Profession intermédiaire de la santé et du travail social",
+    "mandates": [
+      "Député"
+    ]
+  }
+]

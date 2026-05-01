@@ -1,0 +1,202 @@
+[
+  {
+    "id": "3b119e6a-7636-4c28-a662-effa073ef158",
+    "slug": "philippe-latombe",
+    "name": "Philippe Latombe",
+    "birth": "Paris (Paris)",
+    "profession": "Cadre supérieur (secteur privé)",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "a2a70252-b24b-47d1-af7a-b4e470d7a5f6",
+    "slug": "daniel-labaronne",
+    "name": "Daniel Labaronne",
+    "birth": "Paris (Paris)",
+    "profession": "Retraité de l'enseignement supérieur",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "cd3b92db-73de-4d54-a2d8-b9da59637aed",
+    "slug": "pierre-marle",
+    "name": "Pierre Marle",
+    "birth": "Bollezeele (Nord)",
+    "profession": "Directeur d'école primaire (retraité)",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "30465f57-ba7e-41ab-8cd8-df7b60372125",
+    "slug": "michele-martinez",
+    "name": "Michèle Martinez",
+    "birth": "Perpignan (Pyrénées-Orientales)",
+    "profession": "Clerc d'huissier",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "e663fdb6-58b7-4aaf-8e78-2f954803b91a",
+    "slug": "manuel-bompard",
+    "name": "Manuel Bompard",
+    "birth": "Firminy (Loire)",
+    "profession": "Ingénieur",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "6a831e4e-af49-4354-bf37-b41ba7f8b492",
+    "slug": "thomas-portes",
+    "name": "Thomas Portes",
+    "birth": "Carmaux (Tarn)",
+    "profession": "Cheminot",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "0e42fa84-c19f-46eb-9e4f-37e1c93f837f",
+    "slug": "marie-jose-allemand",
+    "name": "Marie-José Allemand",
+    "birth": "Manosque (Alpes-de-Haute-Provence)",
+    "profession": "(12) - Agriculteur sur moyenne exploitation",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "984be659-48ac-49e7-81b2-8d08c9cac356",
+    "slug": "danielle-simonnet",
+    "name": "Danielle Simonnet",
+    "birth": "Montereau-Fault-Yonne (Seine-et-Marne)",
+    "profession": "Professeur, profession scientifique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "458ed731-bf77-4cfa-ae38-e8671dda58a2",
+    "slug": "catherine-hervieu",
+    "name": "Catherine Hervieu",
+    "birth": "Meknès ([object Object])",
+    "profession": "Psychologue scolaire",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "121fc5c8-3986-4814-977e-e199b03577c0",
+    "slug": "brigitte-klinkert",
+    "name": "Brigitte Klinkert",
+    "birth": "Colmar (Haut-Rhin)",
+    "profession": "Ancien cadre",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "e3838969-4bf1-48f1-81dc-3533c4e5c228",
+    "slug": "anna-pic",
+    "name": "Anna Pic",
+    "birth": "Montpellier (Hérault)",
+    "profession": "Professeur, profession scientifique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "b757b0a9-6324-4a4e-beb9-73bb3ae85d18",
+    "slug": "philippe-vigier",
+    "name": "Philippe Vigier",
+    "birth": "Valence (Drôme)",
+    "profession": "Biologiste A.I.H.P.",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "ae760e65-5b97-491b-8b0a-433ace3fb324",
+    "slug": "carlos-martens-bilongo",
+    "name": "Carlos Martens Bilongo",
+    "birth": "Villiers Le Bel (Val-d'Oise)",
+    "profession": "Professeur, profession scientifique",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "312fa779-84ae-48bb-9006-33979c6ca78a",
+    "slug": "josiane-corneloup",
+    "name": "Josiane Corneloup",
+    "birth": "Le Creusot (Saône-et-Loire)",
+    "profession": "Pharmacien",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "741219b3-10cd-4f4d-8e29-f4a0f8f2c826",
+    "slug": "jean-paul-mattei",
+    "name": "Jean-Paul Mattei",
+    "birth": "Saarburg ([object Object])",
+    "profession": "Notaire",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "0451dcda-4530-415a-a99f-a181a059c2a9",
+    "slug": "david-magnier",
+    "name": "David Magnier",
+    "birth": "Beauvais (Oise)",
+    "profession": "(48) - Contremaître, agent de maîtrise",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "0eef6f70-8f54-482a-8984-2d592c6a41ee",
+    "slug": "virginie-duby-muller",
+    "name": "Virginie Duby-Muller",
+    "birth": "Bonneville (Haute-Savoie)",
+    "profession": "Cadre du secteur privé",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "9054a37a-41df-48aa-aaeb-8c923a8b7e71",
+    "slug": "eva-sas",
+    "name": "Eva Sas",
+    "birth": "Nice (Alpes-Maritimes)",
+    "profession": "Cadre supérieur du secteur privé",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "16eecdb3-58d1-4209-be3b-67b5c5e52633",
+    "slug": "stephane-mazars",
+    "name": "Stéphane Mazars",
+    "birth": "Saint-Yriex-la-Perche (Haute-Vienne)",
+    "profession": "Avocat",
+    "mandates": [
+      "Député"
+    ]
+  },
+  {
+    "id": "f6ad44bc-f5f5-48e2-aaaa-1025d3b75a28",
+    "slug": "max-mathiasin",
+    "name": "Max Mathiasin",
+    "birth": "Deshaies (Guadeloupe)",
+    "profession": "Fonction publique territoriale",
+    "mandates": [
+      "Député"
+    ]
+  }
+]

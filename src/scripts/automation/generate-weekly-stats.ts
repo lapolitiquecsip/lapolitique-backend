@@ -1,0 +1,89 @@
+import { createClient } from '@supabase/supabase-js';
+import Anthropic from '@anthropic-ai/sdk';
+import * as dotenv from 'dotenv';
+import crypto from 'crypto';
+
+dotenv.config();
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+});
+
+async function generateWeeklyStats() {
+  console.log("--- GÉNÉRATION DES STATS HEBDOMADAIRES EXPERTES ---");
+
+  const prompt = `Tu es un expert de haut niveau du Parlement français (Assemblée nationale et Sénat).
+Ta mission est de générer 5 informations marquantes et 1 "Intox" hebdomadaires.
+
+CRITÈRE CRUCIAL : Les informations doivent être UTILES et NON-ÉVIDENTES, même pour des personnes qui connaissent déjà très bien la politique (experts, journalistes, collaborateurs parlementaires). 
+Évite absolument les généralités comme "Le 49.3 a été utilisé" ou "Yaël Braun-Pivet est présidente".
+Cherche des :
+- Chiffres techniques précis (ex: taux de réussite des amendements de l'opposition en commission).
+- Procédures méconnues ou records de la 17ème législature.
+- Faits récents sur des rapports de mission d'information ou des commissions d'enquête.
+- Détails budgétaires ou institutionnels pointus.
+
+Format de sortie attendu (JSON uniquement) :
+[
+  { 
+    "type": "fact",
+    "value": "chiffre", 
+    "label": "description courte avec le chiffre", 
+    "color": "un code HEX de couleur VIVE et SATURÉE (ex: #2563eb, #db2777, #7c3aed, #059669, #ea580c)"
+  },
+  { 
+    "type": "did-you-know",
+    "category_label": "LE SAVIEZ-VOUS ?",
+    "content": "phrase marquante", 
+    "color": "#7c3aed"
+  },
+  { 
+    "type": "intox",
+    "category_label": "INTOX DE LA SEMAINE",
+    "content": "La fausse information entre guillemets",
+    "debunk": "La réalité des faits",
+    "color": "#dc2626"
+  }
+]
+
+Génère exactement 5 faits (mélange de chiffres et de "le saviez-vous") et 1 intox.
+Sois percutant, précis et utilise des données réelles de la 17ème législature ou de l'histoire parlementaire.
+Les couleurs doivent être obligatoirement des codes HEX, VIVES et suffisamment contrastées pour que le texte blanc soit lisible.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const content = response.content[0].type === 'text' ? response.content[0].text : '';
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error("Pas de JSON trouvé dans la réponse");
+
+    const slides = JSON.parse(jsonMatch[0]);
+
+    const { error } = await supabase.from('events').insert({
+      id: crypto.randomUUID(),
+      date: new Date().toISOString(),
+      title: "Stats de la semaine",
+      description: JSON.stringify(slides),
+      category: "WeeklyStats",
+      institution: "Assemblée nationale",
+      created_at: new Date().toISOString()
+    });
+
+    if (error) throw error;
+    console.log("✅ Stats hebdomadaires générées et enregistrées.");
+
+  } catch (err) {
+    console.error("❌ Erreur lors de la génération :", err);
+  }
+}
+
+generateWeeklyStats();
