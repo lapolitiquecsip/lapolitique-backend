@@ -12,7 +12,7 @@ const supabase = createClient(
 );
 
 async function runMigration() {
-  const sqlFile = path.join(process.cwd(), 'supabase/migrations/20260424_add_time_to_events.sql');
+  const sqlFile = path.join(process.cwd(), 'supabase/migrations/20260503_add_saved_laws.sql');
   const sql = fs.readFileSync(sqlFile, 'utf8');
 
   console.log('🚀 Running migration...');
