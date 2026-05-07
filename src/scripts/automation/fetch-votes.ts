@@ -19,8 +19,16 @@ const SCRUTINS_ZIP_URL = 'https://data.assemblee-nationale.fr/static/openData/re
 const TEMP_ZIP_PATH = path.join(process.cwd(), 'scrutins_temp.zip');
 
 export async function fetchAndParseVotes() {
+  const startTime = new Date();
   console.log('--- START VOTES SYNCHRONIZATION ---');
   
+  // Log start of pipeline
+  await supabase.from('pipeline_logs').insert({
+    pipeline_name: 'fetchAndParseVotes',
+    status: 'running',
+    run_at: startTime.toISOString()
+  });
+
   try {
     console.log(`> Downloading archive to disk...`);
     const response = await fetch(SCRUTINS_ZIP_URL);
@@ -35,6 +43,10 @@ export async function fetchAndParseVotes() {
     const jsonEntries = allEntries.filter(e => e.entryName.endsWith('.json'));
     console.log(`> Found ${jsonEntries.length} files to process.`);
     
+    // Safety limit: process max 200 files per run to avoid DB choke
+    const entriesToProcess = jsonEntries.slice(0, 200);
+    console.log(`> Processing only the first ${entriesToProcess.length} entries for performance.`);
+
     // Fetch active deputies
     const { data: activeDeputies, error: dError } = await supabase
         .from('deputies')
@@ -45,10 +57,15 @@ export async function fetchAndParseVotes() {
 
     let scrutinsCount = 0;
 
-    for (const entry of jsonEntries) {
+    for (const entry of entriesToProcess) {
       const content = JSON.parse(entry.getData().toString('utf8'));
       const s = content.scrutin;
       
+      // Skip very old scrutins to speed up sync (only 2026 onwards)
+      if (!s.dateScrutin || !s.dateScrutin.startsWith('2026')) {
+        continue;
+      }
+
       const titreOrig = (s.titre || s.objet.libelle || "");
       const titre = titreOrig.toLowerCase();
       let type = "AUTRE";
@@ -217,10 +234,27 @@ export async function fetchAndParseVotes() {
     console.log(`\n--- SYNCHRONIZATION COMPLETE ---`);
     console.log(`> Scrutins updated: ${scrutinsCount}`);
     
+    // Log success
+    await supabase.from('pipeline_logs').insert({
+      pipeline_name: 'fetchAndParseVotes',
+      status: 'success',
+      items_processed: scrutinsCount,
+      run_at: startTime.toISOString()
+    });
+
     if (fs.existsSync(TEMP_ZIP_PATH)) fs.unlinkSync(TEMP_ZIP_PATH);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error(`\n[FATAL ERROR]`, err);
+    
+    // Log failure
+    await supabase.from('pipeline_logs').insert({
+      pipeline_name: 'fetchAndParseVotes',
+      status: 'error',
+      error_details: err.message,
+      run_at: startTime.toISOString()
+    });
+
     throw err;
   }
 }
