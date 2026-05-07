@@ -18,7 +18,7 @@ const supabase = createClient(
 const SCRUTINS_ZIP_URL = 'https://data.assemblee-nationale.fr/static/openData/repository/17/loi/scrutins/Scrutins.json.zip';
 const TEMP_ZIP_PATH = path.join(process.cwd(), 'scrutins_temp.zip');
 
-async function fetchAndParseVotes() {
+export async function fetchAndParseVotes() {
   console.log('--- START VOTES SYNCHRONIZATION ---');
   
   try {
@@ -70,13 +70,12 @@ async function fetchAndParseVotes() {
       }
 
       const themes = [
-        { name: "Économie & Finances", keywords: ["finances", "budget", "fiscal", "pib", "impôt", "taxe", "économie", "sociale", "secteur public", "pouvoir d'achat"] },
-        { name: "Sécurité & Intérieur", keywords: ["sécurité", "police", "gendarmerie", "terrorisme", "intérieur", "ordre public", "immigration", "frontières"] },
+        { name: "Économie & Budget", keywords: ["finances", "budget", "fiscal", "pib", "impôt", "taxe", "économie", "sociale", "secteur public", "pouvoir d'achat"] },
+        { name: "Sécurité & Justice", keywords: ["sécurité", "police", "gendarmerie", "terrorisme", "intérieur", "ordre public", "immigration", "frontières", "justice", "pénal", "tribunal", "magistrat", "prison", "loi", "libertés"] },
         { name: "Santé & Social", keywords: ["santé", "hôpital", "médical", "soins", "sécurité sociale", "retraites", "travail", "chômage", "handicap"] },
-        { name: "Environnement", keywords: ["climat", "écologie", "environnement", "biodiversité", "énergie", "nucléaire", "eau", "transition", "pollution"] },
+        { name: "Environnement & Énergie", keywords: ["climat", "écologie", "environnement", "biodiversité", "énergie", "nucléaire", "eau", "transition", "pollution"] },
         { name: "Éducation & Culture", keywords: ["école", "enseignement", "université", "éducation", "culture", "médias", "sport", "jeunesse"] },
-        { name: "Justice", keywords: ["justice", "pénal", "tribunal", "magistrat", "prison", "loi", "libertés"] },
-        { name: "International", keywords: ["affaires étrangères", "international", "europe", "union européenne", "diplomatie", "traité", "défense"] },
+        { name: "International & Défense", keywords: ["affaires étrangères", "international", "europe", "union européenne", "diplomatie", "traité", "défense"] },
         { name: "Agriculture", keywords: ["agriculture", "ferme", "agricole", "pêche", "alimentation", "rural"] }
       ];
 
@@ -92,13 +91,14 @@ async function fetchAndParseVotes() {
       const abstention = parseInt(synth?.abstentions || "0");
       const nonVotant = parseInt(synth?.nonVotants || "0");
 
-      let category = "Autres";
+      let category = "Autre";
       for (const t of themes) {
         if (t.keywords.some(k => titre.includes(k))) {
           category = t.name;
           break;
         }
       }
+
 
       const groupResults: any[] = [];
       const groups = s.ventilationVotes?.organe?.groupes?.groupe;
@@ -126,22 +126,8 @@ async function fetchAndParseVotes() {
         entryDateDetail = voteDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
       }
 
-      let cleanedObjet = s.objet.libelle;
-      
-      // Clean up technical titles to make them more readable
-      if (cleanedObjet.includes("motion de rejet préalable")) {
-        const parts = cleanedObjet.split(" du ");
-        if (parts.length > 1) {
-          const subject = parts[1].replace("(première lecture).", "").replace("(deuxième lecture).", "").trim();
-          cleanedObjet = `Motion de Rejet : ${subject}`;
-        }
-      } else if (cleanedObjet.includes("l'ensemble du")) {
-        const parts = cleanedObjet.split(" du ");
-        if (parts.length > 1) {
-          const subject = parts[1].replace("(première lecture).", "").trim();
-          cleanedObjet = `Loi complète : ${subject}`;
-        }
-      }
+      const cleanedObjet = s.objet.libelle;
+
 
       const scrutinData = {
         id: s.uid,
@@ -164,20 +150,84 @@ async function fetchAndParseVotes() {
         entry_date_detail: entryDateDetail
       };
 
-      await supabase.from('scrutins').upsert(scrutinData, { onConflict: 'id' });
+      const { error: sError } = await supabase.from('scrutins').upsert(scrutinData, { onConflict: 'id' });
+      if (sError) {
+        console.error(`  [ERROR] Scrutin ${s.uid}:`, sError.message);
+        continue;
+      }
       scrutinsCount++;
-      if (scrutinsCount % 100 === 0) console.log(`  - Processed ${scrutinsCount} files...`);
+
+      // --- RESTORED: INDIVIDUAL VOTES EXTRACTION ---
+      const votes: any[] = [];
+      
+      if (groups) {
+        const processNominatif = (nominatif: any) => {
+          if (!nominatif) return;
+          
+          const categories = [
+            { key: 'pours', subKey: 'votant', pos: 'POUR' },
+            { key: 'contres', subKey: 'votant', pos: 'CONTRE' },
+            { key: 'abstentions', subKey: 'votant', pos: 'ABSTENTION' },
+            { key: 'nonVotants', subKey: 'votant', pos: 'NON_VOTANT' }
+          ];
+
+          categories.forEach(({ key, subKey, pos }) => {
+            const catObj = nominatif[key];
+            if (!catObj || !catObj[subKey]) return;
+            const list = Array.isArray(catObj[subKey]) ? catObj[subKey] : [catObj[subKey]];
+            list.forEach((d: any) => {
+              if (d.acteurRef) {
+                const actorId = d.acteurRef.trim().toUpperCase();
+                if (activeAnIds.has(actorId)) {
+                  votes.push({
+                    deputy_an_id: actorId,
+                    scrutin_id: s.uid,
+                    position: pos,
+                    date_scrutin: s.dateScrutin
+                  });
+                }
+              }
+            });
+          });
+        };
+
+        const groupsList = Array.isArray(groups) ? groups : [groups];
+        groupsList.forEach((g: any) => {
+          processNominatif(g.vote?.decompteNominatif);
+        });
+      }
+
+      if (votes.length > 0) {
+        for (let i = 0; i < votes.length; i += 1000) {
+          const batch = votes.slice(i, i + 1000);
+          const { error: vError } = await supabase
+            .from('deputy_votes')
+            .upsert(batch, { onConflict: 'deputy_an_id, scrutin_id' });
+          
+          if (vError) {
+            console.error(`  [ERROR] Votes batch for ${s.uid}:`, vError.message);
+          }
+        }
+        console.log(`  [OK] ${s.uid}: Sync'd ${votes.length} individual votes.`);
+      }
+
+      if (scrutinsCount % 100 === 0) console.log(`  - Total Scrutins Processed: ${scrutinsCount}...`);
     }
 
     console.log(`\n--- SYNCHRONIZATION COMPLETE ---`);
     console.log(`> Scrutins updated: ${scrutinsCount}`);
     
-    // Cleanup
     if (fs.existsSync(TEMP_ZIP_PATH)) fs.unlinkSync(TEMP_ZIP_PATH);
 
   } catch (err) {
     console.error(`\n[FATAL ERROR]`, err);
+    throw err;
   }
 }
 
-fetchAndParseVotes();
+// Standalone execution support
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  fetchAndParseVotes();
+}
+
+

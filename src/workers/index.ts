@@ -1,4 +1,5 @@
-import { runAssembleePipeline } from './assemblee-pipeline';
+import { runAssembleePipeline } from './assemblee-pipeline.js';
+import { fetchAndParseVotes } from '../scripts/automation/fetch-votes.js';
 
 export function startWorkers() {
   console.log('[Workers] Starting interval workers...');
@@ -6,10 +7,20 @@ export function startWorkers() {
   // Run every 30 minutes
   const intervalMs = 30 * 60 * 1000;
 
-  // Run immediately on boot, then setup interval
-  runAssembleePipeline().catch((e: any) => console.error('[Workers] Initial run failed', e));
+  const runAll = async () => {
+    console.log('[Workers] Running all scheduled tasks...');
+    try {
+      await runAssembleePipeline();
+      await fetchAndParseVotes();
+      console.log('[Workers] All tasks completed successfully.');
+    } catch (e: any) {
+      console.error('[Workers] Task execution failed', e);
+    }
+  };
 
-  setInterval(() => {
-    runAssembleePipeline().catch((e: any) => console.error('[Workers] Scheduled run failed', e));
-  }, intervalMs);
+  // Run immediately on boot, then setup interval
+  runAll();
+
+  setInterval(runAll, intervalMs);
 }
+
