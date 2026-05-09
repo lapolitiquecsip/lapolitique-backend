@@ -1,10 +1,9 @@
 
 name: Sync Parliamentary Votes
 
-# on:
-#   schedule:
-#     - cron: '0 */3 * * *' # Every 3 hours
 on:
+  schedule:
+    - cron: '0 */3 * * *' # Every 3 hours
   workflow_dispatch:
 
 jobs:

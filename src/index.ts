@@ -83,6 +83,5 @@ app.post('/api/admin/seed', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
-  // EMERGENCY: Workers stopped to release DB pressure
-  // startWorkers(); 
+  startWorkers(); // Re-enabled after indexing
 });
