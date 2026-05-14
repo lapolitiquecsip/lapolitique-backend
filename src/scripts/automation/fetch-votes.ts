@@ -167,8 +167,25 @@ export async function fetchAndParseVotes() {
         entryDateDetail = voteDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
       }
 
-      const cleanedObjet = s.objet.libelle;
-
+      let cleanedObjet = s.objet.libelle;
+      
+      // Clean up common long prefixes
+      const prefixesToRemove = [
+        "l'ensemble de la proposition de loi",
+        "l'ensemble du projet de loi",
+        "la proposition de loi",
+        "le projet de loi"
+      ];
+      
+      let lowerObjet = cleanedObjet.toLowerCase();
+      for (const prefix of prefixesToRemove) {
+        if (lowerObjet.startsWith(prefix)) {
+          cleanedObjet = cleanedObjet.substring(prefix.length).trim();
+          // Capitalize first letter
+          cleanedObjet = cleanedObjet.charAt(0).toUpperCase() + cleanedObjet.slice(1);
+          break; // Stop after first match
+        }
+      }
 
       const scrutinData = {
         id: s.uid,

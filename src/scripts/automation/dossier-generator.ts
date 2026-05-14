@@ -68,6 +68,7 @@ Enjeux existants : ${scrutin.why_it_matters || "N/A"}
 
 Tu dois générer un JSON valide (AUCUN texte avant ou après, JUSTE le JSON) avec la structure exacte suivante :
 {
+  "title": "Titre court et intuitif (ex: 'Soutien à l'innovation thérapeutique contre les cancers de l'enfant' au lieu de 'l'ensemble de la proposition de loi visant à mettre en place...'). Il doit tenir sur une ligne.",
   "category": "Une SEULE catégorie parmi : ${CATEGORIES.join(", ")}",
   "color": "Une couleur parmi : emerald, blue, slate, red",
   "summary": "Un résumé pédagogique mais très complet de 3-4 phrases sur la loi et ce qu'elle change pour les citoyens.",
@@ -110,9 +111,9 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
       const parsed = JSON.parse(jsonStr);
 
       const lawData = {
-        title: scrutin.objet,
+        title: parsed.title || scrutin.objet,
         summary: parsed.summary,
-        context: 'dossier_premium', // Identifier for the UI
+        context: `dossier_premium:${scrutin.id}`, // Link to original scrutin for votes
         impact: JSON.stringify(parsed.impacts),
         content: JSON.stringify(parsed.premium_points),
         timeline: parsed.calendar,
