@@ -30,11 +30,35 @@ export async function fetchAndParseVotes() {
   });
 
   try {
-    console.log(`> Downloading archive to disk...`);
-    const response = await fetch(SCRUTINS_ZIP_URL);
-    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+    let arrayBuffer: ArrayBuffer | null = null;
+    let retries = 3;
     
-    const arrayBuffer = await response.arrayBuffer();
+    while (retries > 0) {
+      try {
+        console.log(`> Downloading archive to disk... (Retries left: ${retries})`);
+        const response = await fetch(SCRUTINS_ZIP_URL, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Connection': 'keep-alive'
+          }
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+        
+        arrayBuffer = await response.arrayBuffer();
+        break; // Success
+      } catch (e: any) {
+        console.warn(`> Download failed: ${e.message}. Retrying...`);
+        retries--;
+        if (retries === 0) throw e;
+        await new Promise(res => setTimeout(res, 5000)); // Wait 5s before retry
+      }
+    }
+
+    if (!arrayBuffer) throw new Error('Failed to download archive after retries.');
+
     fs.writeFileSync(TEMP_ZIP_PATH, Buffer.from(arrayBuffer));
     console.log(`> Archive saved to disk (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB).`);
 

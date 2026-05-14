@@ -24,7 +24,7 @@ async function summarizeScrutins() {
     .in('type', ['LOI']) // Focus on Laws as requested
     .is('summary', null)
     .order('date_scrutin', { ascending: false })
-    .limit(5); // Only 5 per day to save costs
+    .limit(20); // Increased limit for industrialization
 
   if (error) {
     console.error('Error fetching scrutins:', error);
@@ -63,7 +63,7 @@ async function summarizeScrutins() {
                   "summary": "Résumé en 2-3 phrases",
                   "why_it_matters": "Pourquoi c'est important pour le citoyen",
                   "detailed_summary": "Un résumé long et exhaustif (mini 4 phrases) des mesures concrètes proposées par la loi. INCLUS OBLIGATOIREMENT : les budgets prévus, les sommes d'argent exactes, les organismes ou outils créés, et les dates d'application cibles. Pousse le détail au maximum pour une analyse 'premium'.",
-                  "category": "Choisir parmi: Économie, Social, Santé, Éducation, Environnement, Sécurité, Justice, Institutions, International, Culture"
+                  "category": "Choisir STRICTEMENT parmi: Économie, Social, Santé, Éducation, Environnement, Sécurité"
                 }
                 
                 RENVOIE UNIQUEMENT LE JSON.`
