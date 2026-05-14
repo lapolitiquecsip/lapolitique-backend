@@ -144,10 +144,25 @@ export async function fetchAndParseVotes() {
       const groupResults: any[] = [];
       const groups = s.ventilationVotes?.organe?.groupes?.groupe;
       if (groups) {
-        const groupsList = Array.isArray(groups) ? groups : [groups];
-        groupsList.forEach((g: any) => {
+        const gList = Array.isArray(groups) ? groups : [groups];
+        gList.forEach((g: any) => {
+          const GROUP_NAMES: Record<string, string> = {
+            'PO845401': 'LFI-NFP',
+            'PO845407': 'GDR (Gauche)',
+            'PO845413': 'Socialistes',
+            'PO845419': 'Écologistes',
+            'PO845425': 'LIOT',
+            'PO845439': 'Ensemble (Renaissance)',
+            'PO845454': 'MoDem',
+            'PO845470': 'Horizons',
+            'PO845485': 'Droite Républicaine',
+            'PO845514': 'RN',
+            'PO872880': 'UDR (Ciotti)',
+            'PO840056': 'Non-inscrits'
+          };
           groupResults.push({
             group_id: g.organeRef,
+            group_label: GROUP_NAMES[g.organeRef] || g.organeRef,
             pour: parseInt(g.vote?.decompteVoix?.pour || "0"),
             contre: parseInt(g.vote?.decompteVoix?.contre || "0"),
             abstention: parseInt(g.vote?.decompteVoix?.abstentions || "0"),
