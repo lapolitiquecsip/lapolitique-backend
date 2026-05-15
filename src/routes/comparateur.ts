@@ -164,40 +164,610 @@ const REGIONS = [
 
 const DEPARTMENTS = [
   {
-    id: "75", name: "Paris", president: "Anne Hidalgo", party: "PS",
-    demographie: { populationTotal: 2100000, densite: 20300, evolution10ans: "-5.0%", moins25ans: 28, plus65ans: 15 },
-    economie: { chomage: 5.5, revenuMedian: 3000, pauvrete: 15 },
-    education: { bac: 94, diplomesSup: 60, decrochage: 5 },
-    sante: { medecins10k: 55, scoreAPL: 90, esperanceVie: 84 },
-    securite: { atteintesPersonnes: 15, atteintesBiens: 45 },
-    logement: { prixM2: 10000, logementsSociaux: 24, proprietaires: 33 },
-    politique: { pres2022T1: "Macron 35%, Mélenchon 30%, Zemmour 8%", pres2022T2: "Macron 85%, Le Pen 15%", participation: 76, elu: "Anne Hidalgo (PS)", eluDepuis: "2014" },
-    finances: { budgetHabitant: 5000, endettement: 85, investissement: 25 },
-    environnement: { qualiteAir: 45, surfaceNaturelle: 5, risques: "faible" },
+    "id": "01",
+    "name": "Ain",
+    "president": "Président du Conseil",
+    "party": "N/A"
   },
   {
-    id: "69", name: "Rhône", president: "Christophe Guilloteau", party: "LR",
-    demographie: { populationTotal: 468000, densite: 175, evolution10ans: "+3.5%", moins25ans: 30, plus65ans: 18 },
-    economie: { chomage: 6.2, revenuMedian: 2350, pauvrete: 11 },
-    education: { bac: 91, diplomesSup: 42, decrochage: 7 },
-    sante: { medecins10k: 32, scoreAPL: 70, esperanceVie: 83 },
-    securite: { atteintesPersonnes: 9, atteintesBiens: 28 },
-    logement: { prixM2: 3000, logementsSociaux: 18, proprietaires: 58 },
-    politique: { pres2022T1: "Macron 32%, Mélenchon 25%, Le Pen 18%", pres2022T2: "Macron 68%, Le Pen 32%", participation: 78, elu: "Christophe Guilloteau (LR)", eluDepuis: "2015" },
-    finances: { budgetHabitant: 1164, endettement: 55, investissement: 32 },
-    environnement: { qualiteAir: 60, surfaceNaturelle: 60, risques: "modéré" },
+    "id": "02",
+    "name": "Aisne",
+    "president": "Président du Conseil",
+    "party": "N/A"
   },
   {
-    id: "13", name: "Bouches-du-Rhône", president: "Martine Vassal", party: "DVD",
-    demographie: { populationTotal: 2000000, densite: 395, evolution10ans: "+2.0%", moins25ans: 29, plus65ans: 21 },
-    economie: { chomage: 8.5, revenuMedian: 2150, pauvrete: 17 },
-    education: { bac: 86, diplomesSup: 32, decrochage: 12 },
-    sante: { medecins10k: 38, scoreAPL: 75, esperanceVie: 82.5 },
-    securite: { atteintesPersonnes: 12, atteintesBiens: 35 },
-    logement: { prixM2: 3500, logementsSociaux: 15, proprietaires: 52 },
-    politique: { pres2022T1: "Mélenchon 26%, Le Pen 25%, Macron 22%", pres2022T2: "Macron 52%, Le Pen 48%", participation: 72, elu: "Martine Vassal (DVD)", eluDepuis: "2015" },
-    finances: { budgetHabitant: 1425, endettement: 62, investissement: 28 },
-    environnement: { qualiteAir: 55, surfaceNaturelle: 50, risques: "élevé" },
+    "id": "03",
+    "name": "Allier",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "04",
+    "name": "Alpes-de-Haute-Provence",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "05",
+    "name": "Hautes-Alpes",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "06",
+    "name": "Alpes-Maritimes",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "07",
+    "name": "Ardèche",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "08",
+    "name": "Ardennes",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "09",
+    "name": "Ariège",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "10",
+    "name": "Aube",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "11",
+    "name": "Aude",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "12",
+    "name": "Aveyron",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "13",
+    "name": "Bouches-du-Rhône",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "14",
+    "name": "Calvados",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "15",
+    "name": "Cantal",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "16",
+    "name": "Charente",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "17",
+    "name": "Charente-Maritime",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "18",
+    "name": "Cher",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "19",
+    "name": "Corrèze",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "21",
+    "name": "Côte-d'Or",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "22",
+    "name": "Côtes-d'Armor",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "23",
+    "name": "Creuse",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "24",
+    "name": "Dordogne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "25",
+    "name": "Doubs",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "26",
+    "name": "Drôme",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "27",
+    "name": "Eure",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "28",
+    "name": "Eure-et-Loir",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "29",
+    "name": "Finistère",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "2A",
+    "name": "Corse-du-Sud",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "2B",
+    "name": "Haute-Corse",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "30",
+    "name": "Gard",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "31",
+    "name": "Haute-Garonne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "32",
+    "name": "Gers",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "33",
+    "name": "Gironde",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "34",
+    "name": "Hérault",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "35",
+    "name": "Ille-et-Vilaine",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "36",
+    "name": "Indre",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "37",
+    "name": "Indre-et-Loire",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "38",
+    "name": "Isère",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "39",
+    "name": "Jura",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "40",
+    "name": "Landes",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "41",
+    "name": "Loir-et-Cher",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "42",
+    "name": "Loire",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "43",
+    "name": "Haute-Loire",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "44",
+    "name": "Loire-Atlantique",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "45",
+    "name": "Loiret",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "46",
+    "name": "Lot",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "47",
+    "name": "Lot-et-Garonne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "48",
+    "name": "Lozère",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "49",
+    "name": "Maine-et-Loire",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "50",
+    "name": "Manche",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "51",
+    "name": "Marne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "52",
+    "name": "Haute-Marne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "53",
+    "name": "Mayenne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "54",
+    "name": "Meurthe-et-Moselle",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "55",
+    "name": "Meuse",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "56",
+    "name": "Morbihan",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "57",
+    "name": "Moselle",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "58",
+    "name": "Nièvre",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "59",
+    "name": "Nord",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "60",
+    "name": "Oise",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "61",
+    "name": "Orne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "62",
+    "name": "Pas-de-Calais",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "63",
+    "name": "Puy-de-Dôme",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "64",
+    "name": "Pyrénées-Atlantiques",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "65",
+    "name": "Hautes-Pyrénées",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "66",
+    "name": "Pyrénées-Orientales",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "67",
+    "name": "Bas-Rhin",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "68",
+    "name": "Haut-Rhin",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "69",
+    "name": "Rhône",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "70",
+    "name": "Haute-Saône",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "71",
+    "name": "Saône-et-Loire",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "72",
+    "name": "Sarthe",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "73",
+    "name": "Savoie",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "74",
+    "name": "Haute-Savoie",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "75",
+    "name": "Paris",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "76",
+    "name": "Seine-Maritime",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "77",
+    "name": "Seine-et-Marne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "78",
+    "name": "Yvelines",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "79",
+    "name": "Deux-Sèvres",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "80",
+    "name": "Somme",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "81",
+    "name": "Tarn",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "82",
+    "name": "Tarn-et-Garonne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "83",
+    "name": "Var",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "84",
+    "name": "Vaucluse",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "85",
+    "name": "Vendée",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "86",
+    "name": "Vienne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "87",
+    "name": "Haute-Vienne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "88",
+    "name": "Vosges",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "89",
+    "name": "Yonne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "90",
+    "name": "Territoire de Belfort",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "91",
+    "name": "Essonne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "92",
+    "name": "Hauts-de-Seine",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "93",
+    "name": "Seine-Saint-Denis",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "94",
+    "name": "Val-de-Marne",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "95",
+    "name": "Val-d'Oise",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "971",
+    "name": "Guadeloupe",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "972",
+    "name": "Martinique",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "973",
+    "name": "Guyane",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "974",
+    "name": "La Réunion",
+    "president": "Président du Conseil",
+    "party": "N/A"
+  },
+  {
+    "id": "976",
+    "name": "Mayotte",
+    "president": "Président du Conseil",
+    "party": "N/A"
   }
 ];
 
@@ -221,12 +791,19 @@ router.get('/:codeInsee', (req, res) => {
   // Check in REGIONS
   const region = REGIONS.find(r => r.id === codeInsee);
   if (region) {
+    // Ensure regions have indicators (they should, but just in case)
     return res.json({ ...region, type: 'region' });
   }
 
   // Check in DEPARTMENTS
   const department = DEPARTMENTS.find(d => d.id === codeInsee);
   if (department) {
+    // Departments from the 101 list might not have indicators yet
+    // Generate mock indicators for them if missing
+    if (!(department as any).demographie) {
+      const mockIndicators = generateMockCommune(codeInsee, name);
+      return res.json({ ...department, ...mockIndicators, type: 'department', isEstimated: true });
+    }
     return res.json({ ...department, type: 'department' });
   }
 
