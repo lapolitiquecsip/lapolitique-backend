@@ -15,6 +15,7 @@ import politiciansRoutes from './routes/politicians.js';
 import lawsRoutes from './routes/laws.js';
 import calendarRoutes from './routes/calendar.js';
 import subscribersRoutes from './routes/subscribers.js';
+import comparateurRoutes from './routes/comparateur.js';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use('/api/politicians', politiciansRoutes);
 app.use('/api/laws', lawsRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/subscribers', subscribersRoutes);
+app.use('/api/comparateur', comparateurRoutes);
 
 // Admin route to trigger pipeline manually
 app.post('/api/admin/run-pipeline', async (req, res) => {
