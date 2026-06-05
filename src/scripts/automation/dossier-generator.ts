@@ -96,7 +96,7 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
 
     try {
       const msg = await anthropic.messages.create({
-        model: "claude-3-haiku-20240307",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 2500,
         temperature: 0.3,
         system: "Tu es un expert politique qui génère des JSON valides.",

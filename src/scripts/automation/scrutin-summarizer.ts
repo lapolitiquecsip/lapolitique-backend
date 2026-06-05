@@ -39,7 +39,7 @@ async function summarizeScrutins() {
 
       // Models available in 2026 - Optimized for this environment
       const CLAUDE_MODELS = [
-        'claude-3-haiku-20240307',
+        'claude-3-5-haiku-20241022',
         'claude-sonnet-4-6',
         'claude-opus-4-20250514'
       ];

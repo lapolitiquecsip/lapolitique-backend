@@ -16,7 +16,7 @@ const MAX_RETRIES = 3;
 async function generateSummaryWithRetry(content: string, retryCount = 0): Promise<any> {
   try {
     const response = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307", // Fast and cheap
+      model: "claude-3-5-haiku-20241022", // Fast and cheap
       max_tokens: 1024,
       system: "Tu es un journaliste pédagogue experte en politique française. Tu dois toujours répondre UNIQUEMENT avec un objet JSON (sans le bloc de code markdown, juste l'accolade).",
       messages: [
