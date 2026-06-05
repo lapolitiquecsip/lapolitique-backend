@@ -31,7 +31,7 @@ async function enrichEvent(title: string, description: string) {
 RÈGLES CRITIQUES :
 1. Titre Court (short_title) : Maximum 8 mots. Très percutant. 
    - SI le titre original est "Suite de l'ordre du jour" ou similaire, analyse la description pour trouver le VRAI sujet (ex: "Suite de l'examen de la loi agricole").
-2. Résumé (short_summary) : Une seule phrase, maximum 20 mots. Doit expliquer l'enjeu principal simplement.
+2. Résumé (short_summary) : Une seule phrase, maximum 20 mots. Doit expliquer l'enjeu principal simplement. SI le texte mentionne le dépôt d'un projet de loi ou la publication d'un rapport, RÉSUME LE CONTENU et le but de ce rapport/projet (ex: "Ce rapport propose de réduire les impôts") au lieu de juste dire "Un rapport a été déposé".
 
 Réponds UNIQUEMENT au format JSON suivant :
 {

@@ -63,6 +63,7 @@ async function main() {
           Résume les points clés de manière factuelle et ultra-concise.
           Fais un paragraphe de MAXIMUM 2 phrases courtes. 
           Sois percutant, va droit à l'essentiel.
+          IMPORTANT : S'il y a un rapport publié ou un projet de loi déposé, TU DOIS RÉSUMER SON CONTENU, ce qu'il propose ou conclut concrètement, et non pas te contenter de dire "un rapport a été publié".
           
           Ordre du jour :
           ${eventsList}`
