@@ -93,7 +93,7 @@ async function generatePremiumSummary(title: string) {
   console.log(`  - Génération du résumé Premium pour : ${title.substring(0, 50)}...`);
   
   const response = await anthropic.messages.create({
-    model: 'claude-3-opus-20240229',
+    model: 'claude-3-haiku-20240307',
     max_tokens: 1500,
     messages: [
       {
