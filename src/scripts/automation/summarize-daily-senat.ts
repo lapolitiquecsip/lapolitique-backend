@@ -54,7 +54,7 @@ async function main() {
   try {
     // 3. Call Claude
     const response = await anthropic.messages.create({
-      model: 'claude-3-7-sonnet-20250219',
+      model: 'claude-3-5-sonnet-20240620',
       max_tokens: 500,
       messages: [
         {
