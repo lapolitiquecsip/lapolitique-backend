@@ -17,15 +17,22 @@ const anthropic = new Anthropic({
 async function generateWeeklyStats() {
   console.log("--- GÉNÉRATION DES STATS HEBDOMADAIRES EXPERTES ---");
 
+  const topics = ["Budget et Économie", "Écologie et Énergie", "Justice et Sécurité", "Santé et Social", "Éducation et Culture", "Institutions et Règlements", "Europe et International"];
+  const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+  const currentDate = new Date().toLocaleDateString('fr-FR');
+
   const prompt = `Tu es un expert de haut niveau du Parlement français (Assemblée nationale et Sénat).
 Ta mission est de générer 5 informations marquantes et 1 "Intox" hebdomadaires.
 
-CRITÈRE CRUCIAL : Les informations doivent être UTILES et NON-ÉVIDENTES, même pour des personnes qui connaissent déjà très bien la politique (experts, journalistes, collaborateurs parlementaires). 
+CRITÈRE CRUCIAL 1 : Les informations doivent être UTILES et NON-ÉVIDENTES, même pour des personnes qui connaissent déjà très bien la politique.
+CRITÈRE CRUCIAL 2 : Tu dois ABSOLUMENT varier tes réponses à chaque génération. Ne répète jamais les mêmes statistiques d'une fois sur l'autre.
+Date du jour : ${currentDate}. Pour t'aider à varier, essaie d'inclure au moins un fait lié à ce thème aléatoire : "${randomTopic}".
+
 Évite absolument les généralités comme "Le 49.3 a été utilisé" ou "Yaël Braun-Pivet est présidente".
 Cherche des :
-- Chiffres techniques précis (ex: taux de réussite des amendements de l'opposition en commission).
-- Procédures méconnues ou records de la 17ème législature.
-- Faits récents sur des rapports de mission d'information ou des commissions d'enquête.
+- Chiffres techniques précis (ex: taux de réussite des amendements).
+- Procédures méconnues ou faits historiques rares.
+- Faits récents sur des rapports ou commissions d'enquête.
 - Détails budgétaires ou institutionnels pointus.
 
 Format de sortie attendu (JSON uniquement) :
