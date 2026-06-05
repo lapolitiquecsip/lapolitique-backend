@@ -21,7 +21,7 @@ async function debugAnthropic() {
 
   // Modèles à tester (identifiants officiels)
   const models = [
-    "claude-3-haiku-20240307"
+    "claude-3-opus-20240229"
   ];
 
   for (const model of models) {
