@@ -42,7 +42,7 @@ Génère un JSON avec les champs suivants :
 Réponds UNIQUEMENT avec le JSON.`;
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-3-5-sonnet-20241022",
     max_tokens: 1500,
     messages: [{ role: "user", content: prompt }]
   });

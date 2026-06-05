@@ -93,24 +93,17 @@ async function main() {
       for (const p of petitions) {
         const { error } = await supabase
           .from('petitions')
-          .update({ 
-            signatures: p.signatures, 
-            threshold: p.threshold,
-            category: p.category,
-            description: p.description,
+          .upsert({ 
+            ...p, 
+            institution: source.name,
             updated_at: new Date().toISOString()
-          })
-          .eq('url', p.url);
+          }, { onConflict: 'url' });
 
         if (error) {
-           // If update fails (e.g. doesn't exist), upsert a fresh one
-           const { error: upsertError } = await supabase
-            .from('petitions')
-            .upsert({ ...p, institution: source.name }, { onConflict: 'url' });
-           if (upsertError) console.error(`    ⚠️ DB Error:`, upsertError.message);
+           console.error(`    ⚠️ DB Error:`, error.message);
+        } else {
+           console.log(`    ✅ Upserted "${p.title.substring(0, 30)}..." : ${p.signatures} sig`);
         }
-        
-        console.log(`    ✅ Updated "${p.title.substring(0, 30)}..." : ${p.signatures} sig`);
       }
     }
   }
