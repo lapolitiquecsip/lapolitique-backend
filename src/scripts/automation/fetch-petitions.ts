@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { chromium } from 'playwright';
+import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -21,71 +21,74 @@ const SOURCES = [
   }
 ];
 
-async function scrapeWithBrowser(url: string, source: typeof SOURCES[0]) {
-  console.log(`  > Opening browser for: ${url}`);
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
-  });
-  const page = await context.newPage();
-
+async function scrapeWithCheerio(url: string, source: typeof SOURCES[0]) {
+  console.log(`  > Fetching page with cheerio: ${url}`);
   try {
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const results: any[] = [];
     
-    // Wait for the cards to load
-    await page.waitForSelector('.card--initiative', { timeout: 30000 });
-    
-    // Scrape signatures and metadata
-    const petitions = await page.evaluate((sourceBaseUrl) => {
-      const results: any[] = [];
-      const cards = document.querySelectorAll('.card--initiative');
+    $('.card--initiative').each((_, card) => {
+      const cardEl = $(card);
       
-      cards.forEach(card => {
-        const titleEl = card.querySelector('.card__title');
-        const title = titleEl?.textContent?.trim() || '';
-        
-        let relUrl = card.querySelector('a.card__link')?.getAttribute('href') || '';
-        if (relUrl.includes('?')) relUrl = relUrl.split('?')[0];
-        const fullUrl = relUrl.startsWith('http') ? relUrl : `${sourceBaseUrl}${relUrl}`;
-        
-        // Signatures
-        const sigEl = card.querySelector('.progress__bar__number');
-        const sigText = sigEl?.textContent?.trim() || '0';
-        const signatures = parseInt(sigText.replace(/[^0-9]/g, '')) || 0;
-        
-        // Threshold
-        const thresholdEl = card.querySelector('.progress__bar__total');
-        const thresholdText = thresholdEl?.textContent?.trim() || '';
-        let threshold = 100000;
-        if (thresholdText) {
-          threshold = parseInt(thresholdText.replace(/[^0-9]/g, '')) || threshold;
-        }
+      const titleEl = cardEl.find('.card__title');
+      const title = titleEl.text().trim() || '';
+      
+      let relUrl = cardEl.find('a.card__link').attr('href') || '';
+      if (relUrl.includes('?')) relUrl = relUrl.split('?')[0];
+      const fullUrl = relUrl.startsWith('http') ? relUrl : `${source.baseUrl}${relUrl}`;
+      
+      // Signatures
+      const sigEl = cardEl.find('.progress__bar__number');
+      const sigText = sigEl.text().trim() || '0';
+      const signatures = parseInt(sigText.replace(/[^0-9]/g, '')) || 0;
+      
+      // Threshold
+      const thresholdEl = cardEl.find('.progress__bar__total');
+      const thresholdText = thresholdEl.text().trim() || '';
+      let threshold = 100000;
+      if (thresholdText) {
+        threshold = parseInt(thresholdText.replace(/[^0-9]/g, '')) || threshold;
+      }
 
-        const category = card.querySelector('.tags--initiative a')?.textContent?.trim() || 'Pétition';
+      const category = cardEl.find('.tags--initiative a').text().trim() || 'Pétition';
 
-        if (title && fullUrl.includes('/initiatives/')) {
-          results.push({ title, signatures, threshold, category, url: fullUrl });
-        }
-      });
-      return results;
-    }, source.baseUrl);
+      // Description
+      const descEl = cardEl.find('.card__text--paragraph span:not(.card__text--status)');
+      const description = descEl.text().trim() || '';
 
-    return petitions;
-  } catch (error) {
-    console.error(`    ❌ Browser Error: ${(error as Error).message}`);
+      if (title && fullUrl.includes('/initiatives/')) {
+        results.push({ title, description, signatures, threshold, category, url: fullUrl });
+      }
+    });
+
+    return results;
+  } catch (error: any) {
+    console.error(`    ❌ Cheerio Error: ${error.message}`);
     return [];
-  } finally {
-    await browser.close();
   }
 }
 
 async function main() {
-  console.log('--- SYNC PETITIONS WITH PLAYWRIGHT (Browser-based) ---');
+  console.log('--- SYNC PETITIONS WITH CHEERIO (HTTP-based) ---');
 
   for (const source of SOURCES) {
     console.log(`\n> Site: ${source.name}`);
     for (const url of source.endpoints) {
-      const petitions = await scrapeWithBrowser(url, source);
+      const petitions = await scrapeWithCheerio(url, source);
+      console.log(`    Found ${petitions.length} petitions.`);
       
       for (const p of petitions) {
         const { error } = await supabase
@@ -94,6 +97,7 @@ async function main() {
             signatures: p.signatures, 
             threshold: p.threshold,
             category: p.category,
+            description: p.description,
             updated_at: new Date().toISOString()
           })
           .eq('url', p.url);
@@ -111,7 +115,7 @@ async function main() {
     }
   }
 
-  console.log('\nSUCCESS : Synchronisation par navigateur terminée.');
+  console.log('\nSUCCESS : Synchronisation par Cheerio terminée.');
 }
 
 main().catch(console.error);
