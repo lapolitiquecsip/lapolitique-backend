@@ -56,7 +56,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+      model: "claude-3-opus-20240229",
       max_tokens: 1500,
       messages: [{ role: "user", content: prompt }]
     });
