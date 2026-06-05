@@ -64,7 +64,7 @@ Les couleurs doivent être obligatoirement des codes HEX, VIVES et suffisamment 
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-2.1",
+      model: "claude-3-opus-20240229",
       max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
     });

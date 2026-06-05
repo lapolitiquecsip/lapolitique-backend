@@ -41,7 +41,7 @@ async function summarizeLaws() {
       console.log(`Processing: ${l.title}`);
 
       const CLAUDE_MODELS = [
-        'claude-2.1',
+        'claude-3-opus-20240229',
         'claude-sonnet-4-6',
         'claude-opus-4-20250514'
       ];

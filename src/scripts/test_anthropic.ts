@@ -14,7 +14,7 @@ const anthropic = new Anthropic({
 });
 
 async function test() {
-  const models = ["claude-3-haiku-20240307", "claude-2.1", "claude-2.1", "claude-2.1"];
+  const models = ["claude-3-haiku-20240307", "claude-3-opus-20240229", "claude-3-opus-20240229", "claude-3-opus-20240229"];
   
   for (const model of models) {
     try {
