@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ const CATEGORIES = [
   "Sécurité"
 ];
 
-async function generateDossiers() {
+export async function generateDossiers() {
   console.log("=== Lancement de la génération des Dossiers Premium ===");
 
   // 1. Fetch scrutins that are LOI and adopted, which don't have a matching dossier in 'laws'
@@ -42,11 +43,12 @@ async function generateDossiers() {
   console.log(`Trouvé ${scrutins.length} lois adoptées potentielles.`);
 
   for (const scrutin of scrutins) {
-    // Check if we already created a dossier for this scrutin's title
+    // Check if we already created a dossier for this scrutin using context
     const { data: existingLaw } = await supabase
       .from('laws')
       .select('id')
-      .eq('title', scrutin.objet)
+      .eq('context', `dossier_premium:${scrutin.id}`)
+      .limit(1)
       .single();
 
     if (existingLaw) {
@@ -96,7 +98,7 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
 
     try {
       const msg = await anthropic.messages.create({
-        model: "claude-3-5-haiku-20241022",
+        model: "claude-sonnet-4-6",
         max_tokens: 2500,
         temperature: 0.3,
         system: "Tu es un expert politique qui génère des JSON valides.",
@@ -144,4 +146,6 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
   console.log("=== Terminé ===");
 }
 
-generateDossiers();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  generateDossiers();
+}

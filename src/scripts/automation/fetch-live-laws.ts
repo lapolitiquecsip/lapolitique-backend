@@ -56,7 +56,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-3-5-haiku-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 1500,
       messages: [{ role: "user", content: prompt }]
     });
@@ -72,7 +72,7 @@ Réponds UNIQUEMENT avec le JSON.`;
   return null;
 }
 
-async function fetchLiveLaws() {
+export async function syncLiveLaws() {
   console.log('--- FETCHING LIVE ASSEMBLEE NATIONALE BILLS WITH AI ANALYSIS ---');
   
   const allBills: any[] = [];
@@ -211,4 +211,9 @@ async function fetchLiveLaws() {
   }
 }
 
-fetchLiveLaws();
+import fs from 'fs';
+const nodePath = fs.realpathSync(process.argv[1]);
+const currentPath = fileURLToPath(import.meta.url);
+if (nodePath === currentPath || nodePath.endsWith('fetch-live-laws.ts') || nodePath.endsWith('fetch-live-laws.js')) {
+  syncLiveLaws().catch(console.error);
+}
