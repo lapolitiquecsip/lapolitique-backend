@@ -1,14 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../config/supabase.js';
 import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
