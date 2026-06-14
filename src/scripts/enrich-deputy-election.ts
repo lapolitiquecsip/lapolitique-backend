@@ -68,7 +68,7 @@ async function main() {
 
         results.push({
             department: dept,
-            circo: parseInt(circo),
+            circo: parseInt(circo as any),
             candidates: candidates.sort((a, b) => b.votes - a.votes)
         });
     }
