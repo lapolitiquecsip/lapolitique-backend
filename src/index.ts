@@ -2,10 +2,19 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { apiLimiter } from './middleware/rateLimit';
+import { apiLimiter } from './middleware/rateLimit.js';
 import { startWorkers } from './workers/index.js';
 import { runAssembleePipeline } from './workers/assemblee-pipeline.js';
 import { runSeed } from './scripts/seed.js';
+import { serve } from 'inngest/express';
+import { initMonitoring } from './lib/monitoring.js';
+import {
+  inngest,
+  fetchVotesFn,
+  scrutinSummarizerFn,
+  fetchPetitionsFn,
+  fetchLiveLawsFn
+} from './lib/inngest.js';
 
 // Load routes
 import contentRoutes from './routes/content.js';
@@ -18,6 +27,7 @@ import subscribersRoutes from './routes/subscribers.js';
 import comparateurRoutes from './routes/comparateur.js';
 
 dotenv.config();
+initMonitoring();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -32,6 +42,17 @@ app.use(apiLimiter); // Apply rate limiter to all requests globally or adapt per
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Inngest route
+app.use('/api/inngest', serve({
+  client: inngest,
+  functions: [
+    fetchVotesFn,
+    scrutinSummarizerFn,
+    fetchPetitionsFn,
+    fetchLiveLawsFn
+  ]
+}));
 
 // Resources routes
 app.use('/api/content', contentRoutes);
