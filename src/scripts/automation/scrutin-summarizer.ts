@@ -1,5 +1,5 @@
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../config/supabase.js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -7,11 +7,6 @@ import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
 import { resilientAnthropic } from '../../lib/anthropic-client.js';
 
 dotenv.config();
-
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
 
 export async function summarizeScrutins() {
   const hcId = process.env.HEALTHCHECK_ID_SUMMARIZER;

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../config/supabase.js';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -6,10 +6,6 @@ import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const SOURCES = [
   {

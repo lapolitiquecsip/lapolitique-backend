@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+dotenv.config();
 import { apiLimiter } from './middleware/rateLimit.js';
 import { startWorkers } from './workers/index.js';
 import { runAssembleePipeline } from './workers/assemblee-pipeline.js';
@@ -26,7 +27,6 @@ import calendarRoutes from './routes/calendar.js';
 import subscribersRoutes from './routes/subscribers.js';
 import comparateurRoutes from './routes/comparateur.js';
 
-dotenv.config();
 initMonitoring();
 
 const app = express();
