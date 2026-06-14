@@ -26,6 +26,7 @@
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
+    "@sentry/node": "^10.57.0",
     "@supabase/supabase-js": "^2.101.1",
     "adm-zip": "^0.5.17",
     "cheerio": "^1.2.0",
@@ -35,6 +36,7 @@
     "express-rate-limit": "^8.3.2",
     "fast-xml-parser": "^5.5.12",
     "helmet": "^8.1.0",
+    "inngest": "^4.5.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
     "playwright": "^1.59.1",
