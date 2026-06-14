@@ -1,4 +1,3 @@
-
 import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import path from 'path';
@@ -14,7 +13,7 @@ const anthropic = new Anthropic({
 });
 
 async function test() {
-  const models = ["claude-3-5-haiku-20241022", "claude-3-5-haiku-20241022", "claude-3-5-haiku-20241022", "claude-3-5-haiku-20241022"];
+  const models = ["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-8"];
   
   for (const model of models) {
     try {
@@ -25,7 +24,6 @@ async function test() {
         messages: [{ role: "user", content: "Hi" }]
       });
       console.log(`✅ ${model} works!`);
-      return;
     } catch (e: any) {
       console.log(`❌ ${model} failed: ${e.message}`);
     }

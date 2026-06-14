@@ -24,7 +24,7 @@ async function enrichEvent(title: string, description: string) {
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-3-5-haiku-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 300,
       system: `Tu es un assistant expert en politique française. Ta mission est de transformer des événements parlementaires complexes en informations simples pour le grand public.
 

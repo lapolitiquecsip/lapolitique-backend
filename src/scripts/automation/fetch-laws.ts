@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { downloadAndUnzip } from './utils.js';
+import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,19 +16,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const LAWS_URL = 'http://data.assemblee-nationale.fr/static/openData/repository/17/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip';
+const LAWS_URL = 'https://data.assemblee-nationale.fr/static/openData/repository/17/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip';
 const DATA_DIR = path.join(__dirname, '../../../data/laws_an');
 
-async function main() {
-  console.log('--- SYNC ASSEMBLEE NATIONALE LAWS ---');
+export async function syncLawsAN() {
+  const hcId = process.env.HEALTHCHECK_ID_LAWS;
+  await logStart('syncLawsAN', hcId);
 
-  await downloadAndUnzip(LAWS_URL, DATA_DIR);
+  try {
+    await downloadAndUnzip(LAWS_URL, DATA_DIR);
 
   const entriesDir = path.join(DATA_DIR, 'json/dossierParlementaire');
   if (!fs.existsSync(entriesDir)) {
     console.error('Error: json/dossier directory not found in zip.');
     return;
   }
+
+  const { data: existingLaws } = await supabase.from('laws').select('title');
+  const existingTitles = new Set(existingLaws?.map((l: any) => l.title) || []);
 
   const files = fs.readdirSync(entriesDir);
   console.log(`> Processing ${files.length} legislative folders...`);
@@ -43,6 +49,9 @@ async function main() {
     if (!dossier) continue;
 
     const title = dossier.titreDossier?.titre || dossier.libelle || "Titre inconnu";
+    
+    if (existingTitles.has(title)) continue; // Skip existing laws quickly
+
     const category = dossier.procedureParlementaire?.libelle || 'Législation';
     const uid = dossier.uid;
 
@@ -56,17 +65,31 @@ async function main() {
       source_urls: [`https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${uid}`]
     };
 
-    // We only import the most recent or major ones for now
     if (updatedCount < 100) {
       const { error } = await supabase
         .from('laws')
         .insert(law);
-      if (!error) updatedCount++;
+      if (!error) {
+        updatedCount++;
+        existingTitles.add(title);
+      }
       else console.error(`Error upserting ${uid}:`, error.message);
     }
   }
 
-  console.log(`\nTERMINE : ${updatedCount} dossiers législatifs synchronisés.`);
+    console.log(`\nTERMINE : ${updatedCount} dossiers législatifs synchronisés.`);
+    await logSuccess('syncLawsAN', updatedCount, hcId);
+    return updatedCount;
+
+  } catch (err: any) {
+    await logError('syncLawsAN', err, hcId);
+    throw err;
+  }
 }
 
-main().catch(console.error);
+const nodePath = fs.realpathSync(process.argv[1]);
+const currentPath = fileURLToPath(import.meta.url);
+if (nodePath === currentPath || nodePath.endsWith('fetch-laws.ts') || nodePath.endsWith('fetch-laws.js')) {
+  syncLawsAN().catch(console.error);
+}
+

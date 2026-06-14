@@ -3,7 +3,9 @@ import * as cheerio from 'cheerio';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Anthropic from '@anthropic-ai/sdk';
+import fs from 'fs';
+import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
+import { resilientAnthropic } from '../../lib/anthropic-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,10 +17,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
-
 const SOURCES = [
   { url: 'https://www2.assemblee-nationale.fr/documents/liste?type=projets-loi', category: 'Projet de loi' },
   { url: 'https://www2.assemblee-nationale.fr/documents/liste?type=propositions-loi', category: 'Proposition de loi' }
@@ -28,9 +26,14 @@ async function generateBillAnalysis(bill: any, dossierHtml: string) {
   const $ = cheerio.load(dossierHtml);
   
   // Try to find the status (Etape)
-  const status = $('.dossier-etape-label').first().text().trim() || 
-                 $('.etape-label').first().text().trim() || 
-                 "Dépôt du texte";
+  const statusLabel = $('.dossier-etape-label').first().text().trim() || 
+                      $('.etape-label').first().text().trim();
+
+  if (!$('.dossier-etape-label').length && !$('.etape-label').length) {
+    console.warn(`[WARNING] SELECTOR_NOT_FOUND: '.dossier-etape-label' / '.etape-label' on dossier page: ${bill.source_urls[0]}`);
+  }
+
+  const status = statusLabel || "Dépôt du texte";
 
   // Try to find more context (Exposé des motifs summary or similar)
   const introText = $('.dossier-intro').text().trim() || 
@@ -55,7 +58,7 @@ Génère un JSON avec les champs suivants :
 Réponds UNIQUEMENT avec le JSON.`;
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await resilientAnthropic.createMessage({
       model: "claude-sonnet-4-6",
       max_tokens: 1500,
       messages: [{ role: "user", content: prompt }]
@@ -73,7 +76,8 @@ Réponds UNIQUEMENT avec le JSON.`;
 }
 
 export async function syncLiveLaws() {
-  console.log('--- FETCHING LIVE ASSEMBLEE NATIONALE BILLS WITH AI ANALYSIS ---');
+  const hcId = process.env.HEALTHCHECK_ID_LIVE_LAWS;
+  await logStart('syncLiveLaws', hcId);
   
   const allBills: any[] = [];
   const months: { [key: string]: string } = {
@@ -81,18 +85,46 @@ export async function syncLiveLaws() {
     juillet: '07', août: '08', septembre: '09', octobre: '10', novembre: '11', décembre: '12'
   };
 
+  let scrapedCount = 0;
+  let insertedCount = 0;
+
   try {
     for (const source of SOURCES) {
       console.log(`\n> Scraping ${source.category} from: ${source.url}`);
       const response = await fetch(source.url);
+      if (!response.ok) throw new Error(`HTTP Error ${response.status} fetching source: ${source.url}`);
+      
       const html = await response.text();
       const $ = cheerio.load(html);
       
-      $('ul.liens-liste li[data-id], .liens-liste li[data-id]').each((i, el) => {
-        const id = $(el).attr('data-id')?.replace('OMC_', '');
-        const title = $(el).find('h3').text().trim();
-        const dateTextRaw = $(el).find('span.heure, .date').text().trim();
-        const subtitle = $(el).find('p').first().text().trim();
+      const listSelector = 'ul.liens-liste li[data-id], .liens-liste li[data-id]';
+      const items = $(listSelector);
+      
+      if (items.length === 0) {
+        throw new Error(`SELECTOR_NOT_FOUND: '${listSelector}' (no bills found in list on ${source.url})`);
+      }
+      
+      items.each((i, el) => {
+        const rawId = $(el).attr('data-id');
+        const id = rawId?.replace('OMC_', '');
+        
+        const h3El = $(el).find('h3');
+        if (h3El.length === 0) {
+          console.warn(`[WARNING] SELECTOR_NOT_FOUND: 'h3' (title) in list item on ${source.url}`);
+        }
+        const title = h3El.text().trim();
+        
+        const dateEl = $(el).find('span.heure, .date');
+        if (dateEl.length === 0) {
+          console.warn(`[WARNING] SELECTOR_NOT_FOUND: 'span.heure, .date' in list item on ${source.url}`);
+        }
+        const dateTextRaw = dateEl.text().trim();
+        
+        const subtitleEl = $(el).find('p').first();
+        if (subtitleEl.length === 0) {
+          console.warn(`[WARNING] SELECTOR_NOT_FOUND: 'p' (subtitle) in list item on ${source.url}`);
+        }
+        const subtitle = subtitleEl.text().trim();
         
         let author = source.category === 'Projet de loi' ? 'Le Gouvernement' : '';
         if (source.category === 'Proposition de loi') {
@@ -103,11 +135,7 @@ export async function syncLiveLaws() {
           } else {
             // 2. Fallback to subtitle parsing with refined regex
             const authorMatch = subtitle.match(/(?:de loi organique de|de loi de)\s+([^,]+?)(?:\s+et plusieurs|\s+relative|\s+visant|\s+déposée|$)/i);
-            if (authorMatch) {
-              author = authorMatch[1].trim();
-            } else {
-              author = "Député(s)";
-            }
+            author = authorMatch ? authorMatch[1].trim() : "Député(s)";
           }
         }
 
@@ -140,16 +168,13 @@ export async function syncLiveLaws() {
       });
     }
 
+    scrapedCount = allBills.length;
     // Sort to process newest first
     allBills.sort((a, b) => b.published_at - a.published_at);
 
     console.log(`\n> Analyzing up to ${Math.min(allBills.length, 100)} newest bills...`);
 
-    let processedCount = 0;
     for (const bill of allBills) {
-      // No more 20 limit to ensure all laws are processed
-      // but we skip if it already has premium content AND timeline is not the placeholder
-      
       const { data: existing } = await supabase
         .from('laws')
         .select('id, content, timeline')
@@ -160,12 +185,11 @@ export async function syncLiveLaws() {
       const needsAnalysis = !existing || !existing.content || existing.timeline === "Analyse du parcours législatif en cours...";
       
       if (needsAnalysis) {
-        if (processedCount >= 100) {
+        if (insertedCount >= 100) {
           console.log("\nReached 100 analyses limit for this run.");
           break;
         }
         console.log(`\nProcessing: ${bill.title}`);
-        processedCount++;
         
         // Wait a bit to avoid rate limits
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -196,22 +220,31 @@ export async function syncLiveLaws() {
             await supabase.from('laws').insert(billToSync);
             console.log("  ✅ Inserted with AI analysis");
           }
+          insertedCount++;
         } else {
           // Fallback if AI fails
           const { published_at, ...billToSync } = bill;
-          if (!existing) await supabase.from('laws').insert(billToSync);
+          if (!existing) {
+            await supabase.from('laws').insert(billToSync);
+            insertedCount++;
+          }
         }
       }
     }
 
-    console.log(`\nTERMINE : ${processedCount} textes législatifs traités.`);
+    const alreadyUpToDateCount = scrapedCount - insertedCount;
+    const msg = `scraped: ${scrapedCount}, already_up_to_date: ${alreadyUpToDateCount}, inserted: ${insertedCount}`;
+    console.log(`\n--- SYNCHRONIZATION COMPLETE : ${msg} ---`);
+    await logSuccess('syncLiveLaws', insertedCount, hcId, msg);
+    return insertedCount;
 
-  } catch (error) {
-    console.error('Error fetching live laws:', error);
+  } catch (error: any) {
+    await logError('syncLiveLaws', error, hcId);
+    throw error;
   }
 }
 
-import fs from 'fs';
+// Standalone execution support
 const nodePath = fs.realpathSync(process.argv[1]);
 const currentPath = fileURLToPath(import.meta.url);
 if (nodePath === currentPath || nodePath.endsWith('fetch-live-laws.ts') || nodePath.endsWith('fetch-live-laws.js')) {

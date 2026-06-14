@@ -1,5 +1,8 @@
 import { runAssembleePipeline } from './assemblee-pipeline.js';
 import { fetchAndParseVotes } from '../scripts/automation/fetch-votes.js';
+import { generateDossiers } from '../scripts/automation/dossier-generator.js';
+import { syncLawsAN } from '../scripts/automation/fetch-laws.js';
+import { syncLiveLaws } from '../scripts/automation/fetch-live-laws.js';
 
 export function startWorkers() {
   console.log('[Workers] Starting interval workers...');
@@ -13,6 +16,9 @@ export function startWorkers() {
     try {
       await runAssembleePipeline();
       await fetchAndParseVotes();
+      await generateDossiers();
+      await syncLawsAN();
+      await syncLiveLaws();
       const duration = (Date.now() - startTime) / 1000;
       console.log(`[Workers] All tasks completed successfully in ${duration}s.`);
     } catch (e: any) {

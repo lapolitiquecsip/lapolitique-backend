@@ -4,6 +4,7 @@ import AdmZip from 'adm-zip';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,54 +20,29 @@ const SCRUTINS_ZIP_URL = 'https://data.assemblee-nationale.fr/static/openData/re
 const TEMP_ZIP_PATH = path.join(process.cwd(), 'scrutins_temp.zip');
 
 export async function fetchAndParseVotes() {
-  const startTime = new Date();
-  console.log('--- START VOTES SYNCHRONIZATION ---');
-  
-  // Log start of pipeline
-  await supabase.from('pipeline_logs').insert({
-    pipeline_name: 'fetchAndParseVotes',
-    status: 'running',
-    run_at: startTime.toISOString()
-  });
+  const hcId = process.env.HEALTHCHECK_ID_VOTES;
+  await logStart('fetchAndParseVotes', hcId);
 
   try {
-    let arrayBuffer: ArrayBuffer | null = null;
-    let retries = 3;
-    
-    while (retries > 0) {
-      try {
-        console.log(`> Downloading archive to disk... (Retries left: ${retries})`);
-        const response = await fetch(SCRUTINS_ZIP_URL, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Connection': 'keep-alive'
-          }
-        });
-        
-        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-        
-        arrayBuffer = await response.arrayBuffer();
-        break; // Success
-      } catch (e: any) {
-        console.warn(`> Download failed: ${e.message}. Retrying...`);
-        retries--;
-        if (retries === 0) throw e;
-        await new Promise(res => setTimeout(res, 5000)); // Wait 5s before retry
-      }
-    }
-
-    if (!arrayBuffer) throw new Error('Failed to download archive after retries.');
-
-    fs.writeFileSync(TEMP_ZIP_PATH, Buffer.from(arrayBuffer));
-    console.log(`> Archive saved to disk (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB).`);
+    console.log(`> Downloading archive to disk using curl...`);
+    const { execSync } = await import('child_process');
+    execSync(`curl.exe -L -o "${TEMP_ZIP_PATH}" "${SCRUTINS_ZIP_URL}"`, { stdio: 'inherit' });
+    console.log(`> Archive downloaded to disk successfully.`);
 
     const zip = new AdmZip(TEMP_ZIP_PATH);
     const allEntries = zip.getEntries();
     const jsonEntries = allEntries.filter(e => e.entryName.endsWith('.json'));
     console.log(`> Found ${jsonEntries.length} files to process.`);
     
+    // Sort by scrutin number (descending) to process the newest first
+    jsonEntries.sort((a, b) => {
+      const matchA = a.entryName.match(/VT(\d+)/);
+      const matchB = b.entryName.match(/VT(\d+)/);
+      const numA = matchA ? parseInt(matchA[1]) : 0;
+      const numB = matchB ? parseInt(matchB[1]) : 0;
+      return numB - numA;
+    });
+
     // Safety limit: process max 200 files per run to avoid DB choke
     const entriesToProcess = jsonEntries.slice(0, 200);
     console.log(`> Processing only the first ${entriesToProcess.length} entries for performance.`);
@@ -291,26 +267,16 @@ export async function fetchAndParseVotes() {
     console.log(`> Scrutins updated: ${scrutinsCount}`);
     
     // Log success
-    await supabase.from('pipeline_logs').insert({
-      pipeline_name: 'fetchAndParseVotes',
-      status: 'success',
-      items_processed: scrutinsCount,
-      run_at: startTime.toISOString()
-    });
+    await logSuccess('fetchAndParseVotes', scrutinsCount, hcId);
 
     if (fs.existsSync(TEMP_ZIP_PATH)) fs.unlinkSync(TEMP_ZIP_PATH);
+    return scrutinsCount;
 
   } catch (err: any) {
     console.error(`\n[FATAL ERROR]`, err);
     
     // Log failure
-    await supabase.from('pipeline_logs').insert({
-      pipeline_name: 'fetchAndParseVotes',
-      status: 'error',
-      error_details: err.message,
-      run_at: startTime.toISOString()
-    });
-
+    await logError('fetchAndParseVotes', err, hcId);
     throw err;
   }
 }

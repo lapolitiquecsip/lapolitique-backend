@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import path from 'path';
+import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -40,23 +41,41 @@ async function scrapeWithCheerio(url: string, source: typeof SOURCES[0]) {
     const $ = cheerio.load(html);
     const results: any[] = [];
     
-    $('.card--initiative').each((_, card) => {
+    const cards = $('.card--initiative');
+    if (cards.length === 0) {
+      throw new Error(`SELECTOR_NOT_FOUND: '.card--initiative' (no petition cards found on ${url})`);
+    }
+    
+    cards.each((_, card) => {
       const cardEl = $(card);
       
       const titleEl = cardEl.find('.card__title');
+      if (titleEl.length === 0) {
+        console.warn(`[WARNING] SELECTOR_NOT_FOUND: '.card__title' in card item on ${url}`);
+      }
       const title = titleEl.text().trim() || '';
       
-      let relUrl = cardEl.find('a.card__link').attr('href') || '';
+      const linkEl = cardEl.find('a.card__link');
+      if (linkEl.length === 0) {
+        console.warn(`[WARNING] SELECTOR_NOT_FOUND: 'a.card__link' in card item on ${url}`);
+      }
+      let relUrl = linkEl.attr('href') || '';
       if (relUrl.includes('?')) relUrl = relUrl.split('?')[0];
       const fullUrl = relUrl.startsWith('http') ? relUrl : `${source.baseUrl}${relUrl}`;
       
       // Signatures
       const sigEl = cardEl.find('.progress__bar__number');
+      if (sigEl.length === 0) {
+        console.warn(`[WARNING] SELECTOR_NOT_FOUND: '.progress__bar__number' in card item on ${url}`);
+      }
       const sigText = sigEl.text().trim() || '0';
       const signatures = parseInt(sigText.replace(/[^0-9]/g, '')) || 0;
       
       // Threshold
       const thresholdEl = cardEl.find('.progress__bar__total');
+      if (thresholdEl.length === 0) {
+        console.warn(`[WARNING] SELECTOR_NOT_FOUND: '.progress__bar__total' in card item on ${url}`);
+      }
       const thresholdText = thresholdEl.text().trim() || '';
       let threshold = 100000;
       if (thresholdText) {
@@ -77,38 +96,57 @@ async function scrapeWithCheerio(url: string, source: typeof SOURCES[0]) {
     return results;
   } catch (error: any) {
     console.error(`    ❌ Cheerio Error: ${error.message}`);
-    return [];
+    throw error; // Re-throw so main() can log failure to monitoring
   }
 }
 
-async function main() {
-  console.log('--- SYNC PETITIONS WITH CHEERIO (HTTP-based) ---');
+export async function main() {
+  const hcId = process.env.HEALTHCHECK_ID_PETITIONS;
+  await logStart('fetchPetitions', hcId);
 
-  for (const source of SOURCES) {
-    console.log(`\n> Site: ${source.name}`);
-    for (const url of source.endpoints) {
-      const petitions = await scrapeWithCheerio(url, source);
-      console.log(`    Found ${petitions.length} petitions.`);
-      
-      for (const p of petitions) {
-        const { error } = await supabase
-          .from('petitions')
-          .upsert({ 
-            ...p, 
-            institution: source.name,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'url' });
+  let processedCount = 0;
 
-        if (error) {
-           console.error(`    ⚠️ DB Error:`, error.message);
-        } else {
-           console.log(`    ✅ Upserted "${p.title.substring(0, 30)}..." : ${p.signatures} sig`);
+  try {
+    for (const source of SOURCES) {
+      console.log(`\n> Site: ${source.name}`);
+      for (const url of source.endpoints) {
+        const petitions = await scrapeWithCheerio(url, source);
+        console.log(`    Found ${petitions.length} petitions.`);
+        
+        for (const p of petitions) {
+          const { error } = await supabase
+            .from('petitions')
+            .upsert({ 
+              ...p, 
+              institution: source.name,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'url' });
+
+          if (error) {
+             console.error(`    ⚠️ DB Error:`, error.message);
+          } else {
+             console.log(`    ✅ Upserted "${p.title.substring(0, 30)}..." : ${p.signatures} sig`);
+             processedCount++;
+          }
         }
       }
     }
-  }
 
-  console.log('\nSUCCESS : Synchronisation par Cheerio terminée.');
+    console.log('\nSUCCESS : Synchronisation par Cheerio terminée.');
+    await logSuccess('fetchPetitions', processedCount, hcId);
+    return processedCount;
+
+  } catch (err: any) {
+    await logError('fetchPetitions', err, hcId);
+    throw err;
+  }
 }
 
-main().catch(console.error);
+// Standalone execution support
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+const nodePath = fs.realpathSync(process.argv[1]);
+const currentPath = fileURLToPath(import.meta.url);
+if (nodePath === currentPath || nodePath.endsWith('fetch-petitions.ts') || nodePath.endsWith('fetch-petitions.js')) {
+  main().catch(console.error);
+}

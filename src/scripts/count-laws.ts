@@ -10,20 +10,20 @@ const supabase = createClient(
 );
 
 async function count() {
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('scrutins')
-    .select('*', { count: 'exact', head: true })
-    .eq('type', 'LOI');
-  
-  const { data: samples } = await supabase
-    .from('scrutins')
-    .select('objet, pour, contre, abstention')
-    .eq('type', 'LOI')
-    .neq('pour', 0)
-    .limit(3);
+    .select('id, objet, pour, contre, abstention')
+    .or('objet.ilike.%soutien%,objet.ilike.%restitution%,objet.ilike.%renforcement%');
 
-  console.log(`Total Laws (LOI): ${count}`);
-  console.log(`Samples with counts:`, JSON.stringify(samples, null, 2));
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  console.log(`Matching scrutins found: ${data?.length || 0}`);
+  data?.forEach((item) => {
+    console.log(`ID: ${item.id} | Objet: ${item.objet} | Pour: ${item.pour} | Contre: ${item.contre}`);
+  });
 }
 
 count();
