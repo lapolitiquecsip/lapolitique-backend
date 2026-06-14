@@ -1,7 +1,7 @@
 import Parser from 'rss-parser';
 import * as cheerio from 'cheerio';
 import Anthropic from '@anthropic-ai/sdk';
-import { supabase } from '../config/supabase';
+import { supabase } from '../config/supabase.js';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
