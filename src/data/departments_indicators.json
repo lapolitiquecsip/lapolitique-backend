@@ -1,0 +1,4850 @@
+{
+  "10": {
+    "id": "10",
+    "name": "Aube",
+    "president": "Louis Rabier",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 309468,
+      "densite": 52,
+      "evolution10ans": "+1.2%",
+      "moins25ans": 29,
+      "plus65ans": 21
+    },
+    "economie": {
+      "chomage": 9.4,
+      "revenuMedian": 1720,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 21,
+      "decrochage": 11
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 42,
+      "esperanceVie": 81.5
+    },
+    "securite": {
+      "atteintesPersonnes": 8.6,
+      "atteintesBiens": 23.1
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 14,
+      "proprietaires": 60
+    },
+    "finances": {
+      "budgetHabitant": 1250,
+      "endettement": 65,
+      "investissement": 21
+    },
+    "environnement": {
+      "qualiteAir": 67,
+      "surfaceNaturelle": 72,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "11": {
+    "id": "11",
+    "name": "Aude",
+    "president": "Hermeline Malherbe",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 376006,
+      "densite": 58,
+      "evolution10ans": "+4.8%",
+      "moins25ans": 27,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 12.1,
+      "revenuMedian": 1620,
+      "pauvrete": 20
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 22,
+      "decrochage": 11
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 52,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 12.4,
+      "atteintesBiens": 28.6
+    },
+    "logement": {
+      "prixM2": 1850,
+      "logementsSociaux": 11,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1320,
+      "endettement": 68,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 78,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "12": {
+    "id": "12",
+    "name": "Aveyron",
+    "president": "Jean-François Galliard",
+    "party": "Divers droite",
+    "demographie": {
+      "populationTotal": 279073,
+      "densite": 31,
+      "evolution10ans": "-0.5%",
+      "moins25ans": 25,
+      "plus65ans": 27
+    },
+    "economie": {
+      "chomage": 6.2,
+      "revenuMedian": 1710,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 24,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 48,
+      "esperanceVie": 83.1
+    },
+    "securite": {
+      "atteintesPersonnes": 6.2,
+      "atteintesBiens": 14.8
+    },
+    "logement": {
+      "prixM2": 1350,
+      "logementsSociaux": 8,
+      "proprietaires": 70
+    },
+    "finances": {
+      "budgetHabitant": 1480,
+      "endettement": 52,
+      "investissement": 28
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 88,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "13": {
+    "id": "13",
+    "name": "Bouches-du-Rhône",
+    "president": "Martine Vassal",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 2043110,
+      "densite": 386,
+      "evolution10ans": "+3.1%",
+      "moins25ans": 30,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 11.8,
+      "revenuMedian": 1780,
+      "pauvrete": 21
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 31,
+      "decrochage": 12
+    },
+    "sante": {
+      "medecins10k": 14,
+      "scoreAPL": 72,
+      "esperanceVie": 81.5
+    },
+    "securite": {
+      "atteintesPersonnes": 18.6,
+      "atteintesBiens": 42.3
+    },
+    "logement": {
+      "prixM2": 3200,
+      "logementsSociaux": 19,
+      "proprietaires": 48
+    },
+    "finances": {
+      "budgetHabitant": 1150,
+      "endettement": 75,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 55,
+      "surfaceNaturelle": 62,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "14": {
+    "id": "14",
+    "name": "Calvados",
+    "president": "Anne-Marie Rieu-Plichon",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 694002,
+      "densite": 121,
+      "evolution10ans": "+2.4%",
+      "moins25ans": 30,
+      "plus65ans": 20
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 1790,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 30,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 61,
+      "esperanceVie": 82
+    },
+    "securite": {
+      "atteintesPersonnes": 9.8,
+      "atteintesBiens": 24.5
+    },
+    "logement": {
+      "prixM2": 2100,
+      "logementsSociaux": 17,
+      "proprietaires": 56
+    },
+    "finances": {
+      "budgetHabitant": 1280,
+      "endettement": 60,
+      "investissement": 24
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 74,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "15": {
+    "id": "15",
+    "name": "Cantal",
+    "president": "Bruno Faure",
+    "party": "Divers droite",
+    "demographie": {
+      "populationTotal": 144692,
+      "densite": 25,
+      "evolution10ans": "-3.2%",
+      "moins25ans": 23,
+      "plus65ans": 30
+    },
+    "economie": {
+      "chomage": 5.8,
+      "revenuMedian": 1660,
+      "pauvrete": 11
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 21,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 43,
+      "esperanceVie": 83.4
+    },
+    "securite": {
+      "atteintesPersonnes": 5.1,
+      "atteintesBiens": 11.2
+    },
+    "logement": {
+      "prixM2": 950,
+      "logementsSociaux": 7,
+      "proprietaires": 72
+    },
+    "finances": {
+      "budgetHabitant": 1650,
+      "endettement": 45,
+      "investissement": 30
+    },
+    "environnement": {
+      "qualiteAir": 82,
+      "surfaceNaturelle": 92,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "16": {
+    "id": "16",
+    "name": "Charente",
+    "president": "François Bonneau",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 352795,
+      "densite": 59,
+      "evolution10ans": "-0.8%",
+      "moins25ans": 27,
+      "plus65ans": 25
+    },
+    "economie": {
+      "chomage": 7.8,
+      "revenuMedian": 1780,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 23,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 81.4
+    },
+    "securite": {
+      "atteintesPersonnes": 10.2,
+      "atteintesBiens": 22.4
+    },
+    "logement": {
+      "prixM2": 1350,
+      "logementsSociaux": 10,
+      "proprietaires": 64
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 68,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 76,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "17": {
+    "id": "17",
+    "name": "Charente-Maritime",
+    "president": "Sylvie Marcilly",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 651479,
+      "densite": 93,
+      "evolution10ans": "+5.6%",
+      "moins25ans": 26,
+      "plus65ans": 27
+    },
+    "economie": {
+      "chomage": 7.2,
+      "revenuMedian": 1870,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 27,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 56,
+      "esperanceVie": 82.3
+    },
+    "securite": {
+      "atteintesPersonnes": 10.8,
+      "atteintesBiens": 26.1
+    },
+    "logement": {
+      "prixM2": 2850,
+      "logementsSociaux": 9,
+      "proprietaires": 65
+    },
+    "finances": {
+      "budgetHabitant": 1380,
+      "endettement": 62,
+      "investissement": 24
+    },
+    "environnement": {
+      "qualiteAir": 76,
+      "surfaceNaturelle": 74,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "18": {
+    "id": "18",
+    "name": "Cher",
+    "president": "Nicolas Bonnin",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 296141,
+      "densite": 38,
+      "evolution10ans": "-4.2%",
+      "moins25ans": 26,
+      "plus65ans": 27
+    },
+    "economie": {
+      "chomage": 8.1,
+      "revenuMedian": 1760,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 22,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 46,
+      "esperanceVie": 81
+    },
+    "securite": {
+      "atteintesPersonnes": 9.8,
+      "atteintesBiens": 21.3
+    },
+    "logement": {
+      "prixM2": 1100,
+      "logementsSociaux": 13,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1460,
+      "endettement": 74,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 74,
+      "surfaceNaturelle": 80,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "19": {
+    "id": "19",
+    "name": "Corrèze",
+    "president": "Pascal Coste",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 241936,
+      "densite": 41,
+      "evolution10ans": "-1.4%",
+      "moins25ans": 24,
+      "plus65ans": 30
+    },
+    "economie": {
+      "chomage": 6.4,
+      "revenuMedian": 1820,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 24,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 50,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 7.4,
+      "atteintesBiens": 16.8
+    },
+    "logement": {
+      "prixM2": 1250,
+      "logementsSociaux": 9,
+      "proprietaires": 67
+    },
+    "finances": {
+      "budgetHabitant": 1510,
+      "endettement": 65,
+      "investissement": 25
+    },
+    "environnement": {
+      "qualiteAir": 80,
+      "surfaceNaturelle": 84,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "21": {
+    "id": "21",
+    "name": "Côte-d'Or",
+    "president": "François Sauvadet",
+    "party": "UDI",
+    "demographie": {
+      "populationTotal": 532871,
+      "densite": 62,
+      "evolution10ans": "+1.8%",
+      "moins25ans": 29,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1980,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 33,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 62,
+      "esperanceVie": 82.8
+    },
+    "securite": {
+      "atteintesPersonnes": 11.4,
+      "atteintesBiens": 27.6
+    },
+    "logement": {
+      "prixM2": 2100,
+      "logementsSociaux": 14,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 1550,
+      "endettement": 60,
+      "investissement": 27
+    },
+    "environnement": {
+      "qualiteAir": 73,
+      "surfaceNaturelle": 75,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "22": {
+    "id": "22",
+    "name": "Côtes-d'Armor",
+    "president": "Alain Cadec",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 607630,
+      "densite": 89,
+      "evolution10ans": "+2.1%",
+      "moins25ans": 27,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1820,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 28,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 82.4
+    },
+    "securite": {
+      "atteintesPersonnes": 7.2,
+      "atteintesBiens": 14.8
+    },
+    "logement": {
+      "prixM2": 1850,
+      "logementsSociaux": 10,
+      "proprietaires": 63
+    },
+    "finances": {
+      "budgetHabitant": 980,
+      "endettement": 42,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 82,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "23": {
+    "id": "23",
+    "name": "Creuse",
+    "president": "Valérie Simonet",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 112733,
+      "densite": 21,
+      "evolution10ans": "-6.8%",
+      "moins25ans": 22,
+      "plus65ans": 35
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 1640,
+      "pauvrete": 17
+    },
+    "education": {
+      "bac": 85,
+      "diplomesSup": 21,
+      "decrochage": 11
+    },
+    "sante": {
+      "medecins10k": 6,
+      "scoreAPL": 38,
+      "esperanceVie": 81.6
+    },
+    "securite": {
+      "atteintesPersonnes": 5.8,
+      "atteintesBiens": 10.2
+    },
+    "logement": {
+      "prixM2": 780,
+      "logementsSociaux": 8,
+      "proprietaires": 68
+    },
+    "finances": {
+      "budgetHabitant": 1150,
+      "endettement": 38,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 88,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "24": {
+    "id": "24",
+    "name": "Dordogne",
+    "president": "Germinal Peiro",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 413606,
+      "densite": 45,
+      "evolution10ans": "+1.4%",
+      "moins25ans": 24,
+      "plus65ans": 32
+    },
+    "economie": {
+      "chomage": 7.9,
+      "revenuMedian": 1700,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 86,
+      "diplomesSup": 24,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 44,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 7.8,
+      "atteintesBiens": 16.4
+    },
+    "logement": {
+      "prixM2": 1450,
+      "logementsSociaux": 9,
+      "proprietaires": 67
+    },
+    "finances": {
+      "budgetHabitant": 1020,
+      "endettement": 45,
+      "investissement": 21
+    },
+    "environnement": {
+      "qualiteAir": 75,
+      "surfaceNaturelle": 87,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "25": {
+    "id": "25",
+    "name": "Doubs",
+    "president": "Marie-Guite Dufay",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 543974,
+      "densite": 101,
+      "evolution10ans": "+2.8%",
+      "moins25ans": 31,
+      "plus65ans": 20
+    },
+    "economie": {
+      "chomage": 7.1,
+      "revenuMedian": 1920,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 31,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 57,
+      "esperanceVie": 83
+    },
+    "securite": {
+      "atteintesPersonnes": 10.2,
+      "atteintesBiens": 22.5
+    },
+    "logement": {
+      "prixM2": 2050,
+      "logementsSociaux": 14,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 960,
+      "endettement": 48,
+      "investissement": 23
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 78,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "26": {
+    "id": "26",
+    "name": "Drôme",
+    "president": "Marie-Pierre Mouton",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 518380,
+      "densite": 77,
+      "evolution10ans": "+5.6%",
+      "moins25ans": 30,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 9.2,
+      "revenuMedian": 1780,
+      "pauvrete": 17
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 28,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 50,
+      "esperanceVie": 82.6
+    },
+    "securite": {
+      "atteintesPersonnes": 11.4,
+      "atteintesBiens": 24.8
+    },
+    "logement": {
+      "prixM2": 2200,
+      "logementsSociaux": 13,
+      "proprietaires": 60
+    },
+    "finances": {
+      "budgetHabitant": 1010,
+      "endettement": 50,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 80,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "27": {
+    "id": "27",
+    "name": "Eure",
+    "president": "Sébastien Lecornu",
+    "party": "Renaissance",
+    "demographie": {
+      "populationTotal": 601843,
+      "densite": 99,
+      "evolution10ans": "+1.2%",
+      "moins25ans": 30,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 1820,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 22,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 52,
+      "esperanceVie": 81.2
+    },
+    "securite": {
+      "atteintesPersonnes": 9.8,
+      "atteintesBiens": 22.4
+    },
+    "logement": {
+      "prixM2": 1750,
+      "logementsSociaux": 15,
+      "proprietaires": 60
+    },
+    "finances": {
+      "budgetHabitant": 1020,
+      "endettement": 68,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 72,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "28": {
+    "id": "28",
+    "name": "Eure-et-Loir",
+    "president": "Claude Térouinard",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 437853,
+      "densite": 67,
+      "evolution10ans": "+2.1%",
+      "moins25ans": 30,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 7,
+      "revenuMedian": 1870,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 24,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 54,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 9.2,
+      "atteintesBiens": 21
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 13,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 980,
+      "endettement": 62,
+      "investissement": 23
+    },
+    "environnement": {
+      "qualiteAir": 70,
+      "surfaceNaturelle": 75,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "29": {
+    "id": "29",
+    "name": "Finistère",
+    "president": "Maël de Calan",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 909028,
+      "densite": 134,
+      "evolution10ans": "+2.8%",
+      "moins25ans": 28,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1900,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 30,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 61,
+      "esperanceVie": 83.1
+    },
+    "securite": {
+      "atteintesPersonnes": 8.4,
+      "atteintesBiens": 18.6
+    },
+    "logement": {
+      "prixM2": 2100,
+      "logementsSociaux": 16,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 1080,
+      "endettement": 58,
+      "investissement": 26
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 68,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "30": {
+    "id": "30",
+    "name": "Gard",
+    "president": "Denis Bouad",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 748437,
+      "densite": 121,
+      "evolution10ans": "+4.8%",
+      "moins25ans": 29,
+      "plus65ans": 21
+    },
+    "economie": {
+      "chomage": 11.2,
+      "revenuMedian": 1680,
+      "pauvrete": 19
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 28,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 58,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 14.2,
+      "atteintesBiens": 38.5
+    },
+    "logement": {
+      "prixM2": 2100,
+      "logementsSociaux": 14,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 1050,
+      "endettement": 62,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 62,
+      "surfaceNaturelle": 71,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "31": {
+    "id": "31",
+    "name": "Haute-Garonne",
+    "president": "Georges Méric",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 1400039,
+      "densite": 212,
+      "evolution10ans": "+12.5%",
+      "moins25ans": 31,
+      "plus65ans": 16
+    },
+    "economie": {
+      "chomage": 7.8,
+      "revenuMedian": 1900,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 42,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 13,
+      "scoreAPL": 72,
+      "esperanceVie": 83.4
+    },
+    "securite": {
+      "atteintesPersonnes": 13.8,
+      "atteintesBiens": 42.1
+    },
+    "logement": {
+      "prixM2": 3200,
+      "logementsSociaux": 17,
+      "proprietaires": 50
+    },
+    "finances": {
+      "budgetHabitant": 980,
+      "endettement": 58,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 62,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "32": {
+    "id": "32",
+    "name": "Gers",
+    "president": "Éric Delzangles",
+    "party": "Parti Radical de Gauche",
+    "demographie": {
+      "populationTotal": 191091,
+      "densite": 31,
+      "evolution10ans": "+4.1%",
+      "moins25ans": 24,
+      "plus65ans": 29
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1680,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 26,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 52,
+      "esperanceVie": 83
+    },
+    "securite": {
+      "atteintesPersonnes": 7.2,
+      "atteintesBiens": 18.4
+    },
+    "logement": {
+      "prixM2": 1400,
+      "logementsSociaux": 7,
+      "proprietaires": 67
+    },
+    "finances": {
+      "budgetHabitant": 1120,
+      "endettement": 55,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 83,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "33": {
+    "id": "33",
+    "name": "Gironde",
+    "president": "Jean-Luc Gleyze",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 1625360,
+      "densite": 166,
+      "evolution10ans": "+11.8%",
+      "moins25ans": 30,
+      "plus65ans": 18
+    },
+    "economie": {
+      "chomage": 7.9,
+      "revenuMedian": 1930,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 40,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 12,
+      "scoreAPL": 70,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 13.5,
+      "atteintesBiens": 40.8
+    },
+    "logement": {
+      "prixM2": 3500,
+      "logementsSociaux": 16,
+      "proprietaires": 52
+    },
+    "finances": {
+      "budgetHabitant": 1010,
+      "endettement": 60,
+      "investissement": 21
+    },
+    "environnement": {
+      "qualiteAir": 66,
+      "surfaceNaturelle": 65,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "34": {
+    "id": "34",
+    "name": "Hérault",
+    "president": "Kléber Mesquida",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 1175623,
+      "densite": 187,
+      "evolution10ans": "+10.2%",
+      "moins25ans": 29,
+      "plus65ans": 21
+    },
+    "economie": {
+      "chomage": 11.5,
+      "revenuMedian": 1710,
+      "pauvrete": 19
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 36,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 12,
+      "scoreAPL": 66,
+      "esperanceVie": 82.8
+    },
+    "securite": {
+      "atteintesPersonnes": 14.8,
+      "atteintesBiens": 41.3
+    },
+    "logement": {
+      "prixM2": 2800,
+      "logementsSociaux": 15,
+      "proprietaires": 53
+    },
+    "finances": {
+      "budgetHabitant": 1030,
+      "endettement": 63,
+      "investissement": 19
+    },
+    "environnement": {
+      "qualiteAir": 63,
+      "surfaceNaturelle": 68,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "35": {
+    "id": "35",
+    "name": "Ille-et-Vilaine",
+    "president": "Jean-Luc Chenut",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 1083850,
+      "densite": 163,
+      "evolution10ans": "+8.2%",
+      "moins25ans": 32,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 5.8,
+      "revenuMedian": 1980,
+      "pauvrete": 11
+    },
+    "education": {
+      "bac": 92,
+      "diplomesSup": 35,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 68,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 8.4,
+      "atteintesBiens": 21.3
+    },
+    "logement": {
+      "prixM2": 3100,
+      "logementsSociaux": 14,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 890,
+      "endettement": 62,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 74,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "36": {
+    "id": "36",
+    "name": "Indre",
+    "president": "Nicolas Forissier",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 216340,
+      "densite": 31,
+      "evolution10ans": "-4.8%",
+      "moins25ans": 26,
+      "plus65ans": 29
+    },
+    "economie": {
+      "chomage": 7.9,
+      "revenuMedian": 1680,
+      "pauvrete": 17
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 22,
+      "decrochage": 12
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 45,
+      "esperanceVie": 81.4
+    },
+    "securite": {
+      "atteintesPersonnes": 7.1,
+      "atteintesBiens": 16.8
+    },
+    "logement": {
+      "prixM2": 980,
+      "logementsSociaux": 13,
+      "proprietaires": 67
+    },
+    "finances": {
+      "budgetHabitant": 1020,
+      "endettement": 58,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 85,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "37": {
+    "id": "37",
+    "name": "Indre-et-Loire",
+    "president": "Jean-Gérard Paumier",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 611620,
+      "densite": 98,
+      "evolution10ans": "+3.9%",
+      "moins25ans": 28,
+      "plus65ans": 23
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1870,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 33,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 62,
+      "esperanceVie": 83
+    },
+    "securite": {
+      "atteintesPersonnes": 9.2,
+      "atteintesBiens": 22.7
+    },
+    "logement": {
+      "prixM2": 2350,
+      "logementsSociaux": 15,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 950,
+      "endettement": 65,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 74,
+      "surfaceNaturelle": 78,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "38": {
+    "id": "38",
+    "name": "Isère",
+    "president": "Jean-Pierre Barbier",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 1271166,
+      "densite": 160,
+      "evolution10ans": "+5.3%",
+      "moins25ans": 30,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 6.5,
+      "revenuMedian": 2020,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 37,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 63,
+      "esperanceVie": 83.5
+    },
+    "securite": {
+      "atteintesPersonnes": 9.8,
+      "atteintesBiens": 24.1
+    },
+    "logement": {
+      "prixM2": 2900,
+      "logementsSociaux": 16,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 870,
+      "endettement": 68,
+      "investissement": 23
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 72,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "39": {
+    "id": "39",
+    "name": "Jura",
+    "president": "Clément Pernot",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 259950,
+      "densite": 51,
+      "evolution10ans": "-0.6%",
+      "moins25ans": 27,
+      "plus65ans": 25
+    },
+    "economie": {
+      "chomage": 6.2,
+      "revenuMedian": 1780,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 26,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 82.6
+    },
+    "securite": {
+      "atteintesPersonnes": 6.4,
+      "atteintesBiens": 15.9
+    },
+    "logement": {
+      "prixM2": 1450,
+      "logementsSociaux": 11,
+      "proprietaires": 64
+    },
+    "finances": {
+      "budgetHabitant": 980,
+      "endettement": 55,
+      "investissement": 21
+    },
+    "environnement": {
+      "qualiteAir": 80,
+      "surfaceNaturelle": 83,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "40": {
+    "id": "40",
+    "name": "Landes",
+    "president": "Xavier Fortinon",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 422762,
+      "densite": 44,
+      "evolution10ans": "+7.8%",
+      "moins25ans": 28,
+      "plus65ans": 23
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1920,
+      "pauvrete": 11
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 26,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 56,
+      "esperanceVie": 82.8
+    },
+    "securite": {
+      "atteintesPersonnes": 9.2,
+      "atteintesBiens": 22.4
+    },
+    "logement": {
+      "prixM2": 2450,
+      "logementsSociaux": 9,
+      "proprietaires": 66
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 52,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 74,
+      "surfaceNaturelle": 82,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "41": {
+    "id": "41",
+    "name": "Loir-et-Cher",
+    "president": "Nicolas Perruchot",
+    "party": "Union des Démocrates et Indépendants",
+    "demographie": {
+      "populationTotal": 334392,
+      "densite": 41,
+      "evolution10ans": "+0.8%",
+      "moins25ans": 27,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 1840,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 24,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 50,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 9.8,
+      "atteintesBiens": 24.6
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 12,
+      "proprietaires": 63
+    },
+    "finances": {
+      "budgetHabitant": 1310,
+      "endettement": 58,
+      "investissement": 19
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 76,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "42": {
+    "id": "42",
+    "name": "Loire",
+    "president": "Georges Ziegler",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 763092,
+      "densite": 156,
+      "evolution10ans": "+1.2%",
+      "moins25ans": 30,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 8.1,
+      "revenuMedian": 1870,
+      "pauvrete": 15
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 27,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 58,
+      "esperanceVie": 82.3
+    },
+    "securite": {
+      "atteintesPersonnes": 11.4,
+      "atteintesBiens": 27.8
+    },
+    "logement": {
+      "prixM2": 1890,
+      "logementsSociaux": 16,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 1280,
+      "endettement": 61,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 65,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "43": {
+    "id": "43",
+    "name": "Haute-Loire",
+    "president": "Camille Gontard",
+    "party": "Divers droite",
+    "demographie": {
+      "populationTotal": 227284,
+      "densite": 45,
+      "evolution10ans": "+1.5%",
+      "moins25ans": 28,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 6.2,
+      "revenuMedian": 1750,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 22,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 48,
+      "esperanceVie": 83.1
+    },
+    "securite": {
+      "atteintesPersonnes": 7.4,
+      "atteintesBiens": 17.2
+    },
+    "logement": {
+      "prixM2": 1380,
+      "logementsSociaux": 10,
+      "proprietaires": 67
+    },
+    "finances": {
+      "budgetHabitant": 1250,
+      "endettement": 48,
+      "investissement": 23
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 80,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "44": {
+    "id": "44",
+    "name": "Loire-Atlantique",
+    "president": "Françoise Gatel",
+    "party": "Union des Démocrates et Indépendants",
+    "demographie": {
+      "populationTotal": 1429272,
+      "densite": 214,
+      "evolution10ans": "+10.2%",
+      "moins25ans": 31,
+      "plus65ans": 18
+    },
+    "economie": {
+      "chomage": 6.4,
+      "revenuMedian": 2080,
+      "pauvrete": 11
+    },
+    "education": {
+      "bac": 93,
+      "diplomesSup": 38,
+      "decrochage": 6
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 68,
+      "esperanceVie": 83.4
+    },
+    "securite": {
+      "atteintesPersonnes": 11.8,
+      "atteintesBiens": 28.5
+    },
+    "logement": {
+      "prixM2": 3200,
+      "logementsSociaux": 14,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 1380,
+      "endettement": 55,
+      "investissement": 25
+    },
+    "environnement": {
+      "qualiteAir": 73,
+      "surfaceNaturelle": 70,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "45": {
+    "id": "45",
+    "name": "Loiret",
+    "president": "Marc Gaudet",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 686290,
+      "densite": 99,
+      "evolution10ans": "+2.8%",
+      "moins25ans": 29,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1980,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 28,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 62,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 12.4,
+      "atteintesBiens": 28.6
+    },
+    "logement": {
+      "prixM2": 1850,
+      "logementsSociaux": 14,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 980,
+      "endettement": 42,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 72,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "46": {
+    "id": "46",
+    "name": "Lot",
+    "president": "Serge Rigal",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 175749,
+      "densite": 34,
+      "evolution10ans": "+3.1%",
+      "moins25ans": 24,
+      "plus65ans": 30
+    },
+    "economie": {
+      "chomage": 6.2,
+      "revenuMedian": 1760,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 23,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 83
+    },
+    "securite": {
+      "atteintesPersonnes": 8.1,
+      "atteintesBiens": 17.4
+    },
+    "logement": {
+      "prixM2": 1450,
+      "logementsSociaux": 7,
+      "proprietaires": 68
+    },
+    "finances": {
+      "budgetHabitant": 1120,
+      "endettement": 38,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 88,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "47": {
+    "id": "47",
+    "name": "Lot-et-Garonne",
+    "president": "Sophie Borderie",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 334530,
+      "densite": 62,
+      "evolution10ans": "+2.4%",
+      "moins25ans": 27,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 8.1,
+      "revenuMedian": 1700,
+      "pauvrete": 17
+    },
+    "education": {
+      "bac": 86,
+      "diplomesSup": 21,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 50,
+      "esperanceVie": 82.4
+    },
+    "securite": {
+      "atteintesPersonnes": 10.2,
+      "atteintesBiens": 22.8
+    },
+    "logement": {
+      "prixM2": 1350,
+      "logementsSociaux": 10,
+      "proprietaires": 65
+    },
+    "finances": {
+      "budgetHabitant": 1050,
+      "endettement": 45,
+      "investissement": 19
+    },
+    "environnement": {
+      "qualiteAir": 74,
+      "surfaceNaturelle": 84,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "48": {
+    "id": "48",
+    "name": "Lozère",
+    "president": "Sophie Pantel",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 76422,
+      "densite": 15,
+      "evolution10ans": "+1.2%",
+      "moins25ans": 24,
+      "plus65ans": 30
+    },
+    "economie": {
+      "chomage": 5.4,
+      "revenuMedian": 1720,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 22,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 48,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 5.8,
+      "atteintesBiens": 12.3
+    },
+    "logement": {
+      "prixM2": 1200,
+      "logementsSociaux": 6,
+      "proprietaires": 66
+    },
+    "finances": {
+      "budgetHabitant": 1580,
+      "endettement": 30,
+      "investissement": 28
+    },
+    "environnement": {
+      "qualiteAir": 88,
+      "surfaceNaturelle": 94,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "49": {
+    "id": "49",
+    "name": "Maine-et-Loire",
+    "president": "Christelle Morançais",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 818273,
+      "densite": 114,
+      "evolution10ans": "+4.6%",
+      "moins25ans": 31,
+      "plus65ans": 20
+    },
+    "economie": {
+      "chomage": 6.4,
+      "revenuMedian": 1870,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 27,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 60,
+      "esperanceVie": 82.8
+    },
+    "securite": {
+      "atteintesPersonnes": 9.8,
+      "atteintesBiens": 22.1
+    },
+    "logement": {
+      "prixM2": 1950,
+      "logementsSociaux": 15,
+      "proprietaires": 59
+    },
+    "finances": {
+      "budgetHabitant": 1020,
+      "endettement": 40,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 78,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "50": {
+    "id": "50",
+    "name": "Manche",
+    "president": "Jean-Marc Julien",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 496883,
+      "densite": 82,
+      "evolution10ans": "-0.8%",
+      "moins25ans": 28,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 6.2,
+      "revenuMedian": 1820,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 24,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 8.4,
+      "atteintesBiens": 14.2
+    },
+    "logement": {
+      "prixM2": 1750,
+      "logementsSociaux": 11,
+      "proprietaires": 64
+    },
+    "finances": {
+      "budgetHabitant": 1320,
+      "endettement": 42,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 78,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "51": {
+    "id": "51",
+    "name": "Marne",
+    "president": "Christian Bruyen",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 566571,
+      "densite": 68,
+      "evolution10ans": "-0.5%",
+      "moins25ans": 30,
+      "plus65ans": 20
+    },
+    "economie": {
+      "chomage": 8.1,
+      "revenuMedian": 1890,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 29,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 58,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 13.2,
+      "atteintesBiens": 22.5
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 18,
+      "proprietaires": 54
+    },
+    "finances": {
+      "budgetHabitant": 1280,
+      "endettement": 48,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 72,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "52": {
+    "id": "52",
+    "name": "Haute-Marne",
+    "president": "Nicolas Lacroix",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 172512,
+      "densite": 23,
+      "evolution10ans": "-5.8%",
+      "moins25ans": 26,
+      "plus65ans": 28
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 1760,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 86,
+      "diplomesSup": 21,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 44,
+      "esperanceVie": 81.5
+    },
+    "securite": {
+      "atteintesPersonnes": 7.8,
+      "atteintesBiens": 13.1
+    },
+    "logement": {
+      "prixM2": 980,
+      "logementsSociaux": 13,
+      "proprietaires": 61
+    },
+    "finances": {
+      "budgetHabitant": 1480,
+      "endettement": 55,
+      "investissement": 21
+    },
+    "environnement": {
+      "qualiteAir": 74,
+      "surfaceNaturelle": 82,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "53": {
+    "id": "53",
+    "name": "Mayenne",
+    "president": "Olivier Richefou",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 307520,
+      "densite": 43,
+      "evolution10ans": "+1.2%",
+      "moins25ans": 30,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 5.4,
+      "revenuMedian": 1830,
+      "pauvrete": 10
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 23,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 50,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 6.5,
+      "atteintesBiens": 11.8
+    },
+    "logement": {
+      "prixM2": 1450,
+      "logementsSociaux": 10,
+      "proprietaires": 67
+    },
+    "finances": {
+      "budgetHabitant": 1250,
+      "endettement": 38,
+      "investissement": 24
+    },
+    "environnement": {
+      "qualiteAir": 75,
+      "surfaceNaturelle": 80,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "54": {
+    "id": "54",
+    "name": "Meurthe-et-Moselle",
+    "president": "Chaynesse Khirouni",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 733481,
+      "densite": 138,
+      "evolution10ans": "-0.9%",
+      "moins25ans": 31,
+      "plus65ans": 20
+    },
+    "economie": {
+      "chomage": 8.9,
+      "revenuMedian": 1870,
+      "pauvrete": 17
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 30,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 57,
+      "esperanceVie": 81.4
+    },
+    "securite": {
+      "atteintesPersonnes": 13.8,
+      "atteintesBiens": 21.4
+    },
+    "logement": {
+      "prixM2": 1620,
+      "logementsSociaux": 22,
+      "proprietaires": 50
+    },
+    "finances": {
+      "budgetHabitant": 1310,
+      "endettement": 52,
+      "investissement": 19
+    },
+    "environnement": {
+      "qualiteAir": 63,
+      "surfaceNaturelle": 70,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "55": {
+    "id": "55",
+    "name": "Meuse",
+    "president": "Patrick Genre",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 184000,
+      "densite": 22,
+      "evolution10ans": "-5.8%",
+      "moins25ans": 27,
+      "plus65ans": 27
+    },
+    "economie": {
+      "chomage": 8.2,
+      "revenuMedian": 1780,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 22,
+      "decrochage": 11
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 42,
+      "esperanceVie": 81.2
+    },
+    "securite": {
+      "atteintesPersonnes": 8.4,
+      "atteintesBiens": 18.2
+    },
+    "logement": {
+      "prixM2": 950,
+      "logementsSociaux": 12,
+      "proprietaires": 65
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 52,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 85,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "56": {
+    "id": "56",
+    "name": "Morbihan",
+    "president": "David Lappartient",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 757000,
+      "densite": 110,
+      "evolution10ans": "+7.4%",
+      "moins25ans": 27,
+      "plus65ans": 28
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1880,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 30,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 55,
+      "esperanceVie": 83.1
+    },
+    "securite": {
+      "atteintesPersonnes": 9.2,
+      "atteintesBiens": 22.4
+    },
+    "logement": {
+      "prixM2": 2600,
+      "logementsSociaux": 10,
+      "proprietaires": 68
+    },
+    "finances": {
+      "budgetHabitant": 1180,
+      "endettement": 44,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 76,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "57": {
+    "id": "57",
+    "name": "Moselle",
+    "president": "Patrick Weiten",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 1043000,
+      "densite": 166,
+      "evolution10ans": "-0.8%",
+      "moins25ans": 29,
+      "plus65ans": 21
+    },
+    "economie": {
+      "chomage": 8.1,
+      "revenuMedian": 1880,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 27,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 11.4,
+      "atteintesBiens": 26.8
+    },
+    "logement": {
+      "prixM2": 1600,
+      "logementsSociaux": 17,
+      "proprietaires": 59
+    },
+    "finances": {
+      "budgetHabitant": 1230,
+      "endettement": 55,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 72,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "58": {
+    "id": "58",
+    "name": "Nièvre",
+    "president": "Fabrice Jobard",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 205000,
+      "densite": 29,
+      "evolution10ans": "-7.2%",
+      "moins25ans": 25,
+      "plus65ans": 31
+    },
+    "economie": {
+      "chomage": 9.4,
+      "revenuMedian": 1690,
+      "pauvrete": 18
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 22,
+      "decrochage": 12
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 38,
+      "esperanceVie": 81
+    },
+    "securite": {
+      "atteintesPersonnes": 9.1,
+      "atteintesBiens": 19.6
+    },
+    "logement": {
+      "prixM2": 780,
+      "logementsSociaux": 14,
+      "proprietaires": 63
+    },
+    "finances": {
+      "budgetHabitant": 1380,
+      "endettement": 64,
+      "investissement": 16
+    },
+    "environnement": {
+      "qualiteAir": 76,
+      "surfaceNaturelle": 83,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "59": {
+    "id": "59",
+    "name": "Nord",
+    "president": "Christian Poiret",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 2608000,
+      "densite": 453,
+      "evolution10ans": "+0.9%",
+      "moins25ans": 33,
+      "plus65ans": 18
+    },
+    "economie": {
+      "chomage": 11.2,
+      "revenuMedian": 1700,
+      "pauvrete": 21
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 27,
+      "decrochage": 13
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 49,
+      "esperanceVie": 79.8
+    },
+    "securite": {
+      "atteintesPersonnes": 16.2,
+      "atteintesBiens": 34.5
+    },
+    "logement": {
+      "prixM2": 1850,
+      "logementsSociaux": 24,
+      "proprietaires": 50
+    },
+    "finances": {
+      "budgetHabitant": 1320,
+      "endettement": 68,
+      "investissement": 17
+    },
+    "environnement": {
+      "qualiteAir": 55,
+      "surfaceNaturelle": 58,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "60": {
+    "id": "60",
+    "name": "Oise",
+    "president": "Edouard Courtial",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 833264,
+      "densite": 143,
+      "evolution10ans": "+3.8%",
+      "moins25ans": 33,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 1980,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 26,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 81.2
+    },
+    "securite": {
+      "atteintesPersonnes": 9.8,
+      "atteintesBiens": 22.4
+    },
+    "logement": {
+      "prixM2": 2100,
+      "logementsSociaux": 16,
+      "proprietaires": 59
+    },
+    "finances": {
+      "budgetHabitant": 1020,
+      "endettement": 62,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 58,
+      "surfaceNaturelle": 68,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "61": {
+    "id": "61",
+    "name": "Orne",
+    "president": "Christophe de Balorre",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 279308,
+      "densite": 37,
+      "evolution10ans": "-3.2%",
+      "moins25ans": 27,
+      "plus65ans": 27
+    },
+    "economie": {
+      "chomage": 7.1,
+      "revenuMedian": 1760,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 22,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 45,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 7.2,
+      "atteintesBiens": 16.8
+    },
+    "logement": {
+      "prixM2": 1350,
+      "logementsSociaux": 11,
+      "proprietaires": 64
+    },
+    "finances": {
+      "budgetHabitant": 1080,
+      "endettement": 58,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 78,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "62": {
+    "id": "62",
+    "name": "Pas-de-Calais",
+    "president": "Jean-Claude Leroy",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 1468018,
+      "densite": 217,
+      "evolution10ans": "-1.4%",
+      "moins25ans": 32,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 11.2,
+      "revenuMedian": 1620,
+      "pauvrete": 20
+    },
+    "education": {
+      "bac": 85,
+      "diplomesSup": 21,
+      "decrochage": 13
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 44,
+      "esperanceVie": 79.8
+    },
+    "securite": {
+      "atteintesPersonnes": 11.4,
+      "atteintesBiens": 24.6
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 22,
+      "proprietaires": 55
+    },
+    "finances": {
+      "budgetHabitant": 980,
+      "endettement": 72,
+      "investissement": 16
+    },
+    "environnement": {
+      "qualiteAir": 52,
+      "surfaceNaturelle": 64,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "63": {
+    "id": "63",
+    "name": "Puy-de-Dôme",
+    "president": "Lionel Chauvin",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 663716,
+      "densite": 81,
+      "evolution10ans": "+3.5%",
+      "moins25ans": 28,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1840,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 32,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 62,
+      "esperanceVie": 83.1
+    },
+    "securite": {
+      "atteintesPersonnes": 9.1,
+      "atteintesBiens": 20.3
+    },
+    "logement": {
+      "prixM2": 2050,
+      "logementsSociaux": 14,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 1050,
+      "endettement": 55,
+      "investissement": 21
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 80,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "64": {
+    "id": "64",
+    "name": "Pyrénées-Atlantiques",
+    "president": "Jean-Jacques Lasserre",
+    "party": "MoDem",
+    "demographie": {
+      "populationTotal": 686829,
+      "densite": 88,
+      "evolution10ans": "+6.2%",
+      "moins25ans": 26,
+      "plus65ans": 25
+    },
+    "economie": {
+      "chomage": 7.3,
+      "revenuMedian": 1920,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 33,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 11,
+      "scoreAPL": 65,
+      "esperanceVie": 83.8
+    },
+    "securite": {
+      "atteintesPersonnes": 8.6,
+      "atteintesBiens": 19.7
+    },
+    "logement": {
+      "prixM2": 2850,
+      "logementsSociaux": 12,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 1110,
+      "endettement": 52,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 75,
+      "surfaceNaturelle": 78,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "65": {
+    "id": "65",
+    "name": "Hautes-Pyrénées",
+    "president": "Michel Pélieu",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 228530,
+      "densite": 51,
+      "evolution10ans": "-1.2%",
+      "moins25ans": 26,
+      "plus65ans": 28
+    },
+    "economie": {
+      "chomage": 8.2,
+      "revenuMedian": 1720,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 28,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 11,
+      "scoreAPL": 52,
+      "esperanceVie": 82.8
+    },
+    "securite": {
+      "atteintesPersonnes": 9.2,
+      "atteintesBiens": 18.4
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 11,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 52,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 82,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "66": {
+    "id": "66",
+    "name": "Pyrénées-Orientales",
+    "president": "Hermeline Malherbe",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 479979,
+      "densite": 107,
+      "evolution10ans": "+5.8%",
+      "moins25ans": 27,
+      "plus65ans": 27
+    },
+    "economie": {
+      "chomage": 13.1,
+      "revenuMedian": 1580,
+      "pauvrete": 22
+    },
+    "education": {
+      "bac": 85,
+      "diplomesSup": 26,
+      "decrochage": 13
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 44,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 14.8,
+      "atteintesBiens": 32.5
+    },
+    "logement": {
+      "prixM2": 2450,
+      "logementsSociaux": 13,
+      "proprietaires": 55
+    },
+    "finances": {
+      "budgetHabitant": 1380,
+      "endettement": 68,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 74,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "67": {
+    "id": "67",
+    "name": "Bas-Rhin",
+    "president": "Frédéric Bierry",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 1145680,
+      "densite": 238,
+      "evolution10ans": "+4.1%",
+      "moins25ans": 30,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 6.4,
+      "revenuMedian": 2020,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 92,
+      "diplomesSup": 38,
+      "decrochage": 6
+    },
+    "sante": {
+      "medecins10k": 14,
+      "scoreAPL": 68,
+      "esperanceVie": 83.4
+    },
+    "securite": {
+      "atteintesPersonnes": 11.5,
+      "atteintesBiens": 26.2
+    },
+    "logement": {
+      "prixM2": 3100,
+      "logementsSociaux": 17,
+      "proprietaires": 52
+    },
+    "finances": {
+      "budgetHabitant": 1580,
+      "endettement": 44,
+      "investissement": 26
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 65,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "68": {
+    "id": "68",
+    "name": "Haut-Rhin",
+    "president": "Frédéric Bierry",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 764030,
+      "densite": 233,
+      "evolution10ans": "+2.8%",
+      "moins25ans": 29,
+      "plus65ans": 20
+    },
+    "economie": {
+      "chomage": 6.8,
+      "revenuMedian": 1980,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 34,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 13,
+      "scoreAPL": 64,
+      "esperanceVie": 83.1
+    },
+    "securite": {
+      "atteintesPersonnes": 10.8,
+      "atteintesBiens": 24.7
+    },
+    "logement": {
+      "prixM2": 2750,
+      "logementsSociaux": 16,
+      "proprietaires": 55
+    },
+    "finances": {
+      "budgetHabitant": 1540,
+      "endettement": 46,
+      "investissement": 25
+    },
+    "environnement": {
+      "qualiteAir": 67,
+      "surfaceNaturelle": 68,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "69": {
+    "id": "69",
+    "name": "Rhône",
+    "president": "Fabienne Grébert",
+    "party": "EELV",
+    "demographie": {
+      "populationTotal": 1843700,
+      "densite": 561,
+      "evolution10ans": "+6.5%",
+      "moins25ans": 32,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 7.2,
+      "revenuMedian": 2080,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 42,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 15,
+      "scoreAPL": 72,
+      "esperanceVie": 83.6
+    },
+    "securite": {
+      "atteintesPersonnes": 14.2,
+      "atteintesBiens": 33.8
+    },
+    "logement": {
+      "prixM2": 4200,
+      "logementsSociaux": 20,
+      "proprietaires": 46
+    },
+    "finances": {
+      "budgetHabitant": 1690,
+      "endettement": 55,
+      "investissement": 24
+    },
+    "environnement": {
+      "qualiteAir": 62,
+      "surfaceNaturelle": 52,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "70": {
+    "id": "70",
+    "name": "Haute-Saône",
+    "president": "Yves Krattinger",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 236659,
+      "densite": 44,
+      "evolution10ans": "-1.8%",
+      "moins25ans": 28,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 7.2,
+      "revenuMedian": 1720,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 22,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 52,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 8.4,
+      "atteintesBiens": 18.2
+    },
+    "logement": {
+      "prixM2": 1100,
+      "logementsSociaux": 12,
+      "proprietaires": 67
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 55,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 78,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "71": {
+    "id": "71",
+    "name": "Saône-et-Loire",
+    "president": "André Accary",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 551403,
+      "densite": 64,
+      "evolution10ans": "-1.5%",
+      "moins25ans": 27,
+      "plus65ans": 25
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 1780,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 24,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 55,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 8.9,
+      "atteintesBiens": 20.1
+    },
+    "logement": {
+      "prixM2": 1250,
+      "logementsSociaux": 13,
+      "proprietaires": 65
+    },
+    "finances": {
+      "budgetHabitant": 1380,
+      "endettement": 58,
+      "investissement": 21
+    },
+    "environnement": {
+      "qualiteAir": 74,
+      "surfaceNaturelle": 76,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "72": {
+    "id": "72",
+    "name": "Sarthe",
+    "president": "Dominique Le Mèner",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 566506,
+      "densite": 89,
+      "evolution10ans": "+0.8%",
+      "moins25ans": 29,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 7.6,
+      "revenuMedian": 1780,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 25,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 57,
+      "esperanceVie": 82.3
+    },
+    "securite": {
+      "atteintesPersonnes": 9.2,
+      "atteintesBiens": 22.4
+    },
+    "logement": {
+      "prixM2": 1550,
+      "logementsSociaux": 16,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1350,
+      "endettement": 54,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 75,
+      "surfaceNaturelle": 72,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "73": {
+    "id": "73",
+    "name": "Savoie",
+    "president": "Hervé Gaymard",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 437764,
+      "densite": 70,
+      "evolution10ans": "+4.5%",
+      "moins25ans": 29,
+      "plus65ans": 20
+    },
+    "economie": {
+      "chomage": 5.8,
+      "revenuMedian": 1950,
+      "pauvrete": 11
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 32,
+      "decrochage": 6
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 62,
+      "esperanceVie": 83.5
+    },
+    "securite": {
+      "atteintesPersonnes": 8.1,
+      "atteintesBiens": 22.8
+    },
+    "logement": {
+      "prixM2": 3200,
+      "logementsSociaux": 12,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 1510,
+      "endettement": 61,
+      "investissement": 26
+    },
+    "environnement": {
+      "qualiteAir": 70,
+      "surfaceNaturelle": 82,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "74": {
+    "id": "74",
+    "name": "Haute-Savoie",
+    "president": "Martine Berthet",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 833756,
+      "densite": 199,
+      "evolution10ans": "+9.2%",
+      "moins25ans": 31,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 5.2,
+      "revenuMedian": 2080,
+      "pauvrete": 9
+    },
+    "education": {
+      "bac": 92,
+      "diplomesSup": 36,
+      "decrochage": 5
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 65,
+      "esperanceVie": 84.1
+    },
+    "securite": {
+      "atteintesPersonnes": 8.6,
+      "atteintesBiens": 25.3
+    },
+    "logement": {
+      "prixM2": 4100,
+      "logementsSociaux": 10,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 1560,
+      "endettement": 58,
+      "investissement": 28
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 80,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "75": {
+    "id": "75",
+    "name": "Paris",
+    "president": "Conseil de Paris (Maire : Anne Hidalgo)",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 2133111,
+      "densite": 20754,
+      "evolution10ans": "-4.1%",
+      "moins25ans": 27,
+      "plus65ans": 16
+    },
+    "economie": {
+      "chomage": 7.2,
+      "revenuMedian": 2430,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 55,
+      "decrochage": 5
+    },
+    "sante": {
+      "medecins10k": 110,
+      "scoreAPL": 82,
+      "esperanceVie": 84.2
+    },
+    "securite": {
+      "atteintesPersonnes": 22.4,
+      "atteintesBiens": 58.7
+    },
+    "logement": {
+      "prixM2": 9500,
+      "logementsSociaux": 21,
+      "proprietaires": 33
+    },
+    "finances": {
+      "budgetHabitant": 5250,
+      "endettement": 112,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 48,
+      "surfaceNaturelle": 10,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "76": {
+    "id": "76",
+    "name": "Seine-Maritime",
+    "president": "Bertrand Bellanger",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 1254378,
+      "densite": 197,
+      "evolution10ans": "-1.2%",
+      "moins25ans": 31,
+      "plus65ans": 18
+    },
+    "economie": {
+      "chomage": 8.9,
+      "revenuMedian": 1810,
+      "pauvrete": 17
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 26,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 28,
+      "scoreAPL": 52,
+      "esperanceVie": 80.8
+    },
+    "securite": {
+      "atteintesPersonnes": 11.2,
+      "atteintesBiens": 28.4
+    },
+    "logement": {
+      "prixM2": 1950,
+      "logementsSociaux": 22,
+      "proprietaires": 52
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 68,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 58,
+      "surfaceNaturelle": 62,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "77": {
+    "id": "77",
+    "name": "Seine-et-Marne",
+    "president": "Jean-François Parigi",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 1420575,
+      "densite": 236,
+      "evolution10ans": "+5.8%",
+      "moins25ans": 33,
+      "plus65ans": 15
+    },
+    "economie": {
+      "chomage": 7.6,
+      "revenuMedian": 2080,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 31,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 22,
+      "scoreAPL": 44,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 8.9,
+      "atteintesBiens": 22.6
+    },
+    "logement": {
+      "prixM2": 3100,
+      "logementsSociaux": 14,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1180,
+      "endettement": 58,
+      "investissement": 24
+    },
+    "environnement": {
+      "qualiteAir": 62,
+      "surfaceNaturelle": 72,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "78": {
+    "id": "78",
+    "name": "Yvelines",
+    "president": "Pierre Bédier",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 1438266,
+      "densite": 616,
+      "evolution10ans": "+1.4%",
+      "moins25ans": 32,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 6.2,
+      "revenuMedian": 2480,
+      "pauvrete": 9
+    },
+    "education": {
+      "bac": 93,
+      "diplomesSup": 44,
+      "decrochage": 5
+    },
+    "sante": {
+      "medecins10k": 32,
+      "scoreAPL": 61,
+      "esperanceVie": 83.6
+    },
+    "securite": {
+      "atteintesPersonnes": 7.8,
+      "atteintesBiens": 19.3
+    },
+    "logement": {
+      "prixM2": 3800,
+      "logementsSociaux": 16,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 1310,
+      "endettement": 52,
+      "investissement": 26
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 58,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "79": {
+    "id": "79",
+    "name": "Deux-Sèvres",
+    "president": "David Bonnet",
+    "party": "Divers droite",
+    "demographie": {
+      "populationTotal": 374207,
+      "densite": 61,
+      "evolution10ans": "+1.8%",
+      "moins25ans": 28,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 6.1,
+      "revenuMedian": 1820,
+      "pauvrete": 11
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 24,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 21,
+      "scoreAPL": 47,
+      "esperanceVie": 82.4
+    },
+    "securite": {
+      "atteintesPersonnes": 5.6,
+      "atteintesBiens": 13.8
+    },
+    "logement": {
+      "prixM2": 1380,
+      "logementsSociaux": 10,
+      "proprietaires": 68
+    },
+    "finances": {
+      "budgetHabitant": 1090,
+      "endettement": 44,
+      "investissement": 28
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 80,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "80": {
+    "id": "80",
+    "name": "Somme",
+    "president": "Stéphane Haussoulier",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 571098,
+      "densite": 92,
+      "evolution10ans": "-0.8%",
+      "moins25ans": 31,
+      "plus65ans": 20
+    },
+    "economie": {
+      "chomage": 9.2,
+      "revenuMedian": 1680,
+      "pauvrete": 18
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 21,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 80.1
+    },
+    "securite": {
+      "atteintesPersonnes": 11.8,
+      "atteintesBiens": 28.4
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 18,
+      "proprietaires": 55
+    },
+    "finances": {
+      "budgetHabitant": 1180,
+      "endettement": 62,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 58,
+      "surfaceNaturelle": 72,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "81": {
+    "id": "81",
+    "name": "Tarn",
+    "president": "Christophe Ramond",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 387890,
+      "densite": 62,
+      "evolution10ans": "+3.1%",
+      "moins25ans": 28,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 8.3,
+      "revenuMedian": 1740,
+      "pauvrete": 15
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 25,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 58,
+      "esperanceVie": 82.4
+    },
+    "securite": {
+      "atteintesPersonnes": 9.4,
+      "atteintesBiens": 22.1
+    },
+    "logement": {
+      "prixM2": 1750,
+      "logementsSociaux": 13,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1210,
+      "endettement": 58,
+      "investissement": 24
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 78,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "82": {
+    "id": "82",
+    "name": "Tarn-et-Garonne",
+    "president": "Christian Astruc",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 260718,
+      "densite": 65,
+      "evolution10ans": "+5.2%",
+      "moins25ans": 30,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 9.1,
+      "revenuMedian": 1680,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 22,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 53,
+      "esperanceVie": 82
+    },
+    "securite": {
+      "atteintesPersonnes": 10.1,
+      "atteintesBiens": 24.6
+    },
+    "logement": {
+      "prixM2": 1700,
+      "logementsSociaux": 14,
+      "proprietaires": 61
+    },
+    "finances": {
+      "budgetHabitant": 1190,
+      "endettement": 60,
+      "investissement": 23
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 76,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "83": {
+    "id": "83",
+    "name": "Var",
+    "president": "Marc Giraud",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 1084585,
+      "densite": 174,
+      "evolution10ans": "+6.8%",
+      "moins25ans": 27,
+      "plus65ans": 27
+    },
+    "economie": {
+      "chomage": 8.6,
+      "revenuMedian": 1880,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 28,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 12,
+      "scoreAPL": 64,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 12.3,
+      "atteintesBiens": 30.5
+    },
+    "logement": {
+      "prixM2": 3800,
+      "logementsSociaux": 10,
+      "proprietaires": 60
+    },
+    "finances": {
+      "budgetHabitant": 1320,
+      "endettement": 55,
+      "investissement": 25
+    },
+    "environnement": {
+      "qualiteAir": 66,
+      "surfaceNaturelle": 70,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "84": {
+    "id": "84",
+    "name": "Vaucluse",
+    "president": "Dominique Santoni",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 568075,
+      "densite": 155,
+      "evolution10ans": "+3.4%",
+      "moins25ans": 30,
+      "plus65ans": 23
+    },
+    "economie": {
+      "chomage": 10.4,
+      "revenuMedian": 1650,
+      "pauvrete": 19
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 24,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 57,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 13.6,
+      "atteintesBiens": 33.2
+    },
+    "logement": {
+      "prixM2": 2600,
+      "logementsSociaux": 15,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 1240,
+      "endettement": 64,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 60,
+      "surfaceNaturelle": 68,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "85": {
+    "id": "85",
+    "name": "Vendée",
+    "president": "Alain Leboeuf",
+    "party": "Divers droite",
+    "demographie": {
+      "populationTotal": 702000,
+      "densite": 73,
+      "evolution10ans": "+8.1%",
+      "moins25ans": 30,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 5.8,
+      "revenuMedian": 1920,
+      "pauvrete": 9
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 26,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 62,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 7.1,
+      "atteintesBiens": 16.4
+    },
+    "logement": {
+      "prixM2": 2600,
+      "logementsSociaux": 7,
+      "proprietaires": 68
+    },
+    "finances": {
+      "budgetHabitant": 1050,
+      "endettement": 42,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 74,
+      "surfaceNaturelle": 79,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "86": {
+    "id": "86",
+    "name": "Vienne",
+    "president": "Bruno Belin",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 439000,
+      "densite": 62,
+      "evolution10ans": "+3.2%",
+      "moins25ans": 30,
+      "plus65ans": 21
+    },
+    "economie": {
+      "chomage": 7.2,
+      "revenuMedian": 1870,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 31,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 66,
+      "esperanceVie": 82.8
+    },
+    "securite": {
+      "atteintesPersonnes": 9.4,
+      "atteintesBiens": 22.1
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 15,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 1120,
+      "endettement": 55,
+      "investissement": 19
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 78,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "87": {
+    "id": "87",
+    "name": "Haute-Vienne",
+    "president": "Jean-Claude Leblois",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 374000,
+      "densite": 44,
+      "evolution10ans": "-0.8%",
+      "moins25ans": 28,
+      "plus65ans": 25
+    },
+    "economie": {
+      "chomage": 7.8,
+      "revenuMedian": 1780,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 30,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 65,
+      "esperanceVie": 82.4
+    },
+    "securite": {
+      "atteintesPersonnes": 9.8,
+      "atteintesBiens": 21.3
+    },
+    "logement": {
+      "prixM2": 1450,
+      "logementsSociaux": 16,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 1180,
+      "endettement": 58,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 76,
+      "surfaceNaturelle": 82,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "88": {
+    "id": "88",
+    "name": "Vosges",
+    "president": "François Vannson",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 366000,
+      "densite": 59,
+      "evolution10ans": "-2.9%",
+      "moins25ans": 27,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 8.1,
+      "revenuMedian": 1700,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 22,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 57,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 7.9,
+      "atteintesBiens": 17.6
+    },
+    "logement": {
+      "prixM2": 1100,
+      "logementsSociaux": 14,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1090,
+      "endettement": 61,
+      "investissement": 17
+    },
+    "environnement": {
+      "qualiteAir": 73,
+      "surfaceNaturelle": 80,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "89": {
+    "id": "89",
+    "name": "Yonne",
+    "president": "Patrick Gendraud",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 338000,
+      "densite": 45,
+      "evolution10ans": "-1.4%",
+      "moins25ans": 27,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 8.3,
+      "revenuMedian": 1750,
+      "pauvrete": 15
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 22,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 54,
+      "esperanceVie": 81.9
+    },
+    "securite": {
+      "atteintesPersonnes": 9.2,
+      "atteintesBiens": 20.7
+    },
+    "logement": {
+      "prixM2": 1300,
+      "logementsSociaux": 13,
+      "proprietaires": 61
+    },
+    "finances": {
+      "budgetHabitant": 1060,
+      "endettement": 59,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 71,
+      "surfaceNaturelle": 78,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "90": {
+    "id": "90",
+    "name": "Territoire de Belfort",
+    "president": "Florian Bouquet",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 142622,
+      "densite": 233,
+      "evolution10ans": "-1.2%",
+      "moins25ans": 28,
+      "plus65ans": 21
+    },
+    "economie": {
+      "chomage": 8.1,
+      "revenuMedian": 1820,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 28,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 62,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 10.4,
+      "atteintesBiens": 22.1
+    },
+    "logement": {
+      "prixM2": 1650,
+      "logementsSociaux": 22,
+      "proprietaires": 55
+    },
+    "finances": {
+      "budgetHabitant": 1320,
+      "endettement": 68,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 52,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "91": {
+    "id": "91",
+    "name": "Essonne",
+    "president": "François Durovray",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 1296130,
+      "densite": 663,
+      "evolution10ans": "+4.1%",
+      "moins25ans": 32,
+      "plus65ans": 15
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 2150,
+      "pauvrete": 12
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 42,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 68,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 11.2,
+      "atteintesBiens": 28.4
+    },
+    "logement": {
+      "prixM2": 3100,
+      "logementsSociaux": 23,
+      "proprietaires": 52
+    },
+    "finances": {
+      "budgetHabitant": 1480,
+      "endettement": 72,
+      "investissement": 19
+    },
+    "environnement": {
+      "qualiteAir": 58,
+      "surfaceNaturelle": 46,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "92": {
+    "id": "92",
+    "name": "Hauts-de-Seine",
+    "president": "Georges-François Leclerc",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 1620168,
+      "densite": 9066,
+      "evolution10ans": "+3.8%",
+      "moins25ans": 28,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 6.2,
+      "revenuMedian": 2900,
+      "pauvrete": 9
+    },
+    "education": {
+      "bac": 94,
+      "diplomesSup": 58,
+      "decrochage": 5
+    },
+    "sante": {
+      "medecins10k": 16,
+      "scoreAPL": 82,
+      "esperanceVie": 84.6
+    },
+    "securite": {
+      "atteintesPersonnes": 12.8,
+      "atteintesBiens": 35.2
+    },
+    "logement": {
+      "prixM2": 7200,
+      "logementsSociaux": 19,
+      "proprietaires": 37
+    },
+    "finances": {
+      "budgetHabitant": 1950,
+      "endettement": 55,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 48,
+      "surfaceNaturelle": 18,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "93": {
+    "id": "93",
+    "name": "Seine-Saint-Denis",
+    "president": "Stéphane Troussel",
+    "party": "Parti Socialiste",
+    "demographie": {
+      "populationTotal": 1623111,
+      "densite": 6907,
+      "evolution10ans": "+5.9%",
+      "moins25ans": 38,
+      "plus65ans": 11
+    },
+    "economie": {
+      "chomage": 12.3,
+      "revenuMedian": 1620,
+      "pauvrete": 28
+    },
+    "education": {
+      "bac": 84,
+      "diplomesSup": 26,
+      "decrochage": 14
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 44,
+      "esperanceVie": 80.1
+    },
+    "securite": {
+      "atteintesPersonnes": 22.6,
+      "atteintesBiens": 48.7
+    },
+    "logement": {
+      "prixM2": 3500,
+      "logementsSociaux": 38,
+      "proprietaires": 28
+    },
+    "finances": {
+      "budgetHabitant": 1680,
+      "endettement": 112,
+      "investissement": 16
+    },
+    "environnement": {
+      "qualiteAir": 42,
+      "surfaceNaturelle": 14,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "94": {
+    "id": "94",
+    "name": "Val-de-Marne",
+    "president": "Olivier Capitanio",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 1387926,
+      "densite": 5673,
+      "evolution10ans": "+4.3%",
+      "moins25ans": 31,
+      "plus65ans": 16
+    },
+    "economie": {
+      "chomage": 8.8,
+      "revenuMedian": 2050,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 43,
+      "decrochage": 8
+    },
+    "sante": {
+      "medecins10k": 12,
+      "scoreAPL": 71,
+      "esperanceVie": 83
+    },
+    "securite": {
+      "atteintesPersonnes": 14.9,
+      "atteintesBiens": 36.8
+    },
+    "logement": {
+      "prixM2": 4800,
+      "logementsSociaux": 29,
+      "proprietaires": 38
+    },
+    "finances": {
+      "budgetHabitant": 1620,
+      "endettement": 88,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 50,
+      "surfaceNaturelle": 22,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "95": {
+    "id": "95",
+    "name": "Val-d'Oise",
+    "president": "Arnaud Bazin",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 1228618,
+      "densite": 983,
+      "evolution10ans": "+4.1%",
+      "moins25ans": 34,
+      "plus65ans": 13
+    },
+    "economie": {
+      "chomage": 8.9,
+      "revenuMedian": 1980,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 29,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 14.2,
+      "atteintesBiens": 31.4
+    },
+    "logement": {
+      "prixM2": 3200,
+      "logementsSociaux": 24,
+      "proprietaires": 52
+    },
+    "finances": {
+      "budgetHabitant": 980,
+      "endettement": 62,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 54,
+      "surfaceNaturelle": 44,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "971": {
+    "id": "971",
+    "name": "Guadeloupe",
+    "president": "Guy Losbar",
+    "party": "Divers gauche",
+    "demographie": {
+      "populationTotal": 378561,
+      "densite": 224,
+      "evolution10ans": "-5.8%",
+      "moins25ans": 30,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 17.4,
+      "revenuMedian": 1310,
+      "pauvrete": 34
+    },
+    "education": {
+      "bac": 82,
+      "diplomesSup": 22,
+      "decrochage": 16
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 41,
+      "esperanceVie": 80.2
+    },
+    "securite": {
+      "atteintesPersonnes": 18.6,
+      "atteintesBiens": 27.3
+    },
+    "logement": {
+      "prixM2": 2100,
+      "logementsSociaux": 20,
+      "proprietaires": 58
+    },
+    "finances": {
+      "budgetHabitant": 1120,
+      "endettement": 78,
+      "investissement": 21
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 65,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "972": {
+    "id": "972",
+    "name": "Martinique",
+    "president": "Serge Letchimy",
+    "party": "Parti Progressiste Martiniquais",
+    "demographie": {
+      "populationTotal": 349925,
+      "densite": 318,
+      "evolution10ans": "-7.2%",
+      "moins25ans": 27,
+      "plus65ans": 23
+    },
+    "economie": {
+      "chomage": 16.1,
+      "revenuMedian": 1370,
+      "pauvrete": 32
+    },
+    "education": {
+      "bac": 83,
+      "diplomesSup": 23,
+      "decrochage": 15
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 44,
+      "esperanceVie": 80.8
+    },
+    "securite": {
+      "atteintesPersonnes": 17.9,
+      "atteintesBiens": 24.8
+    },
+    "logement": {
+      "prixM2": 2300,
+      "logementsSociaux": 19,
+      "proprietaires": 60
+    },
+    "finances": {
+      "budgetHabitant": 1090,
+      "endettement": 82,
+      "investissement": 19
+    },
+    "environnement": {
+      "qualiteAir": 66,
+      "surfaceNaturelle": 62,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "973": {
+    "id": "973",
+    "name": "Guyane",
+    "president": "Gabriel Serville",
+    "party": "Divers gauche",
+    "demographie": {
+      "populationTotal": 294071,
+      "densite": 3,
+      "evolution10ans": "+27.5%",
+      "moins25ans": 48,
+      "plus65ans": 5
+    },
+    "economie": {
+      "chomage": 21.8,
+      "revenuMedian": 1080,
+      "pauvrete": 53
+    },
+    "education": {
+      "bac": 72,
+      "diplomesSup": 14,
+      "decrochage": 29
+    },
+    "sante": {
+      "medecins10k": 5,
+      "scoreAPL": 28,
+      "esperanceVie": 78.1
+    },
+    "securite": {
+      "atteintesPersonnes": 22.4,
+      "atteintesBiens": 23.6
+    },
+    "logement": {
+      "prixM2": 1600,
+      "logementsSociaux": 18,
+      "proprietaires": 38
+    },
+    "finances": {
+      "budgetHabitant": 1340,
+      "endettement": 91,
+      "investissement": 26
+    },
+    "environnement": {
+      "qualiteAir": 80,
+      "surfaceNaturelle": 96,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "974": {
+    "id": "974",
+    "name": "La Réunion",
+    "president": "Cyrille Melchior",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 906000,
+      "densite": 361,
+      "evolution10ans": "+7.4%",
+      "moins25ans": 37,
+      "plus65ans": 12
+    },
+    "economie": {
+      "chomage": 18.9,
+      "revenuMedian": 1230,
+      "pauvrete": 42
+    },
+    "education": {
+      "bac": 80,
+      "diplomesSup": 19,
+      "decrochage": 21
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 43,
+      "esperanceVie": 79.6
+    },
+    "securite": {
+      "atteintesPersonnes": 16.3,
+      "atteintesBiens": 29.1
+    },
+    "logement": {
+      "prixM2": 2600,
+      "logementsSociaux": 23,
+      "proprietaires": 47
+    },
+    "finances": {
+      "budgetHabitant": 1180,
+      "endettement": 85,
+      "investissement": 23
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 70,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "976": {
+    "id": "976",
+    "name": "Mayotte",
+    "president": "Ben Issa Ousseni",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 321002,
+      "densite": 860,
+      "evolution10ans": "+38.0%",
+      "moins25ans": 57,
+      "plus65ans": 4
+    },
+    "economie": {
+      "chomage": 34.5,
+      "revenuMedian": 590,
+      "pauvrete": 77
+    },
+    "education": {
+      "bac": 72,
+      "diplomesSup": 12,
+      "decrochage": 42
+    },
+    "sante": {
+      "medecins10k": 5,
+      "scoreAPL": 18,
+      "esperanceVie": 74.8
+    },
+    "securite": {
+      "atteintesPersonnes": 28.4,
+      "atteintesBiens": 31.2
+    },
+    "logement": {
+      "prixM2": 1800,
+      "logementsSociaux": 8,
+      "proprietaires": 38
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 22,
+      "investissement": 31
+    },
+    "environnement": {
+      "qualiteAir": 62,
+      "surfaceNaturelle": 58,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2017/2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL, DEAL Mayotte"
+  },
+  "01": {
+    "id": "01",
+    "name": "Ain",
+    "president": "Jean-Yves Flochon",
+    "party": "Divers droite",
+    "demographie": {
+      "populationTotal": 659765,
+      "densite": 117,
+      "evolution10ans": "+8.1%",
+      "moins25ans": 31,
+      "plus65ans": 18
+    },
+    "economie": {
+      "chomage": 5.8,
+      "revenuMedian": 2050,
+      "pauvrete": 10
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 30,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 62,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 8.2,
+      "atteintesBiens": 18.4
+    },
+    "logement": {
+      "prixM2": 2500,
+      "logementsSociaux": 10,
+      "proprietaires": 61
+    },
+    "finances": {
+      "budgetHabitant": 980,
+      "endettement": 42,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 74,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "02": {
+    "id": "02",
+    "name": "Aisne",
+    "president": "Nicolas Fricoteaux",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 524051,
+      "densite": 72,
+      "evolution10ans": "-2.8%",
+      "moins25ans": 29,
+      "plus65ans": 21
+    },
+    "economie": {
+      "chomage": 10.2,
+      "revenuMedian": 1700,
+      "pauvrete": 20
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 19,
+      "decrochage": 13
+    },
+    "sante": {
+      "medecins10k": 6,
+      "scoreAPL": 44,
+      "esperanceVie": 80.8
+    },
+    "securite": {
+      "atteintesPersonnes": 11.4,
+      "atteintesBiens": 22.1
+    },
+    "logement": {
+      "prixM2": 1250,
+      "logementsSociaux": 18,
+      "proprietaires": 56
+    },
+    "finances": {
+      "budgetHabitant": 1050,
+      "endettement": 68,
+      "investissement": 16
+    },
+    "environnement": {
+      "qualiteAir": 58,
+      "surfaceNaturelle": 68,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "03": {
+    "id": "03",
+    "name": "Allier",
+    "president": "Claude Riboulet",
+    "party": "Divers gauche",
+    "demographie": {
+      "populationTotal": 334413,
+      "densite": 45,
+      "evolution10ans": "-3.5%",
+      "moins25ans": 25,
+      "plus65ans": 28
+    },
+    "economie": {
+      "chomage": 8.9,
+      "revenuMedian": 1750,
+      "pauvrete": 16
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 22,
+      "decrochage": 11
+    },
+    "sante": {
+      "medecins10k": 7,
+      "scoreAPL": 48,
+      "esperanceVie": 81.4
+    },
+    "securite": {
+      "atteintesPersonnes": 9.6,
+      "atteintesBiens": 19.8
+    },
+    "logement": {
+      "prixM2": 1100,
+      "logementsSociaux": 14,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1090,
+      "endettement": 58,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 78,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "04": {
+    "id": "04",
+    "name": "Alpes-de-Haute-Provence",
+    "president": "Christophe Castaner",
+    "party": "La République En Marche",
+    "demographie": {
+      "populationTotal": 165197,
+      "densite": 24,
+      "evolution10ans": "+3.1%",
+      "moins25ans": 26,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 8.4,
+      "revenuMedian": 1820,
+      "pauvrete": 15
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 25,
+      "decrochage": 10
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 52,
+      "esperanceVie": 83
+    },
+    "securite": {
+      "atteintesPersonnes": 8.8,
+      "atteintesBiens": 17.5
+    },
+    "logement": {
+      "prixM2": 2100,
+      "logementsSociaux": 12,
+      "proprietaires": 60
+    },
+    "finances": {
+      "budgetHabitant": 1120,
+      "endettement": 52,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 88,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "05": {
+    "id": "05",
+    "name": "Hautes-Alpes",
+    "president": "Jean-Yves Dusserre",
+    "party": "Les Républicains",
+    "demographie": {
+      "populationTotal": 141726,
+      "densite": 24,
+      "evolution10ans": "+4.2%",
+      "moins25ans": 27,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 7.6,
+      "revenuMedian": 1880,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 27,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 55,
+      "esperanceVie": 83.5
+    },
+    "securite": {
+      "atteintesPersonnes": 7.9,
+      "atteintesBiens": 16.2
+    },
+    "logement": {
+      "prixM2": 2350,
+      "logementsSociaux": 10,
+      "proprietaires": 62
+    },
+    "finances": {
+      "budgetHabitant": 1150,
+      "endettement": 46,
+      "investissement": 23
+    },
+    "environnement": {
+      "qualiteAir": 82,
+      "surfaceNaturelle": 91,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "06": {
+    "id": "06",
+    "name": "Alpes-Maritimes",
+    "president": "Charles-Ange Ginésy",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 1094974,
+      "densite": 252,
+      "evolution10ans": "+3.8%",
+      "moins25ans": 26,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 7.4,
+      "revenuMedian": 2050,
+      "pauvrete": 13
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 34,
+      "decrochage": 7
+    },
+    "sante": {
+      "medecins10k": 19,
+      "scoreAPL": 68,
+      "esperanceVie": 83.2
+    },
+    "securite": {
+      "atteintesPersonnes": 14.2,
+      "atteintesBiens": 38.5
+    },
+    "logement": {
+      "prixM2": 4800,
+      "logementsSociaux": 9,
+      "proprietaires": 51
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 62,
+      "investissement": 22
+    },
+    "environnement": {
+      "qualiteAir": 62,
+      "surfaceNaturelle": 78,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "07": {
+    "id": "07",
+    "name": "Ardèche",
+    "president": "Olivier Amrane",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 333268,
+      "densite": 58,
+      "evolution10ans": "+5.2%",
+      "moins25ans": 27,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 7.8,
+      "revenuMedian": 1780,
+      "pauvrete": 14
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 24,
+      "decrochage": 9
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 45,
+      "esperanceVie": 82.8
+    },
+    "securite": {
+      "atteintesPersonnes": 6.8,
+      "atteintesBiens": 18.2
+    },
+    "logement": {
+      "prixM2": 2100,
+      "logementsSociaux": 7,
+      "proprietaires": 67
+    },
+    "finances": {
+      "budgetHabitant": 1180,
+      "endettement": 55,
+      "investissement": 25
+    },
+    "environnement": {
+      "qualiteAir": 72,
+      "surfaceNaturelle": 84,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "08": {
+    "id": "08",
+    "name": "Ardennes",
+    "president": "Noël Bourgeois",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 270582,
+      "densite": 49,
+      "evolution10ans": "-4.1%",
+      "moins25ans": 29,
+      "plus65ans": 21
+    },
+    "economie": {
+      "chomage": 11.2,
+      "revenuMedian": 1630,
+      "pauvrete": 19
+    },
+    "education": {
+      "bac": 86,
+      "diplomesSup": 18,
+      "decrochage": 13
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 38,
+      "esperanceVie": 80.4
+    },
+    "securite": {
+      "atteintesPersonnes": 9.1,
+      "atteintesBiens": 22.4
+    },
+    "logement": {
+      "prixM2": 1100,
+      "logementsSociaux": 16,
+      "proprietaires": 60
+    },
+    "finances": {
+      "budgetHabitant": 1290,
+      "endettement": 78,
+      "investissement": 18
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 75,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "09": {
+    "id": "09",
+    "name": "Ariège",
+    "president": "Marie-Françoise Ignoré",
+    "party": "DVG",
+    "demographie": {
+      "populationTotal": 155778,
+      "densite": 26,
+      "evolution10ans": "+3.6%",
+      "moins25ans": 26,
+      "plus65ans": 26
+    },
+    "economie": {
+      "chomage": 10.1,
+      "revenuMedian": 1650,
+      "pauvrete": 18
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 22,
+      "decrochage": 11
+    },
+    "sante": {
+      "medecins10k": 9,
+      "scoreAPL": 36,
+      "esperanceVie": 82.1
+    },
+    "securite": {
+      "atteintesPersonnes": 7.4,
+      "atteintesBiens": 17.8
+    },
+    "logement": {
+      "prixM2": 1550,
+      "logementsSociaux": 10,
+      "proprietaires": 65
+    },
+    "finances": {
+      "budgetHabitant": 1210,
+      "endettement": 70,
+      "investissement": 20
+    },
+    "environnement": {
+      "qualiteAir": 78,
+      "surfaceNaturelle": 88,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "2A": {
+    "id": "2A",
+    "name": "Corse-du-Sud",
+    "president": "Jean-Jacques Panunzi",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 161589,
+      "densite": 37,
+      "evolution10ans": "+10.5%",
+      "moins25ans": 25,
+      "plus65ans": 24
+    },
+    "economie": {
+      "chomage": 8.9,
+      "revenuMedian": 1780,
+      "pauvrete": 17
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 26,
+      "decrochage": 11
+    },
+    "sante": {
+      "medecins10k": 10,
+      "scoreAPL": 58,
+      "esperanceVie": 83
+    },
+    "securite": {
+      "atteintesPersonnes": 11.2,
+      "atteintesBiens": 24.5
+    },
+    "logement": {
+      "prixM2": 3400,
+      "logementsSociaux": 8,
+      "proprietaires": 55
+    },
+    "finances": {
+      "budgetHabitant": 1350,
+      "endettement": 55,
+      "investissement": 28
+    },
+    "environnement": {
+      "qualiteAir": 82,
+      "surfaceNaturelle": 85,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  },
+  "2B": {
+    "id": "2B",
+    "name": "Haute-Corse",
+    "president": "François Orlandi",
+    "party": "Femu a Corsica",
+    "demographie": {
+      "populationTotal": 177689,
+      "densite": 37,
+      "evolution10ans": "+9.8%",
+      "moins25ans": 26,
+      "plus65ans": 23
+    },
+    "economie": {
+      "chomage": 9.4,
+      "revenuMedian": 1700,
+      "pauvrete": 19
+    },
+    "education": {
+      "bac": 86,
+      "diplomesSup": 24,
+      "decrochage": 12
+    },
+    "sante": {
+      "medecins10k": 8,
+      "scoreAPL": 50,
+      "esperanceVie": 82.5
+    },
+    "securite": {
+      "atteintesPersonnes": 10.5,
+      "atteintesBiens": 22.8
+    },
+    "logement": {
+      "prixM2": 2800,
+      "logementsSociaux": 7,
+      "proprietaires": 57
+    },
+    "finances": {
+      "budgetHabitant": 1280,
+      "endettement": 60,
+      "investissement": 27
+    },
+    "environnement": {
+      "qualiteAir": 83,
+      "surfaceNaturelle": 88,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), SSMSI (Sécurité 2023), DREES, DGCL/OFGL"
+  }
+}

@@ -1,7 +1,16 @@
 import { Router } from 'express';
 import { generateMockCommune } from '../utils/mockTerritoryGenerator.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
+
+const indicatorsPath = path.resolve(__dirname, '../data/departments_indicators.json');
+const DEPARTMENTS_INDICATORS = JSON.parse(fs.readFileSync(indicatorsPath, 'utf8'));
 
 const REGIONS = [
   {
@@ -798,6 +807,15 @@ router.get('/:codeInsee', (req, res) => {
   // Check in DEPARTMENTS
   const department = DEPARTMENTS.find(d => d.id === codeInsee);
   if (department) {
+    const realIndicators = DEPARTMENTS_INDICATORS[codeInsee];
+    if (realIndicators) {
+      return res.json({
+        ...department,
+        ...realIndicators,
+        type: 'department',
+        isEstimated: false
+      });
+    }
     // Departments from the 101 list might not have indicators yet
     // Generate mock indicators for them if missing
     if (!(department as any).demographie) {
