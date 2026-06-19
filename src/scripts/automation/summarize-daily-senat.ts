@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { logSuccess, logError } from '../../lib/monitoring.js';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +26,7 @@ function generateDeterministicUUID(input: string): string {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
-async function main() {
+export async function main() {
   const today = new Date().toISOString().split('T')[0];
   console.log(`--- SUMMARIZING SENAT AGENDA FOR ${today} ---`);
 
@@ -107,4 +108,8 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+const nodePath = fs.realpathSync(process.argv[1]);
+const currentPath = fileURLToPath(import.meta.url);
+if (nodePath === currentPath || nodePath.endsWith('summarize-daily-senat.ts') || nodePath.endsWith('summarize-daily-senat.js')) {
+  main().catch(console.error);
+}

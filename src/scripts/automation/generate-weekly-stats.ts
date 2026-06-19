@@ -3,6 +3,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import crypto from 'crypto';
 import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -15,7 +17,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
-async function generateWeeklyStats() {
+export async function generateWeeklyStats() {
   console.log("--- GÉNÉRATION DES STATS HEBDOMADAIRES EXPERTES ---");
 
   const hcId = process.env.HEALTHCHECK_ID_WEEKLY_STATS;
@@ -100,4 +102,8 @@ Les couleurs doivent être obligatoirement des codes HEX, VIVES et suffisamment 
   }
 }
 
-generateWeeklyStats().catch(console.error);
+const nodePath = fs.realpathSync(process.argv[1]);
+const currentPath = fileURLToPath(import.meta.url);
+if (nodePath === currentPath || nodePath.endsWith('generate-weekly-stats.ts') || nodePath.endsWith('generate-weekly-stats.js')) {
+  generateWeeklyStats().catch(console.error);
+}
