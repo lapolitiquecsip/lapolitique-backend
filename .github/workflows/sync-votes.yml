@@ -2,6 +2,8 @@
 name: Sync Parliamentary Votes
 
 on:
+  schedule:
+    - cron: '34 */3 * * *' # Every 3 hours (off-peak)
   workflow_dispatch:
 
 jobs:
