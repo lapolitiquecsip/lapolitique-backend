@@ -1,9 +1,6 @@
 name: Daily Political Data Sync
 
 on:
-  schedule:
-    # Tous les jours à Minuit et Midi UTC
-    - cron: '0 0,12 * * *'
   workflow_dispatch:
 
 jobs:

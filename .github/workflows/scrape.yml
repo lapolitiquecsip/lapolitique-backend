@@ -1,9 +1,6 @@
 name: Daily Agenda Scraper
 
 on:
-  schedule:
-    # Run every day at 02:00 UTC (04:00 Paris time)
-    - cron: '0 2 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
