@@ -21,7 +21,8 @@ export async function fetchAndParseVotes() {
   try {
     console.log(`> Downloading archive to disk using curl...`);
     const { execSync } = await import('child_process');
-    execSync(`curl.exe -L -o "${TEMP_ZIP_PATH}" "${SCRUTINS_ZIP_URL}"`, { stdio: 'inherit' });
+    const curlCmd = process.platform === 'win32' ? 'curl.exe' : 'curl';
+    execSync(`${curlCmd} -L -o "${TEMP_ZIP_PATH}" "${SCRUTINS_ZIP_URL}"`, { stdio: 'inherit' });
     console.log(`> Archive downloaded to disk successfully.`);
 
     const zip = new AdmZip(TEMP_ZIP_PATH);
@@ -113,9 +114,9 @@ export async function fetchAndParseVotes() {
 
 
       const groupResults: any[] = [];
-      const groups = s.ventilationVotes?.organe?.groupes?.groupe;
-      if (groups) {
-        const gList = Array.isArray(groups) ? groups : [groups];
+      const ventilationGroups = s.ventilationVotes?.organe?.groupes?.groupe;
+      if (ventilationGroups) {
+        const gList = Array.isArray(ventilationGroups) ? ventilationGroups : [ventilationGroups];
         gList.forEach((g: any) => {
           const GROUP_NAMES: Record<string, string> = {
             'PO845401': 'LFI-NFP',
@@ -204,7 +205,7 @@ export async function fetchAndParseVotes() {
       // --- RESTORED: INDIVIDUAL VOTES EXTRACTION ---
       const votes: any[] = [];
       
-      if (groups) {
+      if (ventilationGroups) {
         const processNominatif = (nominatif: any) => {
           if (!nominatif) return;
           
@@ -235,7 +236,7 @@ export async function fetchAndParseVotes() {
           });
         };
 
-        const groupsList = Array.isArray(groups) ? groups : [groups];
+        const groupsList = Array.isArray(ventilationGroups) ? ventilationGroups : [ventilationGroups];
         groupsList.forEach((g: any) => {
           processNominatif(g.vote?.decompteNominatif);
         });
