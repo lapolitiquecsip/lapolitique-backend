@@ -34,9 +34,37 @@ initMonitoring();
 const app = express();
 const port = process.env.PORT || 3001;
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+const allowedOrigins = frontendUrl.split(',').map(o => o.trim());
 
 app.use(helmet());
-app.use(cors({ origin: frontendUrl }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in the allowed list
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+    
+    // Safe fallback for netlify preview domains and main domain
+    try {
+      const hostname = new URL(origin).hostname;
+      if (
+        hostname === 'lapolitique.fr' || 
+        hostname.endsWith('.lapolitique.fr') || 
+        hostname.endsWith('.netlify.app')
+      ) {
+        return callback(null, true);
+      }
+    } catch (e) {
+      // Ignored
+    }
+    
+    return callback(new Error('Not allowed by CORS'), false);
+  }
+}));
+
 app.use(express.json());
 app.use(apiLimiter); // Apply rate limiter to all requests globally or adapt per-route
 
