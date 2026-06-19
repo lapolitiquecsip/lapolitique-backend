@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import crypto from 'crypto';
+import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
 
 dotenv.config();
 
@@ -17,7 +18,11 @@ const anthropic = new Anthropic({
 async function generateWeeklyStats() {
   console.log("--- GÉNÉRATION DES STATS HEBDOMADAIRES EXPERTES ---");
 
-  const topics = ["Budget et Économie", "Écologie et Énergie", "Justice et Sécurité", "Santé et Social", "Éducation et Culture", "Institutions et Règlements", "Europe et International"];
+  const hcId = process.env.HEALTHCHECK_ID_WEEKLY_STATS;
+  await logStart('generateWeeklyStats', hcId);
+
+  try {
+    const topics = ["Budget et Économie", "Écologie et Énergie", "Justice et Sécurité", "Santé et Social", "Éducation et Culture", "Institutions et Règlements", "Europe et International"];
   const randomTopic = topics[Math.floor(Math.random() * topics.length)];
   const currentDate = new Date().toLocaleDateString('fr-FR');
 
@@ -62,7 +67,7 @@ Génère exactement 5 faits (mélange de chiffres et de "le saviez-vous") et 1 i
 Sois percutant, précis et utilise des données réelles de la 17ème législature ou de l'histoire parlementaire.
 Les couleurs doivent être obligatoirement des codes HEX, VIVES et suffisamment contrastées pour que le texte blanc soit lisible.`;
 
-  try {
+
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 2000,
@@ -87,10 +92,12 @@ Les couleurs doivent être obligatoirement des codes HEX, VIVES et suffisamment 
 
     if (error) throw error;
     console.log("✅ Stats hebdomadaires générées et enregistrées.");
+    await logSuccess('generateWeeklyStats', 1, hcId, 'Weekly stats generated successfully.');
 
-  } catch (err) {
-    console.error("❌ Erreur lors de la génération :", err);
+  } catch (err: any) {
+    await logError('generateWeeklyStats', err, hcId);
+    throw err;
   }
 }
 
-generateWeeklyStats();
+generateWeeklyStats().catch(console.error);

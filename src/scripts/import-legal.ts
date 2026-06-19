@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as cheerio from 'cheerio';
+import { logStart, logSuccess, logError } from '../lib/monitoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +22,9 @@ interface LegalRecord {
 
 async function main() {
   console.log('--- SCRAPING CASIER POLITIQUE ---');
+
+  const hcId = process.env.HEALTHCHECK_ID_LEGAL;
+  await logStart('importLegal', hcId);
 
   try {
     const response = await fetch('https://casier-politique.fr/');
@@ -108,9 +112,11 @@ async function main() {
     await updateTable('senators', recordsByName);
 
     console.log('\n--- TERMINE ---');
+    await logSuccess('importLegal', 1, hcId, 'Legal records updated successfully.');
 
   } catch (error: any) {
-    console.error('Error:', error.message);
+    await logError('importLegal', error, hcId);
+    throw error;
   }
 }
 
@@ -158,4 +164,4 @@ function normalize(str: string): string {
     return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
 }
 
-main();
+main().catch(console.error);

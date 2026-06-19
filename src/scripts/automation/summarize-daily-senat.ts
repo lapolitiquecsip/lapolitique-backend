@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { logSuccess, logError } from '../../lib/monitoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +29,9 @@ async function main() {
   const today = new Date().toISOString().split('T')[0];
   console.log(`--- SUMMARIZING SENAT AGENDA FOR ${today} ---`);
 
-  // 1. Fetch today's events for Sénat
+  const hcId = process.env.HEALTHCHECK_ID_AGENDA;
+  try {
+    // 1. Fetch today's events for Sénat
   const { data: events, error: fetchError } = await supabase
     .from('events')
     .select('title, description')
@@ -51,7 +54,7 @@ async function main() {
   // 2. Format events for Claude
   const eventsList = events.map(e => `- ${e.title}\n  ${e.description}`).join('\n\n');
 
-  try {
+
     // 3. Call Claude
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
@@ -96,10 +99,12 @@ async function main() {
     if (upsertError) throw upsertError;
 
     console.log(`\n✅ Daily summary for Sénat saved successfully!`);
+    await logSuccess('agendaPipeline', events.length, hcId, `Successfully summarized Sénat agenda for ${today}.`);
 
   } catch (error: any) {
-    console.error('Error during summarization:', error.message);
+    await logError('summarizeDailySenat', error, hcId);
+    throw error;
   }
 }
 
-main();
+main().catch(console.error);

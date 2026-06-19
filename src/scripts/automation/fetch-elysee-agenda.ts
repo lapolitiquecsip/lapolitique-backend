@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parseFrenchDate } from './utils.js';
+import { logError } from '../../lib/monitoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,7 @@ function generateDeterministicUUID(input: string): string {
 async function main() {
   console.log('--- SYNC ELYSEE AGENDA ---');
 
+  const hcId = process.env.HEALTHCHECK_ID_AGENDA;
   try {
     const response = await fetch(ELYSEE_AGENDA_URL, {
       headers: {
@@ -99,8 +101,9 @@ async function main() {
 
     console.log(`\nTERMINE : ${updatedCount} événements de l'Élysée synchronisés.`);
 
-  } catch (error) {
-    console.error('Error syncing Élysée agenda:', error);
+  } catch (error: any) {
+    await logError('fetchElyseeAgenda', error, hcId);
+    throw error;
   }
 }
 

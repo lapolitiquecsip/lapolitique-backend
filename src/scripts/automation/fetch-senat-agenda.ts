@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parseFrenchDate } from './utils.js';
+import { logError } from '../../lib/monitoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,7 @@ function generateDeterministicUUID(input: string): string {
 async function main() {
   console.log('--- SYNC SENAT AGENDA ---');
 
+  const hcId = process.env.HEALTHCHECK_ID_AGENDA;
   try {
     const response = await fetch(SENAT_AGENDA_URL);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -86,8 +88,9 @@ async function main() {
 
     console.log(`\nTERMINE : ${updatedCount} événements du Sénat synchronisés.`);
 
-  } catch (error) {
-    console.error('Error syncing Senat agenda:', error);
+  } catch (error: any) {
+    await logError('fetchSenatAgenda', error, hcId);
+    throw error;
   }
 }
 

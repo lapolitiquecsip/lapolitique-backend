@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { downloadAndUnzip } from './utils.js';
+import { logStart, logError } from '../../lib/monitoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,9 +28,13 @@ function generateDeterministicUUID(input: string): string {
 async function main() {
   console.log('--- SYNC ASSEMBLEE NATIONALE AGENDA ---');
 
-  await downloadAndUnzip(AGENDA_URL, DATA_DIR);
+  const hcId = process.env.HEALTHCHECK_ID_AGENDA;
+  await logStart('agendaPipeline', hcId);
 
-  const entriesDir = path.join(DATA_DIR, 'json/reunion');
+  try {
+    await downloadAndUnzip(AGENDA_URL, DATA_DIR);
+
+    const entriesDir = path.join(DATA_DIR, 'json/reunion');
   if (!fs.existsSync(entriesDir)) {
     console.error('Error: json/reunion directory not found in zip.');
     return;
@@ -90,13 +95,17 @@ async function main() {
       .upsert(batch, { onConflict: 'id' });
 
     if (error) {
-      console.error(`Error in batch ${i / BATCH_SIZE}:`, error.message);
+      throw new Error(`Supabase upsert error: ${error.message}`);
     } else {
       successCount += batch.length;
     }
   }
 
   console.log(`\nTERMINE : ${successCount} événements d'agenda de l'AN synchronisés.`);
+  } catch (err: any) {
+    await logError('fetchAnAgenda', err, hcId);
+    throw err;
+  }
 }
 
 main().catch(console.error);

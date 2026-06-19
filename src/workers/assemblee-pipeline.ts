@@ -2,6 +2,8 @@ import Parser from 'rss-parser';
 import * as cheerio from 'cheerio';
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../config/supabase.js';
+import * as Sentry from '@sentry/node';
+import { logStart, logSuccess, logError } from '../lib/monitoring.js';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
@@ -62,9 +64,11 @@ ${content.substring(0, 15000)}`
 
 export async function runAssembleePipeline() {
   console.log(`[AssembleePipeline] Starting run at ${new Date().toISOString()}`);
+  const hcId = process.env.HEALTHCHECK_ID_ASSEMBLEE;
+  await logStart('assembleePipeline', hcId);
+
   let itemsProcessed = 0;
   let itemsErrors = 0;
-  let pipelineError = null;
 
   try {
     const feed = await parser.parseURL('https://www.assemblee-nationale.fr/dyn/rss/comptes-rendus.rss');
@@ -126,25 +130,21 @@ export async function runAssembleePipeline() {
 
         console.log(`[AssembleePipeline] Successfully inserted: ${summary.titre_simplifie}`);
         itemsProcessed++;
-      } catch (err) {
+      } catch (err: any) {
         console.error(`[AssembleePipeline] Error processing item ${item.link}:`, err);
+        Sentry.captureException(err, {
+          tags: { component: 'assemblee-pipeline', item: item.link || 'unknown' }
+        });
         itemsErrors++;
       }
     }
+
+    console.log(`[AssembleePipeline] Finished run. Processed: ${itemsProcessed}, Errors: ${itemsErrors}`);
+    await logSuccess('assembleePipeline', itemsProcessed, hcId, `Processed ${itemsProcessed} items successfully, ${itemsErrors} errors.`);
+    return { processed: itemsProcessed, errors: itemsErrors, status: 'success' };
+
   } catch (err: any) {
-    console.error(`[AssembleePipeline] Global Error:`, err);
-    pipelineError = err.message || JSON.stringify(err);
+    await logError('assembleePipeline', err, hcId);
+    throw err;
   }
-
-  // Log execution
-  await supabase.from('pipeline_logs').insert({
-    pipeline_name: 'assemblee',
-    items_processed: itemsProcessed,
-    items_errors: itemsErrors,
-    status: pipelineError ? 'error' : 'success',
-    error_details: pipelineError
-  });
-
-  console.log(`[AssembleePipeline] Finished run. Processed: ${itemsProcessed}, Errors: ${itemsErrors}`);
-  return { processed: itemsProcessed, errors: itemsErrors, status: pipelineError ? 'error' : 'success' };
 }

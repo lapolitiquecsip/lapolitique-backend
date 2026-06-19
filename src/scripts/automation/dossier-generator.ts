@@ -2,6 +2,7 @@ import { supabase } from '../../config/supabase.js';
 import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
 
 dotenv.config();
 
@@ -21,7 +22,13 @@ const CATEGORIES = [
 export async function generateDossiers() {
   console.log("=== Lancement de la génération des Dossiers Premium ===");
 
-  // 1. Fetch scrutins that are LOI and adopted, which don't have a matching dossier in 'laws'
+  const hcId = process.env.HEALTHCHECK_ID_DOSSIERS;
+  await logStart('generateDossiers', hcId);
+
+  let insertedCount = 0;
+
+  try {
+    // 1. Fetch scrutins that are LOI and adopted, which don't have a matching dossier in 'laws'
   const { data: scrutins, error: fetchError } = await supabase
     .from('scrutins')
     .select('*')
@@ -128,10 +135,15 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
         console.error(`Erreur d'insertion pour ${scrutin.objet}:`, insertError);
       } else {
         console.log(`[SUCCÈS] Dossier créé avec succès !`);
+        insertedCount++;
       }
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Erreur avec Claude pour ${scrutin.objet}:`, err);
+      // Capture non-blocking individual Claude failure in Sentry
+      import('@sentry/node').then(Sentry => {
+        Sentry.captureException(err, { tags: { scrutin: scrutin.id, component: 'dossier-generator' } });
+      });
     }
     
     // Pause pour éviter les rate limits
@@ -139,6 +151,12 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
   }
   
   console.log("=== Terminé ===");
+  await logSuccess('generateDossiers', insertedCount, hcId, `Generated ${insertedCount} premium dossiers.`);
+
+  } catch (err: any) {
+    await logError('generateDossiers', err, hcId);
+    throw err;
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
