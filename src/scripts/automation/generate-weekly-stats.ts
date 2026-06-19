@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
+import { supabase } from '../../config/supabase.js';
+import { resilientAnthropic } from '../../lib/anthropic-client.js';
 import * as dotenv from 'dotenv';
 import crypto from 'crypto';
 import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
@@ -7,15 +7,6 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 dotenv.config();
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
 
 export async function generateWeeklyStats() {
   console.log("--- GÉNÉRATION DES STATS HEBDOMADAIRES EXPERTES ---");
@@ -70,7 +61,7 @@ Sois percutant, précis et utilise des données réelles de la 17ème législatu
 Les couleurs doivent être obligatoirement des codes HEX, VIVES et suffisamment contrastées pour que le texte blanc soit lisible.`;
 
 
-    const response = await anthropic.messages.create({
+    const response = await resilientAnthropic.createMessage({
       model: "claude-sonnet-4-6",
       max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],

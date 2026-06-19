@@ -1,5 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../config/supabase.js';
+import { resilientAnthropic } from '../../lib/anthropic-client.js';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import crypto from 'crypto';
@@ -11,15 +11,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
-
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
 
 function generateDeterministicUUID(input: string): string {
   const hash = crypto.createHash('sha1').update(input).digest('hex');
@@ -57,7 +48,7 @@ export async function main() {
 
 
     // 3. Call Claude
-    const response = await anthropic.messages.create({
+    const response = await resilientAnthropic.createMessage({
       model: 'claude-sonnet-4-6',
       max_tokens: 500,
       messages: [
