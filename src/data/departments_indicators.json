@@ -2,8 +2,8 @@
   "10": {
     "id": "10",
     "name": "Aube",
-    "president": "Louis Rabier",
-    "party": "LR",
+    "president": "Philippe PICHERY",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 309468,
       "densite": 52,
@@ -50,8 +50,8 @@
   "11": {
     "id": "11",
     "name": "Aude",
-    "president": "Hermeline Malherbe",
-    "party": "Parti Socialiste",
+    "president": "Hélène SANDRAGNÉ",
+    "party": "PS",
     "demographie": {
       "populationTotal": 376006,
       "densite": 58,
@@ -98,8 +98,8 @@
   "12": {
     "id": "12",
     "name": "Aveyron",
-    "president": "Jean-François Galliard",
-    "party": "Divers droite",
+    "president": "Arnaud VIALA",
+    "party": "LR",
     "demographie": {
       "populationTotal": 279073,
       "densite": 31,
@@ -146,8 +146,8 @@
   "13": {
     "id": "13",
     "name": "Bouches-du-Rhône",
-    "president": "Martine Vassal",
-    "party": "Les Républicains",
+    "president": "Martine VASSAL",
+    "party": "LR",
     "demographie": {
       "populationTotal": 2043110,
       "densite": 386,
@@ -194,8 +194,8 @@
   "14": {
     "id": "14",
     "name": "Calvados",
-    "president": "Anne-Marie Rieu-Plichon",
-    "party": "Les Républicains",
+    "president": "Jean-Léonce DUPONT",
+    "party": "UDI",
     "demographie": {
       "populationTotal": 694002,
       "densite": 121,
@@ -242,8 +242,8 @@
   "15": {
     "id": "15",
     "name": "Cantal",
-    "president": "Bruno Faure",
-    "party": "Divers droite",
+    "president": "Bruno FAURE",
+    "party": "LR",
     "demographie": {
       "populationTotal": 144692,
       "densite": 25,
@@ -290,8 +290,8 @@
   "16": {
     "id": "16",
     "name": "Charente",
-    "president": "François Bonneau",
-    "party": "PS",
+    "president": "Philippe BOUTY",
+    "party": "DVG",
     "demographie": {
       "populationTotal": 352795,
       "densite": 59,
@@ -338,7 +338,7 @@
   "17": {
     "id": "17",
     "name": "Charente-Maritime",
-    "president": "Sylvie Marcilly",
+    "president": "Sylvie MARCILLY",
     "party": "DVD",
     "demographie": {
       "populationTotal": 651479,
@@ -386,8 +386,8 @@
   "18": {
     "id": "18",
     "name": "Cher",
-    "president": "Nicolas Bonnin",
-    "party": "DVD",
+    "president": "Jacques FLEURY",
+    "party": "LR",
     "demographie": {
       "populationTotal": 296141,
       "densite": 38,
@@ -434,8 +434,8 @@
   "19": {
     "id": "19",
     "name": "Corrèze",
-    "president": "Pascal Coste",
-    "party": "DVD",
+    "president": "Pascal COSTE",
+    "party": "LR",
     "demographie": {
       "populationTotal": 241936,
       "densite": 41,
@@ -482,7 +482,7 @@
   "21": {
     "id": "21",
     "name": "Côte-d'Or",
-    "president": "François Sauvadet",
+    "president": "François SAUVADET",
     "party": "UDI",
     "demographie": {
       "populationTotal": 532871,
@@ -530,8 +530,8 @@
   "22": {
     "id": "22",
     "name": "Côtes-d'Armor",
-    "president": "Alain Cadec",
-    "party": "LR",
+    "president": "Christian COAIL",
+    "party": "PS",
     "demographie": {
       "populationTotal": 607630,
       "densite": 89,
@@ -578,7 +578,7 @@
   "23": {
     "id": "23",
     "name": "Creuse",
-    "president": "Valérie Simonet",
+    "president": "Valérie SIMONET",
     "party": "LR",
     "demographie": {
       "populationTotal": 112733,
@@ -626,7 +626,7 @@
   "24": {
     "id": "24",
     "name": "Dordogne",
-    "president": "Germinal Peiro",
+    "president": "Germinal PEIRO",
     "party": "PS",
     "demographie": {
       "populationTotal": 413606,
@@ -674,8 +674,8 @@
   "25": {
     "id": "25",
     "name": "Doubs",
-    "president": "Marie-Guite Dufay",
-    "party": "PS",
+    "president": "Christine BOUQUIN",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 543974,
       "densite": 101,
@@ -722,7 +722,7 @@
   "26": {
     "id": "26",
     "name": "Drôme",
-    "president": "Marie-Pierre Mouton",
+    "president": "Marie-Pierre MOUTON",
     "party": "LR",
     "demographie": {
       "populationTotal": 518380,
@@ -770,8 +770,8 @@
   "27": {
     "id": "27",
     "name": "Eure",
-    "president": "Sébastien Lecornu",
-    "party": "Renaissance",
+    "president": "Alexandre RASSAËRT",
+    "party": "LR",
     "demographie": {
       "populationTotal": 601843,
       "densite": 99,
@@ -818,8 +818,8 @@
   "28": {
     "id": "28",
     "name": "Eure-et-Loir",
-    "president": "Claude Térouinard",
-    "party": "DVD",
+    "president": "Christophe LE DORVEN",
+    "party": "LR",
     "demographie": {
       "populationTotal": 437853,
       "densite": 67,
@@ -866,8 +866,8 @@
   "29": {
     "id": "29",
     "name": "Finistère",
-    "president": "Maël de Calan",
-    "party": "LR",
+    "president": "Maël DE CALAN",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 909028,
       "densite": 134,
@@ -914,8 +914,8 @@
   "30": {
     "id": "30",
     "name": "Gard",
-    "president": "Denis Bouad",
-    "party": "Parti Socialiste",
+    "president": "Françoise LAURENT-PERRIGOT",
+    "party": "PS",
     "demographie": {
       "populationTotal": 748437,
       "densite": 121,
@@ -962,8 +962,8 @@
   "31": {
     "id": "31",
     "name": "Haute-Garonne",
-    "president": "Georges Méric",
-    "party": "Parti Socialiste",
+    "president": "Sebastien VINCINI",
+    "party": "PS",
     "demographie": {
       "populationTotal": 1400039,
       "densite": 212,
@@ -1010,8 +1010,8 @@
   "32": {
     "id": "32",
     "name": "Gers",
-    "president": "Éric Delzangles",
-    "party": "Parti Radical de Gauche",
+    "president": "Philippe DUPOUY",
+    "party": "PS",
     "demographie": {
       "populationTotal": 191091,
       "densite": 31,
@@ -1058,8 +1058,8 @@
   "33": {
     "id": "33",
     "name": "Gironde",
-    "president": "Jean-Luc Gleyze",
-    "party": "Parti Socialiste",
+    "president": "Jean-Luc GLEYZE",
+    "party": "PS",
     "demographie": {
       "populationTotal": 1625360,
       "densite": 166,
@@ -1106,8 +1106,8 @@
   "34": {
     "id": "34",
     "name": "Hérault",
-    "president": "Kléber Mesquida",
-    "party": "Parti Socialiste",
+    "president": "Kléber MESQUIDA",
+    "party": "PS",
     "demographie": {
       "populationTotal": 1175623,
       "densite": 187,
@@ -1154,8 +1154,8 @@
   "35": {
     "id": "35",
     "name": "Ille-et-Vilaine",
-    "president": "Jean-Luc Chenut",
-    "party": "Parti Socialiste",
+    "president": "Jean-Luc CHENUT",
+    "party": "PS",
     "demographie": {
       "populationTotal": 1083850,
       "densite": 163,
@@ -1202,8 +1202,8 @@
   "36": {
     "id": "36",
     "name": "Indre",
-    "president": "Nicolas Forissier",
-    "party": "Les Républicains",
+    "president": "Marc FLEURET",
+    "party": "UDI",
     "demographie": {
       "populationTotal": 216340,
       "densite": 31,
@@ -1250,8 +1250,8 @@
   "37": {
     "id": "37",
     "name": "Indre-et-Loire",
-    "president": "Jean-Gérard Paumier",
-    "party": "Les Républicains",
+    "president": "Nadège ARNAULT",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 611620,
       "densite": 98,
@@ -1298,8 +1298,8 @@
   "38": {
     "id": "38",
     "name": "Isère",
-    "president": "Jean-Pierre Barbier",
-    "party": "Les Républicains",
+    "president": "Jean-Pierre BARBIER",
+    "party": "LR",
     "demographie": {
       "populationTotal": 1271166,
       "densite": 160,
@@ -1346,8 +1346,8 @@
   "39": {
     "id": "39",
     "name": "Jura",
-    "president": "Clément Pernot",
-    "party": "Les Républicains",
+    "president": "Gérôme FASSENET",
+    "party": "LR",
     "demographie": {
       "populationTotal": 259950,
       "densite": 51,
@@ -1394,8 +1394,8 @@
   "40": {
     "id": "40",
     "name": "Landes",
-    "president": "Xavier Fortinon",
-    "party": "Parti Socialiste",
+    "president": "Xavier FORTINON",
+    "party": "PS",
     "demographie": {
       "populationTotal": 422762,
       "densite": 44,
@@ -1442,8 +1442,8 @@
   "41": {
     "id": "41",
     "name": "Loir-et-Cher",
-    "president": "Nicolas Perruchot",
-    "party": "Union des Démocrates et Indépendants",
+    "president": "Philippe GOUET",
+    "party": "UDI",
     "demographie": {
       "populationTotal": 334392,
       "densite": 41,
@@ -1490,8 +1490,8 @@
   "42": {
     "id": "42",
     "name": "Loire",
-    "president": "Georges Ziegler",
-    "party": "Les Républicains",
+    "president": "Georges ZIEGLER",
+    "party": "LR",
     "demographie": {
       "populationTotal": 763092,
       "densite": 156,
@@ -1538,8 +1538,8 @@
   "43": {
     "id": "43",
     "name": "Haute-Loire",
-    "president": "Camille Gontard",
-    "party": "Divers droite",
+    "president": "Marie-Agnès PETIT",
+    "party": "LR",
     "demographie": {
       "populationTotal": 227284,
       "densite": 45,
@@ -1586,8 +1586,8 @@
   "44": {
     "id": "44",
     "name": "Loire-Atlantique",
-    "president": "Françoise Gatel",
-    "party": "Union des Démocrates et Indépendants",
+    "president": "Michel MENARD",
+    "party": "PS",
     "demographie": {
       "populationTotal": 1429272,
       "densite": 214,
@@ -1634,8 +1634,8 @@
   "45": {
     "id": "45",
     "name": "Loiret",
-    "president": "Marc Gaudet",
-    "party": "DVD",
+    "president": "Marc GAUDET",
+    "party": "UDI",
     "demographie": {
       "populationTotal": 686290,
       "densite": 99,
@@ -1682,8 +1682,8 @@
   "46": {
     "id": "46",
     "name": "Lot",
-    "president": "Serge Rigal",
-    "party": "PS",
+    "president": "Serge RIGAL",
+    "party": "DVG",
     "demographie": {
       "populationTotal": 175749,
       "densite": 34,
@@ -1730,7 +1730,7 @@
   "47": {
     "id": "47",
     "name": "Lot-et-Garonne",
-    "president": "Sophie Borderie",
+    "president": "Sophie BORDERIE",
     "party": "PS",
     "demographie": {
       "populationTotal": 334530,
@@ -1778,8 +1778,8 @@
   "48": {
     "id": "48",
     "name": "Lozère",
-    "president": "Sophie Pantel",
-    "party": "PS",
+    "president": "Laurent SUAU",
+    "party": "DVG",
     "demographie": {
       "populationTotal": 76422,
       "densite": 15,
@@ -1826,8 +1826,8 @@
   "49": {
     "id": "49",
     "name": "Maine-et-Loire",
-    "president": "Christelle Morançais",
-    "party": "LR",
+    "president": "Florence DABIN",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 818273,
       "densite": 114,
@@ -1874,7 +1874,7 @@
   "50": {
     "id": "50",
     "name": "Manche",
-    "president": "Jean-Marc Julien",
+    "president": "Jean MORIN",
     "party": "DVD",
     "demographie": {
       "populationTotal": 496883,
@@ -1922,8 +1922,8 @@
   "51": {
     "id": "51",
     "name": "Marne",
-    "president": "Christian Bruyen",
-    "party": "LR",
+    "president": "Jean-Marc ROZE",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 566571,
       "densite": 68,
@@ -1970,7 +1970,7 @@
   "52": {
     "id": "52",
     "name": "Haute-Marne",
-    "president": "Nicolas Lacroix",
+    "president": "Nicolas LACROIX",
     "party": "LR",
     "demographie": {
       "populationTotal": 172512,
@@ -2018,8 +2018,8 @@
   "53": {
     "id": "53",
     "name": "Mayenne",
-    "president": "Olivier Richefou",
-    "party": "DVD",
+    "president": "Olivier RICHEFOU",
+    "party": "UDI",
     "demographie": {
       "populationTotal": 307520,
       "densite": 43,
@@ -2066,7 +2066,7 @@
   "54": {
     "id": "54",
     "name": "Meurthe-et-Moselle",
-    "president": "Chaynesse Khirouni",
+    "president": "Chaynesse KHIROUNI",
     "party": "PS",
     "demographie": {
       "populationTotal": 733481,
@@ -2114,7 +2114,7 @@
   "55": {
     "id": "55",
     "name": "Meuse",
-    "president": "Patrick Genre",
+    "president": "Jérôme DUMONT",
     "party": "DVD",
     "demographie": {
       "populationTotal": 184000,
@@ -2162,8 +2162,8 @@
   "56": {
     "id": "56",
     "name": "Morbihan",
-    "president": "David Lappartient",
-    "party": "LR",
+    "president": "David LAPPARTIENT",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 757000,
       "densite": 110,
@@ -2210,8 +2210,8 @@
   "57": {
     "id": "57",
     "name": "Moselle",
-    "president": "Patrick Weiten",
-    "party": "DVD",
+    "president": "Patrick WEITEN",
+    "party": "UDI",
     "demographie": {
       "populationTotal": 1043000,
       "densite": 166,
@@ -2258,7 +2258,7 @@
   "58": {
     "id": "58",
     "name": "Nièvre",
-    "president": "Fabrice Jobard",
+    "president": "Fabien BAZIN",
     "party": "PS",
     "demographie": {
       "populationTotal": 205000,
@@ -2306,7 +2306,7 @@
   "59": {
     "id": "59",
     "name": "Nord",
-    "president": "Christian Poiret",
+    "president": "Christian POIRET",
     "party": "DVD",
     "demographie": {
       "populationTotal": 2608000,
@@ -2354,7 +2354,7 @@
   "60": {
     "id": "60",
     "name": "Oise",
-    "president": "Edouard Courtial",
+    "president": "Nadège LEFEBVRE",
     "party": "LR",
     "demographie": {
       "populationTotal": 833264,
@@ -2402,7 +2402,7 @@
   "61": {
     "id": "61",
     "name": "Orne",
-    "president": "Christophe de Balorre",
+    "president": "Christophe DE BALORRE",
     "party": "LR",
     "demographie": {
       "populationTotal": 279308,
@@ -2450,7 +2450,7 @@
   "62": {
     "id": "62",
     "name": "Pas-de-Calais",
-    "president": "Jean-Claude Leroy",
+    "president": "Jean-Claude LEROY",
     "party": "PS",
     "demographie": {
       "populationTotal": 1468018,
@@ -2498,7 +2498,7 @@
   "63": {
     "id": "63",
     "name": "Puy-de-Dôme",
-    "president": "Lionel Chauvin",
+    "president": "Lionel CHAUVIN",
     "party": "DVD",
     "demographie": {
       "populationTotal": 663716,
@@ -2546,7 +2546,7 @@
   "64": {
     "id": "64",
     "name": "Pyrénées-Atlantiques",
-    "president": "Jean-Jacques Lasserre",
+    "president": "Jean-Jacques LASSERRE",
     "party": "MoDem",
     "demographie": {
       "populationTotal": 686829,
@@ -2594,8 +2594,8 @@
   "65": {
     "id": "65",
     "name": "Hautes-Pyrénées",
-    "president": "Michel Pélieu",
-    "party": "DVD",
+    "president": "Michel PÉLIEU",
+    "party": "PRG",
     "demographie": {
       "populationTotal": 228530,
       "densite": 51,
@@ -2642,7 +2642,7 @@
   "66": {
     "id": "66",
     "name": "Pyrénées-Orientales",
-    "president": "Hermeline Malherbe",
+    "president": "Hermeline MALHERBE",
     "party": "PS",
     "demographie": {
       "populationTotal": 479979,
@@ -2690,7 +2690,7 @@
   "67": {
     "id": "67",
     "name": "Bas-Rhin",
-    "president": "Frédéric Bierry",
+    "president": "Frédéric BIERRY",
     "party": "LR",
     "demographie": {
       "populationTotal": 1145680,
@@ -2738,7 +2738,7 @@
   "68": {
     "id": "68",
     "name": "Haut-Rhin",
-    "president": "Frédéric Bierry",
+    "president": "Frédéric BIERRY",
     "party": "LR",
     "demographie": {
       "populationTotal": 764030,
@@ -2786,8 +2786,8 @@
   "69": {
     "id": "69",
     "name": "Rhône",
-    "president": "Fabienne Grébert",
-    "party": "EELV",
+    "president": "Christophe GUILLOTEAU",
+    "party": "LR",
     "demographie": {
       "populationTotal": 1843700,
       "densite": 561,
@@ -2834,8 +2834,8 @@
   "70": {
     "id": "70",
     "name": "Haute-Saône",
-    "president": "Yves Krattinger",
-    "party": "PS",
+    "president": "Yves KRATTINGER",
+    "party": "DVG",
     "demographie": {
       "populationTotal": 236659,
       "densite": 44,
@@ -2882,8 +2882,8 @@
   "71": {
     "id": "71",
     "name": "Saône-et-Loire",
-    "president": "André Accary",
-    "party": "DVD",
+    "president": "André ACCARY",
+    "party": "LR",
     "demographie": {
       "populationTotal": 551403,
       "densite": 64,
@@ -2930,8 +2930,8 @@
   "72": {
     "id": "72",
     "name": "Sarthe",
-    "president": "Dominique Le Mèner",
-    "party": "LR",
+    "president": "Dominique LE MENER",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 566506,
       "densite": 89,
@@ -2978,7 +2978,7 @@
   "73": {
     "id": "73",
     "name": "Savoie",
-    "president": "Hervé Gaymard",
+    "president": "Hervé GAYMARD",
     "party": "LR",
     "demographie": {
       "populationTotal": 437764,
@@ -3026,7 +3026,7 @@
   "74": {
     "id": "74",
     "name": "Haute-Savoie",
-    "president": "Martine Berthet",
+    "president": "Martial SADDIER",
     "party": "LR",
     "demographie": {
       "populationTotal": 833756,
@@ -3074,8 +3074,8 @@
   "75": {
     "id": "75",
     "name": "Paris",
-    "president": "Conseil de Paris (Maire : Anne Hidalgo)",
-    "party": "Parti Socialiste",
+    "president": "Anne HIDALGO",
+    "party": "PS",
     "demographie": {
       "populationTotal": 2133111,
       "densite": 20754,
@@ -3122,8 +3122,8 @@
   "76": {
     "id": "76",
     "name": "Seine-Maritime",
-    "president": "Bertrand Bellanger",
-    "party": "Parti Socialiste",
+    "president": "Bertrand BELLANGER",
+    "party": "Renaissance",
     "demographie": {
       "populationTotal": 1254378,
       "densite": 197,
@@ -3170,8 +3170,8 @@
   "77": {
     "id": "77",
     "name": "Seine-et-Marne",
-    "president": "Jean-François Parigi",
-    "party": "Les Républicains",
+    "president": "Jean-François PARIGI",
+    "party": "LR",
     "demographie": {
       "populationTotal": 1420575,
       "densite": 236,
@@ -3218,8 +3218,8 @@
   "78": {
     "id": "78",
     "name": "Yvelines",
-    "president": "Pierre Bédier",
-    "party": "Les Républicains",
+    "president": "Pierre BEDIER",
+    "party": "LR",
     "demographie": {
       "populationTotal": 1438266,
       "densite": 616,
@@ -3266,8 +3266,8 @@
   "79": {
     "id": "79",
     "name": "Deux-Sèvres",
-    "president": "David Bonnet",
-    "party": "Divers droite",
+    "president": "Coralie DENOUES",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 374207,
       "densite": 61,
@@ -3314,8 +3314,8 @@
   "80": {
     "id": "80",
     "name": "Somme",
-    "president": "Stéphane Haussoulier",
-    "party": "LR",
+    "president": "Christelle HIVER",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 571098,
       "densite": 92,
@@ -3362,7 +3362,7 @@
   "81": {
     "id": "81",
     "name": "Tarn",
-    "president": "Christophe Ramond",
+    "president": "Christophe RAMOND",
     "party": "PS",
     "demographie": {
       "populationTotal": 387890,
@@ -3410,8 +3410,8 @@
   "82": {
     "id": "82",
     "name": "Tarn-et-Garonne",
-    "president": "Christian Astruc",
-    "party": "PS",
+    "president": "Michel WEILL",
+    "party": "PRG",
     "demographie": {
       "populationTotal": 260718,
       "densite": 65,
@@ -3458,7 +3458,7 @@
   "83": {
     "id": "83",
     "name": "Var",
-    "president": "Marc Giraud",
+    "president": "Jean-Louis MASSON",
     "party": "LR",
     "demographie": {
       "populationTotal": 1084585,
@@ -3506,8 +3506,8 @@
   "84": {
     "id": "84",
     "name": "Vaucluse",
-    "president": "Dominique Santoni",
-    "party": "LR",
+    "president": "Dominique SANTONI",
+    "party": "PS",
     "demographie": {
       "populationTotal": 568075,
       "densite": 155,
@@ -3554,8 +3554,8 @@
   "85": {
     "id": "85",
     "name": "Vendée",
-    "president": "Alain Leboeuf",
-    "party": "Divers droite",
+    "president": "Alain LEBOEUF",
+    "party": "LR",
     "demographie": {
       "populationTotal": 702000,
       "densite": 73,
@@ -3602,8 +3602,8 @@
   "86": {
     "id": "86",
     "name": "Vienne",
-    "president": "Bruno Belin",
-    "party": "Les Républicains",
+    "president": "Alain PICHON",
+    "party": "DVD",
     "demographie": {
       "populationTotal": 439000,
       "densite": 62,
@@ -3650,8 +3650,8 @@
   "87": {
     "id": "87",
     "name": "Haute-Vienne",
-    "president": "Jean-Claude Leblois",
-    "party": "Parti Socialiste",
+    "president": "Jean-Claude LEBLOIS",
+    "party": "PS",
     "demographie": {
       "populationTotal": 374000,
       "densite": 44,
@@ -3698,8 +3698,8 @@
   "88": {
     "id": "88",
     "name": "Vosges",
-    "president": "François Vannson",
-    "party": "Les Républicains",
+    "president": "François VANNSON",
+    "party": "LR",
     "demographie": {
       "populationTotal": 366000,
       "densite": 59,
@@ -3746,8 +3746,8 @@
   "89": {
     "id": "89",
     "name": "Yonne",
-    "president": "Patrick Gendraud",
-    "party": "Les Républicains",
+    "president": "Patrick GENDRAUD",
+    "party": "LR",
     "demographie": {
       "populationTotal": 338000,
       "densite": 45,
@@ -3794,8 +3794,8 @@
   "90": {
     "id": "90",
     "name": "Territoire de Belfort",
-    "president": "Florian Bouquet",
-    "party": "Les Républicains",
+    "president": "Florian BOUQUET",
+    "party": "LR",
     "demographie": {
       "populationTotal": 142622,
       "densite": 233,
@@ -3842,8 +3842,8 @@
   "91": {
     "id": "91",
     "name": "Essonne",
-    "president": "François Durovray",
-    "party": "Les Républicains",
+    "president": "François DUROVRAY",
+    "party": "LR",
     "demographie": {
       "populationTotal": 1296130,
       "densite": 663,
@@ -3890,8 +3890,8 @@
   "92": {
     "id": "92",
     "name": "Hauts-de-Seine",
-    "president": "Georges-François Leclerc",
-    "party": "Les Républicains",
+    "president": "Georges SIFFREDI",
+    "party": "LR",
     "demographie": {
       "populationTotal": 1620168,
       "densite": 9066,
@@ -3938,8 +3938,8 @@
   "93": {
     "id": "93",
     "name": "Seine-Saint-Denis",
-    "president": "Stéphane Troussel",
-    "party": "Parti Socialiste",
+    "president": "Stéphane TROUSSEL",
+    "party": "PS",
     "demographie": {
       "populationTotal": 1623111,
       "densite": 6907,
@@ -3986,8 +3986,8 @@
   "94": {
     "id": "94",
     "name": "Val-de-Marne",
-    "president": "Olivier Capitanio",
-    "party": "Les Républicains",
+    "president": "Olivier CAPITANIO",
+    "party": "LR",
     "demographie": {
       "populationTotal": 1387926,
       "densite": 5673,
@@ -4034,8 +4034,8 @@
   "95": {
     "id": "95",
     "name": "Val-d'Oise",
-    "president": "Arnaud Bazin",
-    "party": "Les Républicains",
+    "president": "Marie-Christine CAVECCHI",
+    "party": "LR",
     "demographie": {
       "populationTotal": 1228618,
       "densite": 983,
@@ -4082,8 +4082,8 @@
   "971": {
     "id": "971",
     "name": "Guadeloupe",
-    "president": "Guy Losbar",
-    "party": "Divers gauche",
+    "president": "Guy LOSBAR",
+    "party": "Renaissance",
     "demographie": {
       "populationTotal": 378561,
       "densite": 224,
@@ -4130,8 +4130,8 @@
   "972": {
     "id": "972",
     "name": "Martinique",
-    "president": "Serge Letchimy",
-    "party": "Parti Progressiste Martiniquais",
+    "president": "Serge LETCHIMY",
+    "party": "DVG",
     "demographie": {
       "populationTotal": 349925,
       "densite": 318,
@@ -4178,8 +4178,8 @@
   "973": {
     "id": "973",
     "name": "Guyane",
-    "president": "Gabriel Serville",
-    "party": "Divers gauche",
+    "president": "Gabriel SERVILLE",
+    "party": "DVG",
     "demographie": {
       "populationTotal": 294071,
       "densite": 3,
@@ -4226,8 +4226,8 @@
   "974": {
     "id": "974",
     "name": "La Réunion",
-    "president": "Cyrille Melchior",
-    "party": "Les Républicains",
+    "president": "Cyrille MELCHIOR",
+    "party": "LR",
     "demographie": {
       "populationTotal": 906000,
       "densite": 361,
@@ -4274,8 +4274,8 @@
   "976": {
     "id": "976",
     "name": "Mayotte",
-    "president": "Ben Issa Ousseni",
-    "party": "DVD",
+    "president": "Ben Issa OUSSENI",
+    "party": "LR",
     "demographie": {
       "populationTotal": 321002,
       "densite": 860,
@@ -4322,8 +4322,8 @@
   "01": {
     "id": "01",
     "name": "Ain",
-    "president": "Jean-Yves Flochon",
-    "party": "Divers droite",
+    "president": "Jean DEGUERRY",
+    "party": "LR",
     "demographie": {
       "populationTotal": 659765,
       "densite": 117,
@@ -4370,8 +4370,8 @@
   "02": {
     "id": "02",
     "name": "Aisne",
-    "president": "Nicolas Fricoteaux",
-    "party": "Les Républicains",
+    "president": "Nicolas FRICOTEAUX",
+    "party": "UDI",
     "demographie": {
       "populationTotal": 524051,
       "densite": 72,
@@ -4418,8 +4418,8 @@
   "03": {
     "id": "03",
     "name": "Allier",
-    "president": "Claude Riboulet",
-    "party": "Divers gauche",
+    "president": "Claude RIBOULET",
+    "party": "UDI",
     "demographie": {
       "populationTotal": 334413,
       "densite": 45,
@@ -4466,8 +4466,8 @@
   "04": {
     "id": "04",
     "name": "Alpes-de-Haute-Provence",
-    "president": "Christophe Castaner",
-    "party": "La République En Marche",
+    "president": "Eliane BARREILLE",
+    "party": "LR",
     "demographie": {
       "populationTotal": 165197,
       "densite": 24,
@@ -4514,8 +4514,8 @@
   "05": {
     "id": "05",
     "name": "Hautes-Alpes",
-    "president": "Jean-Yves Dusserre",
-    "party": "Les Républicains",
+    "president": "Jean-Marie BERNARD",
+    "party": "LR",
     "demographie": {
       "populationTotal": 141726,
       "densite": 24,
@@ -4562,7 +4562,7 @@
   "06": {
     "id": "06",
     "name": "Alpes-Maritimes",
-    "president": "Charles-Ange Ginésy",
+    "president": "Charles Ange GINESY",
     "party": "LR",
     "demographie": {
       "populationTotal": 1094974,
@@ -4610,8 +4610,8 @@
   "07": {
     "id": "07",
     "name": "Ardèche",
-    "president": "Olivier Amrane",
-    "party": "DVD",
+    "president": "Olivier AMRANE",
+    "party": "LR",
     "demographie": {
       "populationTotal": 333268,
       "densite": 58,
@@ -4658,7 +4658,7 @@
   "08": {
     "id": "08",
     "name": "Ardennes",
-    "president": "Noël Bourgeois",
+    "president": "Noël BOURGEOIS",
     "party": "DVD",
     "demographie": {
       "populationTotal": 270582,
@@ -4706,8 +4706,8 @@
   "09": {
     "id": "09",
     "name": "Ariège",
-    "president": "Marie-Françoise Ignoré",
-    "party": "DVG",
+    "president": "Christine TEQUI",
+    "party": "PS",
     "demographie": {
       "populationTotal": 155778,
       "densite": 26,
@@ -4754,8 +4754,8 @@
   "2A": {
     "id": "2A",
     "name": "Corse-du-Sud",
-    "president": "Jean-Jacques Panunzi",
-    "party": "LR",
+    "president": "Gilles SIMEONI",
+    "party": "Femu a Corsica",
     "demographie": {
       "populationTotal": 161589,
       "densite": 37,
@@ -4802,7 +4802,7 @@
   "2B": {
     "id": "2B",
     "name": "Haute-Corse",
-    "president": "François Orlandi",
+    "president": "Gilles SIMEONI",
     "party": "Femu a Corsica",
     "demographie": {
       "populationTotal": 177689,
