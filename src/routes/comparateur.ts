@@ -6,6 +6,14 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+import { Router } from 'express';
+import { generateMockCommune } from '../utils/mockTerritoryGenerator.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
 
@@ -22,7 +30,7 @@ const REGIONS = [
     securite: { atteintesPersonnes: 12, atteintesBiens: 35 },
     logement: { prixM2: 10500, logementsSociaux: 22, proprietaires: 33 },
     politique: { pres2022T1: "Macron 35%, Mélenchon 30%, Le Pen 12%", pres2022T2: "Macron 73%, Le Pen 27%", participation: 75, elu: "Valérie Pécresse (LR)", eluDepuis: "2015" },
-    finances: { budgetHabitant: 427, endettement: 65, investissement: 30 },
+    finances: { budgetHabitant: 435, endettement: 65, investissement: 30 },
     environnement: { qualiteAir: 60, surfaceNaturelle: 48, risques: "modéré" },
   },
   {
@@ -34,7 +42,7 @@ const REGIONS = [
     securite: { atteintesPersonnes: 8, atteintesBiens: 25 },
     logement: { prixM2: 3200, logementsSociaux: 16, proprietaires: 55 },
     politique: { pres2022T1: "Macron 28%, Le Pen 25%, Mélenchon 21%", pres2022T2: "Macron 59%, Le Pen 41%", participation: 76, elu: "Fabrice Pannekoucke (LR)", eluDepuis: "2024" },
-    finances: { budgetHabitant: 500, endettement: 55, investissement: 35 },
+    finances: { budgetHabitant: 610, endettement: 55, investissement: 35 },
     environnement: { qualiteAir: 65, surfaceNaturelle: 65, risques: "élevé" },
   },
   {
@@ -46,7 +54,7 @@ const REGIONS = [
     securite: { atteintesPersonnes: 10, atteintesBiens: 28 },
     logement: { prixM2: 2100, logementsSociaux: 24, proprietaires: 52 },
     politique: { pres2022T1: "Le Pen 33%, Macron 25%, Mélenchon 19%", pres2022T2: "Le Pen 52%, Macron 48%", participation: 72, elu: "Xavier Bertrand (LR)", eluDepuis: "2015" },
-    finances: { budgetHabitant: 633, endettement: 70, investissement: 25 },
+    finances: { budgetHabitant: 683, endettement: 70, investissement: 25 },
     environnement: { qualiteAir: 55, surfaceNaturelle: 75, risques: "faible" },
   },
   {
@@ -58,7 +66,7 @@ const REGIONS = [
     securite: { atteintesPersonnes: 7, atteintesBiens: 22 },
     logement: { prixM2: 2800, logementsSociaux: 13, proprietaires: 62 },
     politique: { pres2022T1: "Macron 27%, Le Pen 23%, Mélenchon 21%", pres2022T2: "Macron 58%, Le Pen 42%", participation: 77, elu: "Alain Rousset (PS)", eluDepuis: "1998" },
-    finances: { budgetHabitant: 590, endettement: 58, investissement: 32 },
+    finances: { budgetHabitant: 541, endettement: 58, investissement: 32 },
     environnement: { qualiteAir: 75, surfaceNaturelle: 82, risques: "modéré" },
   },
   {
@@ -70,42 +78,42 @@ const REGIONS = [
     securite: { atteintesPersonnes: 8, atteintesBiens: 26 },
     logement: { prixM2: 2500, logementsSociaux: 14, proprietaires: 58 },
     politique: { pres2022T1: "Le Pen 24%, Macron 23%, Mélenchon 22%", pres2022T2: "Macron 53%, Le Pen 47%", participation: 76, elu: "Carole Delga (PS)", eluDepuis: "2015" },
-    finances: { budgetHabitant: 581, endettement: 62, investissement: 34 },
+    finances: { budgetHabitant: 583, endettement: 62, investissement: 34 },
     environnement: { qualiteAir: 70, surfaceNaturelle: 80, risques: "élevé" },
   },
   {
-    id: "44", name: "Grand Est", president: "Franck Leroy", party: "LR", image: "/images/regions/grand_est.png",
+    id: "44", name: "Grand Est", president: "Franck Leroy", party: "Horizons", image: "/images/regions/grand_est.png",
     demographie: { populationTotal: 5600000, densite: 97, evolution10ans: "+0.2%", moins25ans: 29, plus65ans: 21 },
     economie: { chomage: 7.2, revenuMedian: 2180, pauvrete: 14 },
     education: { bac: 88, diplomesSup: 32, decrochage: 10 },
     sante: { medecins10k: 27, scoreAPL: 58, esperanceVie: 81.8 },
     securite: { atteintesPersonnes: 8, atteintesBiens: 23 },
     logement: { prixM2: 2000, logementsSociaux: 19, proprietaires: 59 },
-    politique: { pres2022T1: "Le Pen 29%, Macron 27%, Mélenchon 19%", pres2022T2: "Macron 52%, Le Pen 48%", participation: 73, elu: "Franck Leroy (LR)", eluDepuis: "2023" },
-    finances: { budgetHabitant: 801, endettement: 68, investissement: 28 },
+    politique: { pres2022T1: "Le Pen 29%, Macron 27%, Mélenchon 19%", pres2022T2: "Macron 52%, Le Pen 48%", participation: 73, elu: "Franck Leroy (Horizons)", eluDepuis: "2023" },
+    finances: { budgetHabitant: 732, endettement: 68, investissement: 28 },
     environnement: { qualiteAir: 60, surfaceNaturelle: 78, risques: "faible" },
   },
   {
-    id: "93", name: "Provence-Alpes-Côte d'Azur", president: "Renaud Muselier", party: "LR", image: "/images/regions/paca.png",
+    id: "93", name: "Provence-Alpes-Côte d'Azur", president: "Renaud Muselier", party: "RE", image: "/images/regions/paca.png",
     demographie: { populationTotal: 5200000, densite: 165, evolution10ans: "+2.8%", moins25ans: 27, plus65ans: 24 },
     economie: { chomage: 7.8, revenuMedian: 2200, pauvrete: 16 },
     education: { bac: 87, diplomesSup: 35, decrochage: 11 },
     sante: { medecins10k: 38, scoreAPL: 80, esperanceVie: 83.2 },
     securite: { atteintesPersonnes: 11, atteintesBiens: 32 },
     logement: { prixM2: 4200, logementsSociaux: 12, proprietaires: 54 },
-    politique: { pres2022T1: "Le Pen 27%, Macron 23%, Mélenchon 20%", pres2022T2: "Macron 50.5%, Le Pen 49.5%", participation: 74, elu: "Renaud Muselier (LR)", eluDepuis: "2017" },
-    finances: { budgetHabitant: 615, endettement: 60, investissement: 31 },
+    politique: { pres2022T1: "Le Pen 27%, Macron 23%, Mélenchon 20%", pres2022T2: "Macron 50.5%, Le Pen 49.5%", participation: 74, elu: "Renaud Muselier (RE)", eluDepuis: "2017" },
+    finances: { budgetHabitant: 613, endettement: 60, investissement: 31 },
     environnement: { qualiteAir: 65, surfaceNaturelle: 68, risques: "élevé" },
   },
   {
-    id: "52", name: "Pays de la Loire", president: "Christelle Morançais", party: "LR", image: "/images/regions/pays_de_la_loire.png",
+    id: "52", name: "Pays de la Loire", president: "Christelle Morançais", party: "Horizons", image: "/images/regions/pays_de_la_loire.png",
     demographie: { populationTotal: 3900000, densite: 121, evolution10ans: "+5.1%", moins25ans: 30, plus65ans: 21 },
     economie: { chomage: 5.8, revenuMedian: 2220, pauvrete: 11 },
     education: { bac: 91, diplomesSup: 35, decrochage: 8 },
     sante: { medecins10k: 24, scoreAPL: 50, esperanceVie: 82.9 },
     securite: { atteintesPersonnes: 7, atteintesBiens: 21 },
     logement: { prixM2: 2600, logementsSociaux: 15, proprietaires: 63 },
-    politique: { pres2022T1: "Macron 33%, Mélenchon 21%, Le Pen 20%", pres2022T2: "Macron 64%, Le Pen 36%", participation: 78, elu: "Christelle Morançais (LR)", eluDepuis: "2017" },
+    politique: { pres2022T1: "Macron 33%, Mélenchon 21%, Le Pen 20%", pres2022T2: "Macron 64%, Le Pen 36%", participation: 78, elu: "Christelle Morançais (Horizons)", eluDepuis: "2017" },
     finances: { budgetHabitant: 589, endettement: 52, investissement: 36 },
     environnement: { qualiteAir: 75, surfaceNaturelle: 85, risques: "faible" },
   },
@@ -118,31 +126,31 @@ const REGIONS = [
     securite: { atteintesPersonnes: 7, atteintesBiens: 20 },
     logement: { prixM2: 2100, logementsSociaux: 18, proprietaires: 60 },
     politique: { pres2022T1: "Macron 29%, Le Pen 27%, Mélenchon 19%", pres2022T2: "Macron 56%, Le Pen 44%", participation: 76, elu: "Hervé Morin (LC)", eluDepuis: "2016" },
-    finances: { budgetHabitant: 666, endettement: 59, investissement: 33 },
+    finances: { budgetHabitant: 636, endettement: 59, investissement: 33 },
     environnement: { qualiteAir: 70, surfaceNaturelle: 82, risques: "modéré" },
   },
   {
-    id: "53", name: "Bretagne", president: "Loïg Chesnais-Girard", party: "PS", image: "/images/regions/bretagne.png",
+    id: "53", name: "Bretagne", president: "Loïg Chesnais-Girard", party: "DVG", image: "/images/regions/bretagne.png",
     demographie: { populationTotal: 3400000, densite: 124, evolution10ans: "+4.5%", moins25ans: 28, plus65ans: 23 },
     economie: { chomage: 5.5, revenuMedian: 2250, pauvrete: 10 },
     education: { bac: 92, diplomesSup: 38, decrochage: 7 },
     sante: { medecins10k: 26, scoreAPL: 55, esperanceVie: 83.1 },
     securite: { atteintesPersonnes: 6, atteintesBiens: 18 },
     logement: { prixM2: 2800, logementsSociaux: 11, proprietaires: 66 },
-    politique: { pres2022T1: "Macron 32%, Mélenchon 22%, Le Pen 19%", pres2022T2: "Macron 66%, Le Pen 34%", participation: 79, elu: "Loïg Chesnais-Girard (PS)", eluDepuis: "2017" },
-    finances: { budgetHabitant: 567, endettement: 50, investissement: 38 },
+    politique: { pres2022T1: "Macron 32%, Mélenchon 22%, Le Pen 19%", pres2022T2: "Macron 66%, Le Pen 34%", participation: 79, elu: "Loïg Chesnais-Girard (DVG)", eluDepuis: "2017" },
+    finances: { budgetHabitant: 568, endettement: 50, investissement: 38 },
     environnement: { qualiteAir: 80, surfaceNaturelle: 84, risques: "faible" },
   },
   {
-    id: "27", name: "Bourgogne-Franche-Comté", president: "Marie-Guite Dufay", party: "PS", image: "/images/regions/bourgogne_franche_comte.png",
+    id: "27", name: "Bourgogne-Franche-Comté", president: "Jérôme Durain", party: "PS", image: "/images/regions/bourgogne_franche_comte.png",
     demographie: { populationTotal: 2800000, densite: 58, evolution10ans: "-0.5%", moins25ans: 27, plus65ans: 24 },
     economie: { chomage: 6.2, revenuMedian: 2180, pauvrete: 12 },
     education: { bac: 88, diplomesSup: 32, decrochage: 9 },
     sante: { medecins10k: 25, scoreAPL: 52, esperanceVie: 82.2 },
     securite: { atteintesPersonnes: 6, atteintesBiens: 19 },
     logement: { prixM2: 1700, logementsSociaux: 16, proprietaires: 64 },
-    politique: { pres2022T1: "Le Pen 27%, Macron 26%, Mélenchon 18%", pres2022T2: "Macron 52%, Le Pen 48%", participation: 76, elu: "Marie-Guite Dufay (PS)", eluDepuis: "2016" },
-    finances: { budgetHabitant: 607, endettement: 56, investissement: 30 },
+    politique: { pres2022T1: "Le Pen 27%, Macron 26%, Mélenchon 18%", pres2022T2: "Macron 52%, Le Pen 48%", participation: 76, elu: "Jérôme Durain (PS)", eluDepuis: "2025" },
+    finances: { budgetHabitant: 686, endettement: 56, investissement: 30 },
     environnement: { qualiteAir: 75, surfaceNaturelle: 86, risques: "faible" },
   },
   {
@@ -154,7 +162,7 @@ const REGIONS = [
     securite: { atteintesPersonnes: 7, atteintesBiens: 20 },
     logement: { prixM2: 1800, logementsSociaux: 17, proprietaires: 65 },
     politique: { pres2022T1: "Le Pen 25%, Macron 25%, Mélenchon 19%", pres2022T2: "Macron 55%, Le Pen 45%", participation: 75, elu: "François Bonneau (PS)", eluDepuis: "2007" },
-    finances: { budgetHabitant: 615, endettement: 58, investissement: 31 },
+    finances: { budgetHabitant: 642, endettement: 58, investissement: 31 },
     environnement: { qualiteAir: 75, surfaceNaturelle: 85, risques: "faible" },
   },
   {
@@ -166,7 +174,7 @@ const REGIONS = [
     securite: { atteintesPersonnes: 6, atteintesBiens: 18 },
     logement: { prixM2: 3500, logementsSociaux: 9, proprietaires: 58 },
     politique: { pres2022T1: "Le Pen 28%, Macron 18%, Zemmour 12%", pres2022T2: "Le Pen 58%, Macron 42%", participation: 68, elu: "Gilles Simeoni (Femu a Corsica)", eluDepuis: "2015" },
-    finances: { budgetHabitant: 2571, endettement: 60, investissement: 28 },
+    finances: { budgetHabitant: 3948, endettement: 60, investissement: 28 },
     environnement: { qualiteAir: 85, surfaceNaturelle: 90, risques: "élevé" },
   }
 ];
