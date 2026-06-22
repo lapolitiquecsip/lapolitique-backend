@@ -53,7 +53,8 @@ app.use(cors({
       if (
         hostname === 'lapolitique.fr' || 
         hostname.endsWith('.lapolitique.fr') || 
-        hostname.endsWith('.netlify.app')
+        hostname.endsWith('.netlify.app') ||
+        hostname.endsWith('.surge.sh')
       ) {
         return callback(null, true);
       }
