@@ -6,19 +6,14 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import { Router } from 'express';
-import { generateMockCommune } from '../utils/mockTerritoryGenerator.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const router = Router();
 
 const indicatorsPath = path.resolve(__dirname, '../data/departments_indicators.json');
 const DEPARTMENTS_INDICATORS = JSON.parse(fs.readFileSync(indicatorsPath, 'utf8'));
+
+const communesIndicatorsPath = path.resolve(__dirname, '../data/communes_indicators.json');
+const COMMUNES_INDICATORS = JSON.parse(fs.readFileSync(communesIndicatorsPath, 'utf8'));
 
 const REGIONS = [
   {
@@ -831,6 +826,16 @@ router.get('/:codeInsee', (req, res) => {
       return res.json({ ...department, ...mockIndicators, type: 'department', isEstimated: true });
     }
     return res.json({ ...department, type: 'department' });
+  }
+
+  // Check in COMMUNES_INDICATORS
+  const realCommune = COMMUNES_INDICATORS[codeInsee];
+  if (realCommune) {
+    return res.json({
+      ...realCommune,
+      type: 'commune',
+      isEstimated: false
+    });
   }
 
   // Otherwise, it's a commune or an unknown code. We generate mock data.

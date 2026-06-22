@@ -1,0 +1,1042 @@
+{
+  "13055": {
+    "code": "13055",
+    "name": "Marseille",
+    "mayor": "Benoît Payan",
+    "party": "DVG",
+    "demographie": {
+      "populationTotal": 873076,
+      "densite": 3550,
+      "evolution10ans": "+1.8%",
+      "moins25ans": 31,
+      "plus65ans": 16
+    },
+    "economie": {
+      "chomage": 17.4,
+      "revenuMedian": 1580,
+      "pauvrete": 26
+    },
+    "logement": {
+      "prixM2": 3240,
+      "logementsSociaux": 23,
+      "proprietaires": 41
+    },
+    "finances": {
+      "budgetHabitant": 1624,
+      "endettement": 112,
+      "investissement": 21
+    },
+    "fiscalite": {
+      "tauxTF": 47.26,
+      "tauxTH": 21.23
+    },
+    "securite": {
+      "atteintesPersonnes": 28.9,
+      "atteintesBiens": 52.4
+    },
+    "sante": {
+      "medecins10k": 61,
+      "scoreAPL": 62,
+      "esperanceVie": 81.3
+    },
+    "education": {
+      "bac": 84,
+      "diplomesSup": 33,
+      "decrochage": 14
+    },
+    "environnement": {
+      "qualiteAir": 58,
+      "surfaceNaturelle": 37,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "21231": {
+    "code": "21231",
+    "name": "Dijon",
+    "mayor": "François Rebsamen",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 155090,
+      "densite": 3543,
+      "evolution10ans": "+1.8%",
+      "moins25ans": 30,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 12.4,
+      "revenuMedian": 1820,
+      "pauvrete": 19
+    },
+    "logement": {
+      "prixM2": 2450,
+      "logementsSociaux": 21,
+      "proprietaires": 35
+    },
+    "finances": {
+      "budgetHabitant": 1380,
+      "endettement": 98,
+      "investissement": 20
+    },
+    "fiscalite": {
+      "tauxTF": 36.12,
+      "tauxTH": 18.54
+    },
+    "securite": {
+      "atteintesPersonnes": 19.8,
+      "atteintesBiens": 48.3
+    },
+    "sante": {
+      "medecins10k": 32,
+      "scoreAPL": 78,
+      "esperanceVie": 82.8
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 40,
+      "decrochage": 6
+    },
+    "environnement": {
+      "qualiteAir": 62,
+      "surfaceNaturelle": 24,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "30189": {
+    "code": "30189",
+    "name": "Nîmes",
+    "mayor": "Jean-Paul Fournier",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 148561,
+      "densite": 1267,
+      "evolution10ans": "+2.9%",
+      "moins25ans": 32,
+      "plus65ans": 18
+    },
+    "economie": {
+      "chomage": 17.8,
+      "revenuMedian": 1590,
+      "pauvrete": 27
+    },
+    "logement": {
+      "prixM2": 1980,
+      "logementsSociaux": 18,
+      "proprietaires": 42
+    },
+    "finances": {
+      "budgetHabitant": 1090,
+      "endettement": 76,
+      "investissement": 17
+    },
+    "fiscalite": {
+      "tauxTF": 44.68,
+      "tauxTH": 22.31
+    },
+    "securite": {
+      "atteintesPersonnes": 24.6,
+      "atteintesBiens": 57.8
+    },
+    "sante": {
+      "medecins10k": 25,
+      "scoreAPL": 65,
+      "esperanceVie": 81.4
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 28,
+      "decrochage": 11
+    },
+    "environnement": {
+      "qualiteAir": 58,
+      "surfaceNaturelle": 38,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "31555": {
+    "code": "31555",
+    "name": "Toulouse",
+    "mayor": "Jean-Luc Moudenc",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 498003,
+      "densite": 3886,
+      "evolution10ans": "+9.4%",
+      "moins25ans": 36,
+      "plus65ans": 13
+    },
+    "economie": {
+      "chomage": 12.1,
+      "revenuMedian": 1890,
+      "pauvrete": 19
+    },
+    "logement": {
+      "prixM2": 3560,
+      "logementsSociaux": 18,
+      "proprietaires": 39
+    },
+    "finances": {
+      "budgetHabitant": 1456,
+      "endettement": 87,
+      "investissement": 26
+    },
+    "fiscalite": {
+      "tauxTF": 28.8,
+      "tauxTH": 14.67
+    },
+    "securite": {
+      "atteintesPersonnes": 19.4,
+      "atteintesBiens": 49.8
+    },
+    "sante": {
+      "medecins10k": 72,
+      "scoreAPL": 73,
+      "esperanceVie": 83.4
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 44,
+      "decrochage": 9
+    },
+    "environnement": {
+      "qualiteAir": 64,
+      "surfaceNaturelle": 22,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "33063": {
+    "code": "33063",
+    "name": "Bordeaux",
+    "mayor": "Pierre Hurmic",
+    "party": "EELV",
+    "demographie": {
+      "populationTotal": 254436,
+      "densite": 4998,
+      "evolution10ans": "+7.6%",
+      "moins25ans": 32,
+      "plus65ans": 16
+    },
+    "economie": {
+      "chomage": 10.8,
+      "revenuMedian": 1870,
+      "pauvrete": 17
+    },
+    "logement": {
+      "prixM2": 4600,
+      "logementsSociaux": 17,
+      "proprietaires": 36
+    },
+    "finances": {
+      "budgetHabitant": 1460,
+      "endettement": 118,
+      "investissement": 23
+    },
+    "fiscalite": {
+      "tauxTF": 36.47,
+      "tauxTH": 21.32
+    },
+    "securite": {
+      "atteintesPersonnes": 24.3,
+      "atteintesBiens": 55.8
+    },
+    "sante": {
+      "medecins10k": 32,
+      "scoreAPL": 75,
+      "esperanceVie": 82.4
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 43,
+      "decrochage": 7
+    },
+    "environnement": {
+      "qualiteAir": 70,
+      "surfaceNaturelle": 25,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "34172": {
+    "code": "34172",
+    "name": "Montpellier",
+    "mayor": "Michaël Delafosse",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 303072,
+      "densite": 5135,
+      "evolution10ans": "+10.4%",
+      "moins25ans": 36,
+      "plus65ans": 13
+    },
+    "economie": {
+      "chomage": 14.8,
+      "revenuMedian": 1650,
+      "pauvrete": 24
+    },
+    "logement": {
+      "prixM2": 3500,
+      "logementsSociaux": 21,
+      "proprietaires": 32
+    },
+    "finances": {
+      "budgetHabitant": 1380,
+      "endettement": 127,
+      "investissement": 20
+    },
+    "fiscalite": {
+      "tauxTF": 29.14,
+      "tauxTH": 20.08
+    },
+    "securite": {
+      "atteintesPersonnes": 28.6,
+      "atteintesBiens": 57.3
+    },
+    "sante": {
+      "medecins10k": 34,
+      "scoreAPL": 78,
+      "esperanceVie": 81.6
+    },
+    "education": {
+      "bac": 87,
+      "diplomesSup": 38,
+      "decrochage": 9
+    },
+    "environnement": {
+      "qualiteAir": 62,
+      "surfaceNaturelle": 22,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "35238": {
+    "code": "35238",
+    "name": "Rennes",
+    "mayor": "Nathalie Appéré",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 224514,
+      "densite": 4532,
+      "evolution10ans": "+8.2%",
+      "moins25ans": 35,
+      "plus65ans": 13
+    },
+    "economie": {
+      "chomage": 10.2,
+      "revenuMedian": 1820,
+      "pauvrete": 18
+    },
+    "logement": {
+      "prixM2": 3800,
+      "logementsSociaux": 26,
+      "proprietaires": 36
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 112,
+      "investissement": 22
+    },
+    "fiscalite": {
+      "tauxTF": 35.47,
+      "tauxTH": 16.12
+    },
+    "securite": {
+      "atteintesPersonnes": 18.4,
+      "atteintesBiens": 42.7
+    },
+    "sante": {
+      "medecins10k": 38,
+      "scoreAPL": 74,
+      "esperanceVie": 82.1
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 42,
+      "decrochage": 7
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 28,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "38185": {
+    "code": "38185",
+    "name": "Grenoble",
+    "mayor": "Éric Piolle",
+    "party": "EELV",
+    "demographie": {
+      "populationTotal": 158198,
+      "densite": 8757,
+      "evolution10ans": "-3.1%",
+      "moins25ans": 34,
+      "plus65ans": 14
+    },
+    "economie": {
+      "chomage": 16.2,
+      "revenuMedian": 1680,
+      "pauvrete": 26
+    },
+    "logement": {
+      "prixM2": 2800,
+      "logementsSociaux": 23,
+      "proprietaires": 30
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 112,
+      "investissement": 18
+    },
+    "fiscalite": {
+      "tauxTF": 49.79,
+      "tauxTH": 26.84
+    },
+    "securite": {
+      "atteintesPersonnes": 28.4,
+      "atteintesBiens": 62.1
+    },
+    "sante": {
+      "medecins10k": 38,
+      "scoreAPL": 72,
+      "esperanceVie": 82.1
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 44,
+      "decrochage": 8
+    },
+    "environnement": {
+      "qualiteAir": 52,
+      "surfaceNaturelle": 18,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "42218": {
+    "code": "42218",
+    "name": "Saint-Étienne",
+    "mayor": "Gaël Perdriau",
+    "party": "DVD",
+    "demographie": {
+      "populationTotal": 171924,
+      "densite": 2124,
+      "evolution10ans": "-4.6%",
+      "moins25ans": 29,
+      "plus65ans": 19
+    },
+    "economie": {
+      "chomage": 16.4,
+      "revenuMedian": 1430,
+      "pauvrete": 28
+    },
+    "logement": {
+      "prixM2": 1300,
+      "logementsSociaux": 30,
+      "proprietaires": 40
+    },
+    "finances": {
+      "budgetHabitant": 1050,
+      "endettement": 105,
+      "investissement": 17
+    },
+    "fiscalite": {
+      "tauxTF": 44.51,
+      "tauxTH": 21.34
+    },
+    "securite": {
+      "atteintesPersonnes": 26.1,
+      "atteintesBiens": 58.9
+    },
+    "sante": {
+      "medecins10k": 26,
+      "scoreAPL": 55,
+      "esperanceVie": 80.4
+    },
+    "education": {
+      "bac": 81,
+      "diplomesSup": 21,
+      "decrochage": 14
+    },
+    "environnement": {
+      "qualiteAir": 60,
+      "surfaceNaturelle": 35,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "44109": {
+    "code": "44109",
+    "name": "Nantes",
+    "mayor": "Johanna Rolland",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 320732,
+      "densite": 4761,
+      "evolution10ans": "+8.2%",
+      "moins25ans": 33,
+      "plus65ans": 14
+    },
+    "economie": {
+      "chomage": 10.2,
+      "revenuMedian": 1890,
+      "pauvrete": 16
+    },
+    "logement": {
+      "prixM2": 3800,
+      "logementsSociaux": 22,
+      "proprietaires": 37
+    },
+    "finances": {
+      "budgetHabitant": 1420,
+      "endettement": 112,
+      "investissement": 22
+    },
+    "fiscalite": {
+      "tauxTF": 27.38,
+      "tauxTH": 18.41
+    },
+    "securite": {
+      "atteintesPersonnes": 22.4,
+      "atteintesBiens": 48.7
+    },
+    "sante": {
+      "medecins10k": 31,
+      "scoreAPL": 74,
+      "esperanceVie": 82.1
+    },
+    "education": {
+      "bac": 89,
+      "diplomesSup": 41,
+      "decrochage": 7
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 28,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "49007": {
+    "code": "49007",
+    "name": "Angers",
+    "mayor": "Jean-Marc Verchère",
+    "party": "HOR",
+    "demographie": {
+      "populationTotal": 155786,
+      "densite": 2928,
+      "evolution10ans": "+4.2%",
+      "moins25ans": 33,
+      "plus65ans": 16
+    },
+    "economie": {
+      "chomage": 11.6,
+      "revenuMedian": 1790,
+      "pauvrete": 18
+    },
+    "logement": {
+      "prixM2": 2950,
+      "logementsSociaux": 20,
+      "proprietaires": 36
+    },
+    "finances": {
+      "budgetHabitant": 1240,
+      "endettement": 84,
+      "investissement": 22
+    },
+    "fiscalite": {
+      "tauxTF": 32.44,
+      "tauxTH": 16.92
+    },
+    "securite": {
+      "atteintesPersonnes": 17.2,
+      "atteintesBiens": 43.6
+    },
+    "sante": {
+      "medecins10k": 29,
+      "scoreAPL": 74,
+      "esperanceVie": 83.2
+    },
+    "education": {
+      "bac": 92,
+      "diplomesSup": 38,
+      "decrochage": 6
+    },
+    "environnement": {
+      "qualiteAir": 68,
+      "surfaceNaturelle": 28,
+      "risques": "faible"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "51454": {
+    "code": "51454",
+    "name": "Reims",
+    "mayor": "Arnaud Robinet",
+    "party": "HOR",
+    "demographie": {
+      "populationTotal": 183042,
+      "densite": 2387,
+      "evolution10ans": "-0.8%",
+      "moins25ans": 30,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 14.1,
+      "revenuMedian": 1590,
+      "pauvrete": 22
+    },
+    "logement": {
+      "prixM2": 2200,
+      "logementsSociaux": 28,
+      "proprietaires": 38
+    },
+    "finances": {
+      "budgetHabitant": 1180,
+      "endettement": 98,
+      "investissement": 20
+    },
+    "fiscalite": {
+      "tauxTF": 38.92,
+      "tauxTH": 18.64
+    },
+    "securite": {
+      "atteintesPersonnes": 21.3,
+      "atteintesBiens": 48.6
+    },
+    "sante": {
+      "medecins10k": 29,
+      "scoreAPL": 61,
+      "esperanceVie": 81.3
+    },
+    "education": {
+      "bac": 85,
+      "diplomesSup": 28,
+      "decrochage": 10
+    },
+    "environnement": {
+      "qualiteAir": 62,
+      "surfaceNaturelle": 32,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "59350": {
+    "code": "59350",
+    "name": "Lille",
+    "mayor": "Martine Aubry",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 236234,
+      "densite": 6838,
+      "evolution10ans": "+3.8%",
+      "moins25ans": 38,
+      "plus65ans": 11
+    },
+    "economie": {
+      "chomage": 16.2,
+      "revenuMedian": 1580,
+      "pauvrete": 27
+    },
+    "logement": {
+      "prixM2": 3100,
+      "logementsSociaux": 24,
+      "proprietaires": 27
+    },
+    "finances": {
+      "budgetHabitant": 1550,
+      "endettement": 142,
+      "investissement": 19
+    },
+    "fiscalite": {
+      "tauxTF": 38.22,
+      "tauxTH": 26.74
+    },
+    "securite": {
+      "atteintesPersonnes": 31.4,
+      "atteintesBiens": 62.9
+    },
+    "sante": {
+      "medecins10k": 27,
+      "scoreAPL": 69,
+      "esperanceVie": 80.3
+    },
+    "education": {
+      "bac": 86,
+      "diplomesSup": 37,
+      "decrochage": 10
+    },
+    "environnement": {
+      "qualiteAir": 55,
+      "surfaceNaturelle": 18,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "67482": {
+    "code": "67482",
+    "name": "Strasbourg",
+    "mayor": "Jeanne Barseghian",
+    "party": "EELV",
+    "demographie": {
+      "populationTotal": 284677,
+      "densite": 3546,
+      "evolution10ans": "+5.1%",
+      "moins25ans": 34,
+      "plus65ans": 15
+    },
+    "economie": {
+      "chomage": 12.1,
+      "revenuMedian": 1720,
+      "pauvrete": 21
+    },
+    "logement": {
+      "prixM2": 3200,
+      "logementsSociaux": 26,
+      "proprietaires": 33
+    },
+    "finances": {
+      "budgetHabitant": 1510,
+      "endettement": 134,
+      "investissement": 21
+    },
+    "fiscalite": {
+      "tauxTF": 36.18,
+      "tauxTH": 22.55
+    },
+    "securite": {
+      "atteintesPersonnes": 25.9,
+      "atteintesBiens": 52.1
+    },
+    "sante": {
+      "medecins10k": 30,
+      "scoreAPL": 72,
+      "esperanceVie": 81.8
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 40,
+      "decrochage": 8
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 31,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "69123": {
+    "code": "69123",
+    "name": "Lyon",
+    "mayor": "Grégory Doucet",
+    "party": "EELV",
+    "demographie": {
+      "populationTotal": 522969,
+      "densite": 10762,
+      "evolution10ans": "+5.2%",
+      "moins25ans": 35,
+      "plus65ans": 13
+    },
+    "economie": {
+      "chomage": 11.8,
+      "revenuMedian": 1940,
+      "pauvrete": 18
+    },
+    "logement": {
+      "prixM2": 4720,
+      "logementsSociaux": 20,
+      "proprietaires": 37
+    },
+    "finances": {
+      "budgetHabitant": 1987,
+      "endettement": 98,
+      "investissement": 24
+    },
+    "fiscalite": {
+      "tauxTF": 26.66,
+      "tauxTH": 17.94
+    },
+    "securite": {
+      "atteintesPersonnes": 21.7,
+      "atteintesBiens": 57.3
+    },
+    "sante": {
+      "medecins10k": 79,
+      "scoreAPL": 76,
+      "esperanceVie": 83.1
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 48,
+      "decrochage": 8
+    },
+    "environnement": {
+      "qualiteAir": 61,
+      "surfaceNaturelle": 18,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "69266": {
+    "code": "69266",
+    "name": "Villeurbanne",
+    "mayor": "Cédric Van Styvendael",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 151835,
+      "densite": 9489,
+      "evolution10ans": "+5.6%",
+      "moins25ans": 33,
+      "plus65ans": 14
+    },
+    "economie": {
+      "chomage": 13.8,
+      "revenuMedian": 1870,
+      "pauvrete": 20
+    },
+    "logement": {
+      "prixM2": 3700,
+      "logementsSociaux": 24,
+      "proprietaires": 32
+    },
+    "finances": {
+      "budgetHabitant": 1310,
+      "endettement": 91,
+      "investissement": 21
+    },
+    "fiscalite": {
+      "tauxTF": 38.27,
+      "tauxTH": 19.84
+    },
+    "securite": {
+      "atteintesPersonnes": 21.3,
+      "atteintesBiens": 51.4
+    },
+    "sante": {
+      "medecins10k": 30,
+      "scoreAPL": 76,
+      "esperanceVie": 82.5
+    },
+    "education": {
+      "bac": 90,
+      "diplomesSup": 42,
+      "decrochage": 7
+    },
+    "environnement": {
+      "qualiteAir": 55,
+      "surfaceNaturelle": 14,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "75056": {
+    "code": "75056",
+    "name": "Paris",
+    "mayor": "Anne Hidalgo",
+    "party": "PS",
+    "demographie": {
+      "populationTotal": 2133111,
+      "densite": 20755,
+      "evolution10ans": "-4.1%",
+      "moins25ans": 27,
+      "plus65ans": 17
+    },
+    "economie": {
+      "chomage": 11.2,
+      "revenuMedian": 2430,
+      "pauvrete": 16
+    },
+    "logement": {
+      "prixM2": 9560,
+      "logementsSociaux": 22,
+      "proprietaires": 33
+    },
+    "finances": {
+      "budgetHabitant": 3842,
+      "endettement": 148,
+      "investissement": 19
+    },
+    "fiscalite": {
+      "tauxTF": 13.5,
+      "tauxTH": 13.38
+    },
+    "securite": {
+      "atteintesPersonnes": 24.3,
+      "atteintesBiens": 68.7
+    },
+    "sante": {
+      "medecins10k": 118,
+      "scoreAPL": 87,
+      "esperanceVie": 84.2
+    },
+    "education": {
+      "bac": 91,
+      "diplomesSup": 52,
+      "decrochage": 7
+    },
+    "environnement": {
+      "qualiteAir": 54,
+      "surfaceNaturelle": 14,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "76351": {
+    "code": "76351",
+    "name": "Le Havre",
+    "mayor": "Édouard Philippe",
+    "party": "HOR",
+    "demographie": {
+      "populationTotal": 170147,
+      "densite": 3487,
+      "evolution10ans": "-2.1%",
+      "moins25ans": 29,
+      "plus65ans": 18
+    },
+    "economie": {
+      "chomage": 15.3,
+      "revenuMedian": 1490,
+      "pauvrete": 25
+    },
+    "logement": {
+      "prixM2": 1800,
+      "logementsSociaux": 35,
+      "proprietaires": 37
+    },
+    "finances": {
+      "budgetHabitant": 1210,
+      "endettement": 93,
+      "investissement": 21
+    },
+    "fiscalite": {
+      "tauxTF": 40.83,
+      "tauxTH": 20.17
+    },
+    "securite": {
+      "atteintesPersonnes": 22.8,
+      "atteintesBiens": 52.4
+    },
+    "sante": {
+      "medecins10k": 27,
+      "scoreAPL": 57,
+      "esperanceVie": 80.9
+    },
+    "education": {
+      "bac": 84,
+      "diplomesSup": 22,
+      "decrochage": 13
+    },
+    "environnement": {
+      "qualiteAir": 58,
+      "surfaceNaturelle": 22,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "83137": {
+    "code": "83137",
+    "name": "Toulon",
+    "mayor": "Josée Massi",
+    "party": "LR",
+    "demographie": {
+      "populationTotal": 176198,
+      "densite": 3812,
+      "evolution10ans": "+1.4%",
+      "moins25ans": 27,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 15.8,
+      "revenuMedian": 1540,
+      "pauvrete": 24
+    },
+    "logement": {
+      "prixM2": 2900,
+      "logementsSociaux": 22,
+      "proprietaires": 42
+    },
+    "finances": {
+      "budgetHabitant": 1090,
+      "endettement": 87,
+      "investissement": 18
+    },
+    "fiscalite": {
+      "tauxTF": 42.17,
+      "tauxTH": 19.88
+    },
+    "securite": {
+      "atteintesPersonnes": 24.6,
+      "atteintesBiens": 55.3
+    },
+    "sante": {
+      "medecins10k": 31,
+      "scoreAPL": 63,
+      "esperanceVie": 81.8
+    },
+    "education": {
+      "bac": 83,
+      "diplomesSup": 24,
+      "decrochage": 12
+    },
+    "environnement": {
+      "qualiteAir": 65,
+      "surfaceNaturelle": 38,
+      "risques": "modéré"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  },
+  "06088": {
+    "code": "06088",
+    "name": "Nice",
+    "mayor": "Christian Estrosi",
+    "party": "HOR",
+    "demographie": {
+      "populationTotal": 342669,
+      "densite": 4824,
+      "evolution10ans": "+1.1%",
+      "moins25ans": 26,
+      "plus65ans": 22
+    },
+    "economie": {
+      "chomage": 13.6,
+      "revenuMedian": 1820,
+      "pauvrete": 20
+    },
+    "logement": {
+      "prixM2": 4290,
+      "logementsSociaux": 16,
+      "proprietaires": 43
+    },
+    "finances": {
+      "budgetHabitant": 1738,
+      "endettement": 104,
+      "investissement": 22
+    },
+    "fiscalite": {
+      "tauxTF": 33.32,
+      "tauxTH": 16.85
+    },
+    "securite": {
+      "atteintesPersonnes": 18.6,
+      "atteintesBiens": 44.2
+    },
+    "sante": {
+      "medecins10k": 83,
+      "scoreAPL": 78,
+      "esperanceVie": 83.8
+    },
+    "education": {
+      "bac": 88,
+      "diplomesSup": 38,
+      "decrochage": 10
+    },
+    "environnement": {
+      "qualiteAir": 67,
+      "surfaceNaturelle": 29,
+      "risques": "élevé"
+    },
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+  }
+}

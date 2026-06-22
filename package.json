@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc && node -e \"const fs = require('fs'); fs.mkdirSync('dist/data', { recursive: true }); fs.copyFileSync('src/data/departments_indicators.json', 'dist/data/departments_indicators.json')\"",
+    "build": "tsc && node -e \"const fs = require('fs'); fs.mkdirSync('dist/data', { recursive: true }); fs.copyFileSync('src/data/departments_indicators.json', 'dist/data/departments_indicators.json'); fs.copyFileSync('src/data/communes_indicators.json', 'dist/data/communes_indicators.json')\"",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "automation:petitions": "tsx src/scripts/automation/fetch-petitions.ts",
