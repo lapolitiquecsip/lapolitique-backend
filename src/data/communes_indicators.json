@@ -49,7 +49,59 @@
       "surfaceNaturelle": 37,
       "risques": "élevé"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Plan Marseille en Grand",
+        "desc": "Rénovation lourde des écoles publiques et des équipements municipaux.",
+        "cost": "400 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Extension du Tramway Nord-Sud",
+        "desc": "Prolongement de la ligne de tramway vers Castellane et La Rouvière.",
+        "cost": "320 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réhabilitation du centre historique",
+        "desc": "Restauration d'immeubles anciens dégradés pour le logement social.",
+        "cost": "120 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Voie Verte du Littoral",
+        "desc": "Création d'une liaison douce arborée sur le littoral marseillais.",
+        "cost": "45 M€",
+        "status": "Lancement 2026"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Delta Festival",
+        "desc": "Grand rassemblement musical et sportif sur les plages du Prado.",
+        "date": "Août",
+        "category": "Musique"
+      },
+      {
+        "title": "Fête du Panier",
+        "desc": "Festival de rue convivial avec animations artistiques dans le quartier historique.",
+        "date": "Juin",
+        "category": "Tradition"
+      },
+      {
+        "title": "Foire Internationale de Marseille",
+        "desc": "Grand salon d'exposition et de commerce au Parc Chanot.",
+        "date": "Septembre",
+        "category": "Festivités"
+      },
+      {
+        "title": "Fête de la Saint-Jean",
+        "desc": "Feux traditionnels et animations folkloriques sur le Vieux-Port.",
+        "date": "Juin",
+        "category": "Tradition"
+      }
+    ]
   },
   "21231": {
     "code": "21231",
@@ -101,7 +153,59 @@
       "surfaceNaturelle": 24,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Cité de la Gastronomie - Phase 2",
+        "desc": "Aménagements paysagers périphériques et nouveaux espaces de congrès.",
+        "cost": "120 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Plan Rénovation Écoles et Crèches",
+        "desc": "Isolation et pose de panneaux photovoltaïques dans les écoles.",
+        "cost": "45 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Végétalisation du Cours de Gaulle",
+        "desc": "Reconfiguration arborée et piétonne de cet axe historique.",
+        "cost": "18 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Vélostations de la Métropole",
+        "desc": "Création d'abris vélo sécurisés et consignes à bagages.",
+        "cost": "6 M€",
+        "status": "Lancement 2026"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Foire Internationale et Gastronomique",
+        "desc": "Le grand rendez-vous culinaire de référence de Bourgogne.",
+        "date": "Novembre",
+        "category": "Tradition"
+      },
+      {
+        "title": "Vyv Festival",
+        "desc": "Festival de musique et d'engagement social solidaires au parc de la Combe à la Serpent.",
+        "date": "Juin",
+        "category": "Musique"
+      },
+      {
+        "title": "D'Jazz dans la Ville",
+        "desc": "Série de concerts de jazz en plein air gratuits dans les parcs publics.",
+        "date": "Mai",
+        "category": "Musique"
+      },
+      {
+        "title": "Les Écrans de l'Aventure",
+        "desc": "Festival international du film d'aventure de Dijon.",
+        "date": "Octobre",
+        "category": "Culture"
+      }
+    ]
   },
   "30189": {
     "code": "30189",
@@ -153,7 +257,59 @@
       "surfaceNaturelle": 38,
       "risques": "élevé"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Prolongement Ligne BHNS T2",
+        "desc": "Extension de la ligne de bus à haut niveau de service reliant le nord et le sud.",
+        "cost": "68 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Création du Parc Jacques Chirac",
+        "desc": "Aménagement d'un éco-parc urbain de 14 hectares sur d'anciennes friches.",
+        "cost": "32 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Restauration des Arènes de Nîmes",
+        "desc": "Sauvegarde de la pierre de l'amphithéâtre romain.",
+        "cost": "24 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Cours d'Écoles Oasis",
+        "desc": "Pose de sols perméables et végétalisation active de 12 groupes scolaires.",
+        "cost": "8 M€",
+        "status": "En cours"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Feria de Nîmes",
+        "desc": "Grande fête traditionnelle du taureau avec défilés, concerts et bodegas.",
+        "date": "Juin & Septembre",
+        "category": "Tradition"
+      },
+      {
+        "title": "Festival de Nîmes",
+        "desc": "Concerts exceptionnels de musiques actuelles dans le cadre unique des Arènes.",
+        "date": "Juin-Juillet",
+        "category": "Musique"
+      },
+      {
+        "title": "Grands Jeux Romains",
+        "desc": "Reconstitution historique d'envergure européenne avec spectacles aux Arènes.",
+        "date": "Mai",
+        "category": "Tradition"
+      },
+      {
+        "title": "Nîmes s'illustre",
+        "desc": "Festival d'art graphique et d'illustrations contemporaines.",
+        "date": "Juillet",
+        "category": "Culture"
+      }
+    ]
   },
   "31555": {
     "code": "31555",
@@ -205,7 +361,59 @@
       "surfaceNaturelle": 22,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Ligne C du Métro",
+        "desc": "Construction de la troisième ligne de métro reliant Colomiers à Labège.",
+        "cost": "2,8 Md€",
+        "status": "En cours"
+      },
+      {
+        "title": "Grand Matabiau Quais d'Oc",
+        "desc": "Modernisation de la gare et aménagement du quartier d'affaires périphérique.",
+        "cost": "350 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Grand Parc Garonne",
+        "desc": "Reconfiguration naturelle et aménagement de l'île du Ramier.",
+        "cost": "80 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Rénovation de la Rue de Metz",
+        "desc": "Végétalisation et requalification piétonne de cet axe commercial.",
+        "cost": "24 M€",
+        "status": "Finalisation"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Festival Rio Loco",
+        "desc": "Musiques du monde et animations festives au bord de la Garonne.",
+        "date": "Juin",
+        "category": "Musique"
+      },
+      {
+        "title": "Fête de la Violette",
+        "desc": "Expositions, ventes et animations autour de la fleur emblématique.",
+        "date": "Février",
+        "category": "Tradition"
+      },
+      {
+        "title": "Toulouse Plages",
+        "desc": "Activités sportives, ludiques et transats sur la prairie des Filtres.",
+        "date": "Juillet-Août",
+        "category": "Festivités"
+      },
+      {
+        "title": "Marathon de Toulouse",
+        "desc": "Grande course à pied populaire reliant la métropole.",
+        "date": "Octobre",
+        "category": "Sport"
+      }
+    ]
   },
   "33063": {
     "code": "33063",
@@ -257,7 +465,59 @@
       "surfaceNaturelle": 25,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Plan Écoles Résilientes",
+        "desc": "Végétalisation active et isolation de 50 écoles publiques de la ville.",
+        "cost": "60 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Rénovation de la Flèche Saint-Michel",
+        "desc": "Restauration monumentale du clocher gothique en danger de fragilisation.",
+        "cost": "12 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Boulevard de la Marne - Voie Verte",
+        "desc": "Reconfiguration paysagère et voies bus/vélos protégées.",
+        "cost": "15 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Aménagement du Parc des Jalles",
+        "desc": "Valorisation et protection des zones humides métropolitaines.",
+        "cost": "8 M€",
+        "status": "En cours"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Bordeaux Fête le Vin",
+        "desc": "Dégustations et animations œnoculturelles sur les quais de Garonne.",
+        "date": "Juin",
+        "category": "Tradition"
+      },
+      {
+        "title": "Bordeaux Open Air",
+        "desc": "Concerts gratuits de musique électronique dans les parcs de la ville.",
+        "date": "Tout l'été",
+        "category": "Musique"
+      },
+      {
+        "title": "Marathon des Châteaux du Médoc",
+        "desc": "Célèbre course festive traversant les grands domaines viticoles.",
+        "date": "Septembre",
+        "category": "Sport"
+      },
+      {
+        "title": "Festival FAB",
+        "desc": "Festival International des Arts de Bordeaux Métropole.",
+        "date": "Octobre",
+        "category": "Culture"
+      }
+    ]
   },
   "34172": {
     "code": "34172",
@@ -309,7 +569,59 @@
       "surfaceNaturelle": 22,
       "risques": "élevé"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Ligne 5 du Tramway",
+        "desc": "Boucle de transport écologique reliant les quartiers nord et ouest.",
+        "cost": "440 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Extension Ligne 1 - Gare Sud",
+        "desc": "Raccordement direct vers la gare TGV Sud de France.",
+        "cost": "75 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Plan Réseau Vélolignes",
+        "desc": "Développement d'itinéraires cyclables à haut niveau de service.",
+        "cost": "60 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Écoquartier de la Lironde",
+        "desc": "Aménagement paysager et parcs de rétention écologiques.",
+        "cost": "28 M€",
+        "status": "En cours"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Festival International des Sports Extrêmes (FISE)",
+        "desc": "Compétition mondiale de BMX, skate et roller sur les rives du Lez.",
+        "date": "Mai",
+        "category": "Sport"
+      },
+      {
+        "title": "Festival Radio France Occitanie",
+        "desc": "Festival de musique classique, jazz et débats culturels.",
+        "date": "Juillet",
+        "category": "Musique"
+      },
+      {
+        "title": "Les Estivales de Montpellier",
+        "desc": "Soirées dégustation de vins et produits locaux sur l'esplanade Charles-de-Gaulle.",
+        "date": "Juillet-Août",
+        "category": "Festivités"
+      },
+      {
+        "title": "Cinemed",
+        "desc": "Festival international du cinéma méditerranéen.",
+        "date": "Octobre",
+        "category": "Culture"
+      }
+    ]
   },
   "35238": {
     "code": "35238",
@@ -361,7 +673,59 @@
       "surfaceNaturelle": 28,
       "risques": "faible"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Écoquartier de la Courrouze",
+        "desc": "Développement de logements écologiques et aménagement de parcs.",
+        "cost": "120 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réaménagement du Palais du Commerce",
+        "desc": "Modernisation architecturale et pôle commercial central.",
+        "cost": "65 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réseau Vélo Express (ReVE)",
+        "desc": "Création de pistes cyclables bidirectionnelles express.",
+        "cost": "40 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Transition Éclairage des Gymnases",
+        "desc": "Rénovation thermique et éclairage LED dans tous les gymnases.",
+        "cost": "18 M€",
+        "status": "Finalisation"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Rencontres Trans Musicales",
+        "desc": "Le festival incontournable de découverte des musiques de demain.",
+        "date": "Décembre",
+        "category": "Musique"
+      },
+      {
+        "title": "Les Tombées de la Nuit",
+        "desc": "Festival de théâtre de rue et d'arts participatifs.",
+        "date": "Juillet",
+        "category": "Culture"
+      },
+      {
+        "title": "Festival Mythos",
+        "desc": "Festival des arts de la parole et de la chanson au Thabor.",
+        "date": "Avril",
+        "category": "Culture"
+      },
+      {
+        "title": "Marathon Vert",
+        "desc": "Course à pied écologique internationale soutenant la plantation d'arbres.",
+        "date": "Octobre",
+        "category": "Sport"
+      }
+    ]
   },
   "38185": {
     "code": "38185",
@@ -413,7 +777,59 @@
       "surfaceNaturelle": 18,
       "risques": "élevé"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Projet de renouvellement Grandalpe",
+        "desc": "Aménagement urbain, végétalisation et parcs d'activités du sud.",
+        "cost": "110 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réaménagement de l'Esplanade",
+        "desc": "Nouveau parc boisé de 3 hectares et écoquartier bas carbone.",
+        "cost": "45 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réseau Chronovélo",
+        "desc": "Autoroutes cyclables structurantes dans toute la métropole.",
+        "cost": "28 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Rénovation secteur Hoche",
+        "desc": "Isolation thermique globale de 300 logements sociaux.",
+        "cost": "16 M€",
+        "status": "En cours"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Cabaret Frappé",
+        "desc": "Concerts estivaux éclectiques gratuits dans le Jardin de Ville.",
+        "date": "Juillet",
+        "category": "Musique"
+      },
+      {
+        "title": "Rencontres Ciné-Montagne",
+        "desc": "Projections et rencontres autour du cinéma de montagne et d'alpinisme.",
+        "date": "Novembre",
+        "category": "Culture"
+      },
+      {
+        "title": "Grenoble Street Art Fest",
+        "desc": "Festival international avec réalisations de fresques monumentales murales.",
+        "date": "Juin",
+        "category": "Culture"
+      },
+      {
+        "title": "Semi-Marathon de Grenoble",
+        "desc": "Grande course à pied traversant les parcs et les quais de l'Isère.",
+        "date": "Octobre",
+        "category": "Sport"
+      }
+    ]
   },
   "42218": {
     "code": "42218",
@@ -465,7 +881,59 @@
       "surfaceNaturelle": 35,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Rénovation Urbaine de Monthieu",
+        "desc": "Modernisation et requalification des accès et zones d'activités.",
+        "cost": "85 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Plan Végétalisation Urbaine",
+        "desc": "Plantation de 10 000 arbres d'ombrage pour la transition écologique.",
+        "cost": "15 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Reconfiguration cyclable Est-Ouest",
+        "desc": "Création d'un axe structurant vélo direct et sécurisé.",
+        "cost": "12 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Sauvegarde du Musée de la Mine",
+        "desc": "Restauration structurelle du chevalement historique du Puits Couriot.",
+        "cost": "6 M€",
+        "status": "Lancement 2026"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Biennale Internationale Design",
+        "desc": "Grand rendez-vous mondial exposant le design du futur.",
+        "date": "Avril-Mai",
+        "category": "Culture"
+      },
+      {
+        "title": "La SaintéLyon",
+        "desc": "Le mythique et historique trail nocturne reliant Saint-Étienne à Lyon.",
+        "date": "Décembre",
+        "category": "Sport"
+      },
+      {
+        "title": "Festival Paroles et Musiques",
+        "desc": "Le festival de chanson française de référence.",
+        "date": "Mai",
+        "category": "Musique"
+      },
+      {
+        "title": "Foire Économique",
+        "desc": "Grande foire commerciale et d'exposition de la Loire.",
+        "date": "Septembre",
+        "category": "Festivités"
+      }
+    ]
   },
   "44109": {
     "code": "44109",
@@ -517,7 +985,59 @@
       "surfaceNaturelle": 28,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Construction du nouveau CHU",
+        "desc": "Nouveau complexe hospitalier moderne sur l'île de Nantes.",
+        "cost": "1,2 Md€",
+        "status": "En cours"
+      },
+      {
+        "title": "Nouvelles lignes de Tramway (6 & 7)",
+        "desc": "Prolongement et création de nouvelles lignes de transport urbain.",
+        "cost": "220 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Rénovation de la Gare - Accès Sud",
+        "desc": "Aménagement des parvis et des liaisons douces vers la Loire.",
+        "cost": "40 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Plan Végétalisation Urbaine",
+        "desc": "Plantation de micro-forêts urbaines au coeur des places minérales.",
+        "cost": "12 M€",
+        "status": "Lancement 2026"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Le Voyage à Nantes",
+        "desc": "Parcours culturel annuel avec œuvres d'art contemporain dans la rue.",
+        "date": "Juillet-Août",
+        "category": "Culture"
+      },
+      {
+        "title": "Les Rendez-vous de l'Erdre",
+        "desc": "Festival mêlant jazz gratuit et rassemblement de bateaux de plaisance anciens.",
+        "date": "Août",
+        "category": "Musique"
+      },
+      {
+        "title": "La Folle Journée",
+        "desc": "Festival de musique classique réputé avec des dizaines de concerts courts.",
+        "date": "Février",
+        "category": "Musique"
+      },
+      {
+        "title": "Festival des Trois Continents",
+        "desc": "Cinéma d'Afrique, d'Amérique latine et d'Asie.",
+        "date": "Novembre",
+        "category": "Culture"
+      }
+    ]
   },
   "49007": {
     "code": "49007",
@@ -569,7 +1089,59 @@
       "surfaceNaturelle": 28,
       "risques": "faible"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Aménagement Cœur de Maine",
+        "desc": "Reconfiguration piétonne et paysagère des berges de la Maine.",
+        "cost": "35 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Voies Express Vélo 'Tempo'",
+        "desc": "Itinéraires cyclables express connectant les communes limitrophes.",
+        "cost": "25 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Rénovation thermique des écoles",
+        "desc": "Isolation thermique de 8 groupes scolaires municipaux.",
+        "cost": "20 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Mise aux normes du Grand Théâtre",
+        "desc": "Accessibilité et modernisation acoustique.",
+        "cost": "14 M€",
+        "status": "En cours"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Festival Premiers Plans",
+        "desc": "Grand festival européen des jeunes réalisateurs et cinéastes.",
+        "date": "Janvier",
+        "category": "Culture"
+      },
+      {
+        "title": "Les Accroche-Cœurs",
+        "desc": "Festival majeur d'arts de la rue avec spectacles vivants dans la ville.",
+        "date": "Septembre",
+        "category": "Culture"
+      },
+      {
+        "title": "Tempo Rives",
+        "desc": "Concerts estivaux gratuits de musiques actuelles au bord de la Maine.",
+        "date": "Juillet-Août",
+        "category": "Musique"
+      },
+      {
+        "title": "Fête du Vélo en Anjou",
+        "desc": "Célébration du vélo avec rando-promenades sur les routes du littoral ligérien.",
+        "date": "Juin",
+        "category": "Sport"
+      }
+    ]
   },
   "51454": {
     "code": "51454",
@@ -621,7 +1193,59 @@
       "surfaceNaturelle": 32,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Projet Reims Grand Centre",
+        "desc": "Pôle d'attractivité avec la nouvelle Reims Arena et pôle aquatique.",
+        "cost": "180 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Reconfiguration des Promenades",
+        "desc": "Aménagement paysager urbain de la grande esplanade verte.",
+        "cost": "22 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Voie Verte du Canal de l'Aisne",
+        "desc": "Aménagement de sentiers piétons et cyclables au fil de l'eau.",
+        "cost": "15 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Restauration Basilique Saint-Remi",
+        "desc": "Réfection des voûtes et du portail gothique.",
+        "cost": "8 M€",
+        "status": "Lancement 2026"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Flâneries Musicales de Reims",
+        "desc": "Concerts classiques et jazz gratuits sur scènes ouvertes.",
+        "date": "Juin-Juillet",
+        "category": "Musique"
+      },
+      {
+        "title": "Fêtes de Jeanne d'Arc",
+        "desc": "Grand défilé historique médiéval et animations autour de la cathédrale.",
+        "date": "Juin",
+        "category": "Tradition"
+      },
+      {
+        "title": "Marché de Noël de Reims",
+        "desc": "Village d'artisans avec animations face à la cathédrale Notre-Dame.",
+        "date": "Décembre",
+        "category": "Tradition"
+      },
+      {
+        "title": "Run In Reims",
+        "desc": "Événement running populaire à travers le vignoble champenois.",
+        "date": "Octobre",
+        "category": "Sport"
+      }
+    ]
   },
   "59350": {
     "code": "59350",
@@ -673,7 +1297,59 @@
       "surfaceNaturelle": 18,
       "risques": "élevé"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Écoquartier Fives Cail",
+        "desc": "Réhabilitation de l'ancienne friche industrielle en écoquartier.",
+        "cost": "150 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Plan Métropolitain Piscines",
+        "desc": "Construction et rénovation thermique de bassins aquatiques.",
+        "cost": "85 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réhabilitation de la Citadelle",
+        "desc": "Restauration des remparts Vauban et valorisation paysagère du parc.",
+        "cost": "45 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Végétalisation de la Grand Place",
+        "desc": "Création d'îlots arborés mobiles et pérennes.",
+        "cost": "6 M€",
+        "status": "Lancement 2026"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Grande Braderie de Lille",
+        "desc": "Le plus grand vide-grenier d'Europe réunissant des millions de visiteurs.",
+        "date": "Septembre",
+        "category": "Tradition"
+      },
+      {
+        "title": "Festival Séries Mania",
+        "desc": "Festival international majeur consacré aux séries télévisées du monde entier.",
+        "date": "Mars",
+        "category": "Culture"
+      },
+      {
+        "title": "Lille Neige",
+        "desc": "Animations hivernales de glisse et décors de montagne au Grand Sud.",
+        "date": "Janvier-Février",
+        "category": "Festivités"
+      },
+      {
+        "title": "Fête de la Musique à Lille",
+        "desc": "Scènes thématiques géantes dans le centre et les quartiers.",
+        "date": "Juin",
+        "category": "Musique"
+      }
+    ]
   },
   "67482": {
     "code": "67482",
@@ -725,7 +1401,59 @@
       "surfaceNaturelle": 31,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Extension du Tramway vers le Nord",
+        "desc": "Desserte de Schiltigheim et Bischheim en mode doux.",
+        "cost": "140 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Plan Climat Écoles & Cours Oasis",
+        "desc": "Désimperméabilisation et isolation thermique des bâtiments scolaires.",
+        "cost": "80 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réaménagement de la Place des Halles",
+        "desc": "Reconfiguration urbaine de cet axe d'entrée du centre-ville.",
+        "cost": "35 M€",
+        "status": "Lancement 2026"
+      },
+      {
+        "title": "Passerelles transfrontalières",
+        "desc": "Création de nouvelles liaisons douces piétons/vélos vers Kehl.",
+        "cost": "22 M€",
+        "status": "Finalisation"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Strasbourg Capitale de Noël",
+        "desc": "Le mythique et traditionnel marché de Noël historique de la ville.",
+        "date": "Décembre",
+        "category": "Tradition"
+      },
+      {
+        "title": "Festival Musica",
+        "desc": "Grand rendez-vous international de création et musiques contemporaines.",
+        "date": "Septembre",
+        "category": "Musique"
+      },
+      {
+        "title": "NL Contest",
+        "desc": "Festival des cultures urbaines et des sports de glisse.",
+        "date": "Mai",
+        "category": "Sport"
+      },
+      {
+        "title": "Bibliothèques Idéales",
+        "desc": "Rencontres littéraires d'envergure nationale et internationale.",
+        "date": "Septembre",
+        "category": "Culture"
+      }
+    ]
   },
   "69123": {
     "code": "69123",
@@ -777,7 +1505,59 @@
       "surfaceNaturelle": 18,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Réseau Voies Lyonnaises",
+        "desc": "Création de 12 lignes cyclables structurantes et protégées.",
+        "cost": "150 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Extension du Métro B",
+        "desc": "Prolongement de la ligne vers les hôpitaux de Saint-Genis-Laval.",
+        "cost": "450 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Rive Droite du Rhône",
+        "desc": "Végétalisation et aménagement paysager des berges de l'autoroute déclassée.",
+        "cost": "90 M€",
+        "status": "Lancement 2026"
+      },
+      {
+        "title": "Forêt Urbaine de la Part-Dieu",
+        "desc": "Création d'îlots de fraîcheur sur la dalle de la gare Part-Dieu.",
+        "cost": "55 M€",
+        "status": "En cours"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Fête des Lumières",
+        "desc": "Créations artistiques et projections lumineuses sur les façades de la ville.",
+        "date": "Décembre",
+        "category": "Tradition"
+      },
+      {
+        "title": "Nuits de Fourvière",
+        "desc": "Festival pluridisciplinaire d'été dans les arènes romaines de Fourvière.",
+        "date": "Juin-Juillet",
+        "category": "Culture"
+      },
+      {
+        "title": "Biennale de la Danse",
+        "desc": "Spectacles internationaux et grand défilé populaire dans les rues.",
+        "date": "Septembre",
+        "category": "Culture"
+      },
+      {
+        "title": "Run In Lyon",
+        "desc": "Course urbaine festive réunissant des milliers de marathoniens.",
+        "date": "Octobre",
+        "category": "Sport"
+      }
+    ]
   },
   "69266": {
     "code": "69266",
@@ -829,7 +1609,59 @@
       "surfaceNaturelle": 14,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Projet Gratte-Ciel Centre-Ville",
+        "desc": "Doublement de l'avenue Henri Barbusse et création de nouveaux commerces.",
+        "cost": "220 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réseau Voies Lyonnaises (Villeurbanne)",
+        "desc": "Pistes cyclables express reliées à l'agglomération lyonnaise.",
+        "cost": "20 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Promenade L'Autre Soie",
+        "desc": "Création d'espaces verts de loisirs et chemins piétons arborés.",
+        "cost": "18 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Isolation du Palais des Sports",
+        "desc": "Rénovation thermique lourde et pose de toitures photovoltaïques.",
+        "cost": "12 M€",
+        "status": "En cours"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Festival Les Invites",
+        "desc": "Spectacles de rue géants et concerts gratuits participatifs.",
+        "date": "Juin",
+        "category": "Culture"
+      },
+      {
+        "title": "Festival Reperkusound",
+        "desc": "Grand rendez-vous nocturne des musiques électroniques au Double Mixte.",
+        "date": "Avril",
+        "category": "Musique"
+      },
+      {
+        "title": "Villeurbanne Plages",
+        "desc": "Bassin de baignade, transats et activités sportives au parc de la Feyssine.",
+        "date": "Juillet-Août",
+        "category": "Festivités"
+      },
+      {
+        "title": "Fête de la Musique aux Gratte-Ciel",
+        "desc": "Concerts extérieurs géants sur l'esplanade de la mairie.",
+        "date": "Juin",
+        "category": "Musique"
+      }
+    ]
   },
   "75056": {
     "code": "75056",
@@ -881,7 +1713,59 @@
       "surfaceNaturelle": 14,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Ligne 15 Sud - Grand Paris Express",
+        "desc": "Nouveau métro automatique reliant Pont de Sèvres à Noisy-Champs.",
+        "cost": "3,5 Md€",
+        "status": "En cours"
+      },
+      {
+        "title": "Plan Vélo Paris 2021-2026",
+        "desc": "Aménagement de 180 km de pistes cyclables sécurisées et stationnements vélo.",
+        "cost": "250 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Rénovation thermique des écoles",
+        "desc": "Isolation et confort thermique de 80 écoles publiques.",
+        "cost": "95 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Aménagement des abords de Notre-Dame",
+        "desc": "Végétalisation et piétonnisation du parvis et des rues adjacentes.",
+        "cost": "50 M€",
+        "status": "En cours"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Paris Plages",
+        "desc": "Transformation des quais de Seine et du bassin de la Villette en plages d'été.",
+        "date": "Juillet-Août",
+        "category": "Festivités"
+      },
+      {
+        "title": "Marathon de Paris",
+        "desc": "L'une des plus célèbres courses à pied au monde à travers les monuments.",
+        "date": "Avril",
+        "category": "Sport"
+      },
+      {
+        "title": "Nuit Blanche",
+        "desc": "Parcours nocturne d'art contemporain et installations lumineuses.",
+        "date": "Juin",
+        "category": "Culture"
+      },
+      {
+        "title": "Fête de la Musique",
+        "desc": "Grands concerts gratuits et scènes ouvertes à chaque coin de rue.",
+        "date": "Juin",
+        "category": "Musique"
+      }
+    ]
   },
   "76351": {
     "code": "76351",
@@ -933,7 +1817,59 @@
       "surfaceNaturelle": 22,
       "risques": "élevé"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Ligne 3 du Tramway",
+        "desc": "Extension majeure du réseau vers les quartiers sud et de la vallée.",
+        "cost": "220 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Écoquartier du Grand Quai",
+        "desc": "Requalification portuaire en espaces de promenade et parcs.",
+        "cost": "95 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Modernisation du Front de Mer",
+        "desc": "Piste cyclable du littoral et éclairage LED intelligent.",
+        "cost": "14 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Jardins de l'Abbaye de Graville",
+        "desc": "Restauration des jardins suspendus historiques.",
+        "cost": "10 M€",
+        "status": "Finalisation"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Une Saison Graphique",
+        "desc": "Expositions et rencontres autour du design graphique international.",
+        "date": "Juin",
+        "category": "Culture"
+      },
+      {
+        "title": "Festival Ouest Park",
+        "desc": "Festival de musiques actuelles dans les hangars du Fort de Tourneville.",
+        "date": "Octobre",
+        "category": "Musique"
+      },
+      {
+        "title": "Fête de la Mer au Havre",
+        "desc": "Bénédiction des bateaux, stands et chants marins sur le port.",
+        "date": "Août",
+        "category": "Tradition"
+      },
+      {
+        "title": "Corsaires du Havre",
+        "desc": "Rassemblement de vieux gréements et régates dans la baie.",
+        "date": "Mai",
+        "category": "Sport"
+      }
+    ]
   },
   "83137": {
     "code": "83137",
@@ -985,7 +1921,59 @@
       "surfaceNaturelle": 38,
       "risques": "modéré"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Aménagement du Quartier Chalucet",
+        "desc": "Création du pôle universitaire d'art et du jardin de la créativité.",
+        "cost": "70 M€",
+        "status": "Finalisation"
+      },
+      {
+        "title": "Réaménagement de la Rade",
+        "desc": "Quais piétonniers et nouveau pôle d'échange maritime.",
+        "cost": "55 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Rénovation des écoles du centre",
+        "desc": "Désamiantage et végétalisation des cours de récréation.",
+        "cost": "18 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Réseau de Chaleur Bois Énergie",
+        "desc": "Chauffage écologique des administrations de la ville.",
+        "cost": "12 M€",
+        "status": "Finalisation"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Jazz à Toulon",
+        "desc": "Festival de concerts gratuits sur les plus belles places de la ville.",
+        "date": "Juillet",
+        "category": "Musique"
+      },
+      {
+        "title": "Design Parade Toulon",
+        "desc": "Festival international d'architecture d'intérieur et de décoration.",
+        "date": "Juin-Juillet",
+        "category": "Culture"
+      },
+      {
+        "title": "Fête du Livre du Var",
+        "desc": "Grand salon littéraire régional sur la place d'Armes.",
+        "date": "Novembre",
+        "category": "Culture"
+      },
+      {
+        "title": "Fête de Bacchus",
+        "desc": "Célébration des terroirs et des vins de Provence.",
+        "date": "Avril",
+        "category": "Tradition"
+      }
+    ]
   },
   "06088": {
     "code": "06088",
@@ -1037,6 +2025,58 @@
       "surfaceNaturelle": 29,
       "risques": "élevé"
     },
-    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)"
+    "sources": "INSEE (Recensement 2021, Filosofi 2021), DGCL/OFGL (Finances & Fiscalité 2023/2024), Ministère de l'Intérieur/SSMSI (Sécurité 2023), DREES (Santé)",
+    "grandsTravaux": [
+      {
+        "title": "Ligne 4 du Tramway",
+        "desc": "Liaison Nice - Saint-Laurent-du-Var - Cagnes-sur-Mer.",
+        "cost": "280 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Extension de la Promenade du Paillon",
+        "desc": "Aménagement de la saison 2 de la coulée verte au nord de la ville.",
+        "cost": "75 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Aménagement du Port Lympia",
+        "desc": "Piétonnisation et végétalisation des quais du port.",
+        "cost": "50 M€",
+        "status": "En cours"
+      },
+      {
+        "title": "Modernisation de la Promenade",
+        "desc": "Création de nouvelles pistes cyclables et renforcement de la sécurité.",
+        "cost": "35 M€",
+        "status": "Lancement 2026"
+      }
+    ],
+    "evenements": [
+      {
+        "title": "Carnaval de Nice",
+        "desc": "Corsi carnavalesques, défilés de chars et fameuses batailles de fleurs.",
+        "date": "Février",
+        "category": "Tradition"
+      },
+      {
+        "title": "Nice Jazz Festival",
+        "desc": "Grands concerts de jazz internationaux sur la place Masséna et au Théâtre de Verdure.",
+        "date": "Juillet",
+        "category": "Musique"
+      },
+      {
+        "title": "Ironman de Nice",
+        "desc": "Triathlon longue distance de renommée mondiale sur la Côte d'Azur.",
+        "date": "Juin",
+        "category": "Sport"
+      },
+      {
+        "title": "Fête du Château",
+        "desc": "Spectacles gratuits et stands traditionnels sur la colline du château.",
+        "date": "Juin",
+        "category": "Festivités"
+      }
+    ]
   }
 }

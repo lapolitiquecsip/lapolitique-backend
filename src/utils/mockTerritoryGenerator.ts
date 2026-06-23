@@ -12,11 +12,53 @@ export const generateMockCommune = (codeInsee: string, name: string, population?
   const revenuMedian = Math.floor(random(1600, 3500));
   const bac = Math.floor(random(75, 98));
 
+  // Deterministic mock projects selection
+  const poolProjects = [
+    { title: "Rénovation thermique de l'école", desc: "Amélioration énergétique et isolation par l'extérieur de l'école primaire.", cost: "1,2 M€", status: "En cours" },
+    { title: "Liaisons douces & Pistes cyclables", desc: "Création d'une liaison cyclable sécurisée pour relier le centre-bourg.", cost: "450 k€", status: "Finalisation" },
+    { title: "Végétalisation du centre-ville", desc: "Plantation d'arbres et désimperméabilisation des places centrales.", cost: "250 k€", status: "Lancement 2026" },
+    { title: "Modernisation de l'éclairage public", desc: "Remplacement de l'ensemble du parc lumineux par des ampoules LED.", cost: "180 k€", status: "En cours" },
+    { title: "Réhabilitation de la salle des fêtes", desc: "Remise aux normes d'accessibilité et de confort acoustique.", cost: "750 k€", status: "En cours" },
+    { title: "Aménagement d'une aire de jeux", desc: "Création d'un espace de jeux inclusif pour enfants dans le parc municipal.", cost: "120 k€", status: "Finalisation" },
+    { title: "Restauration du patrimoine local", desc: "Travaux de sauvegarde et de maçonnerie sur l'église historique.", cost: "320 k€", status: "En cours" }
+  ];
+
+  const poolEvents = [
+    { title: "Fête locale de la Saint-Jean", desc: "Feux traditionnels, fête foraine et concerts gratuits en plein air.", date: "Juin", category: "Tradition" },
+    { title: "Marché de Noël des artisans", "desc": "Chalet d'exposants locaux, patinoire éphémère et défilé lumineux.", date: "Décembre", category: "Tradition" },
+    { title: "Festival culturel des arts de rue", desc: "Spectacles de saltimbanques, théâtre de marionnettes et fanfares.", date: "Juillet", category: "Culture" },
+    { title: "Fête de la Musique", desc: "Podiums amateurs dans le centre et restauration associative sur place.", date: "Juin", category: "Musique" },
+    { title: "Vide-grenier & Brocante", desc: "Plus de 200 exposants de particuliers et stands de restauration locale.", date: "Mai", category: "Festivités" },
+    { title: "Trail & Course nature", desc: "Courses de 5km, 10km et randonnées dans les sentiers communaux.", date: "Octobre", category: "Sport" },
+    { title: "Forum des associations", desc: "Présentation des activités sportives, artistiques et d'entraide locales.", date: "Septembre", category: "Festivités" },
+    { title: "Cinéma en plein air", desc: "Projection gratuite de films familiaux sur écran géant au coucher du soleil.", date: "Août", category: "Culture" }
+  ];
+
+  // Select 3 items from each pool deterministically based on hash
+  const grandsTravaux = [];
+  const evenements = [];
+  
+  for (let i = 0; i < 3; i++) {
+    const projectIndex = Math.floor(random(0, poolProjects.length - 0.001) + i) % poolProjects.length;
+    // Prevent duplicates
+    if (!grandsTravaux.includes(poolProjects[projectIndex])) {
+      grandsTravaux.push(poolProjects[projectIndex]);
+    }
+    
+    const eventIndex = Math.floor(random(0, poolEvents.length - 0.001) + i) % poolEvents.length;
+    // Prevent duplicates
+    if (!evenements.includes(poolEvents[eventIndex])) {
+      evenements.push(poolEvents[eventIndex]);
+    }
+  }
+
   return {
     id: codeInsee,
     name: name,
     type: "commune",
     isEstimated: true, // Badge trigger
+    grandsTravaux,
+    evenements,
     demographie: { 
       populationTotal: pop, 
       densite, 
