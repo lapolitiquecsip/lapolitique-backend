@@ -838,8 +838,10 @@ router.get('/:codeInsee', (req, res) => {
     });
   }
 
+  const populationQuery = req.query.population ? parseInt(req.query.population as string) : undefined;
+
   // Otherwise, it's a commune or an unknown code. We generate mock data.
-  const mockData = generateMockCommune(codeInsee, name);
+  const mockData = generateMockCommune(codeInsee, name, populationQuery);
   return res.json(mockData);
 });
 

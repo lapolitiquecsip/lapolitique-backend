@@ -1,4 +1,4 @@
-export const generateMockCommune = (codeInsee: string, name: string) => {
+export const generateMockCommune = (codeInsee: string, name: string, population?: number) => {
   // Simple deterministic pseudo-random generator based on codeInsee
   const hash = codeInsee.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   
@@ -6,7 +6,7 @@ export const generateMockCommune = (codeInsee: string, name: string) => {
     return min + ((hash * 9301 + 49297) % 233280) / 233280 * (max - min);
   };
 
-  const pop = Math.floor(random(500, 50000));
+  const pop = population !== undefined ? population : Math.floor(random(500, 50000));
   const densite = Math.floor(random(20, 2000));
   const chomage = parseFloat(random(4, 15).toFixed(1));
   const revenuMedian = Math.floor(random(1600, 3500));
