@@ -28,10 +28,34 @@ export async function fetchAndParseVotes() {
     const zip = new AdmZip(TEMP_ZIP_PATH);
     const allEntries = zip.getEntries();
     const jsonEntries = allEntries.filter(e => e.entryName.endsWith('.json'));
-    console.log(`> Found ${jsonEntries.length} files to process.`);
-    
+    // Fetch existing scrutin IDs to prevent duplicate processing and catch up with old missing scrutins
+    console.log(`> Fetching existing scrutin IDs from database...`);
+    const existingIds = new Set<string>();
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+    while (hasMore) {
+      const { data: pageData, error: sFetchError } = await supabase
+        .from('scrutins')
+        .select('id')
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (sFetchError) throw new Error(`Could not fetch existing scrutins: ${sFetchError.message}`);
+      
+      pageData.forEach(s => existingIds.add(s.id.trim().toUpperCase()));
+      hasMore = pageData.length === pageSize;
+      page++;
+    }
+    console.log(`> Found ${existingIds.size} existing scrutins in database.`);
+
+    const newEntries = jsonEntries.filter(entry => {
+      const match = entry.entryName.match(/(VT[A-Z0-9]+)\.json$/i);
+      const id = match ? match[1].trim().toUpperCase() : path.basename(entry.entryName, '.json').trim().toUpperCase();
+      return !existingIds.has(id);
+    });
+    console.log(`> Found ${newEntries.length} new files to process out of ${jsonEntries.length} total files.`);
+
     // Sort by scrutin number (descending) to process the newest first
-    jsonEntries.sort((a, b) => {
+    newEntries.sort((a, b) => {
       const matchA = a.entryName.match(/VT(\d+)/);
       const matchB = b.entryName.match(/VT(\d+)/);
       const numA = matchA ? parseInt(matchA[1]) : 0;
@@ -40,8 +64,8 @@ export async function fetchAndParseVotes() {
     });
 
     // Safety limit: process max 200 files per run to avoid DB choke
-    const entriesToProcess = jsonEntries.slice(0, 200);
-    console.log(`> Processing only the first ${entriesToProcess.length} entries for performance.`);
+    const entriesToProcess = newEntries.slice(0, 200);
+    console.log(`> Processing up to ${entriesToProcess.length} new entries for performance.`);
 
     // Fetch active deputies
     const { data: activeDeputies, error: dError } = await supabase
@@ -68,6 +92,8 @@ export async function fetchAndParseVotes() {
       
       if (titre.includes("amendement")) {
         type = "AMENDEMENT";
+      } else if (titre.includes("motion de rejet") || titre.includes("motion de censure")) {
+        type = "MOTION";
       } else if (
         titre.startsWith("l'ensemble du") || 
         titre.startsWith("l'ensemble de la") ||
@@ -143,15 +169,21 @@ export async function fetchAndParseVotes() {
         });
       }
 
-      const isAdopted = s.sort.libelle.includes('adopté');
-      const statusDetail = isAdopted ? "En application" : "Rejeté";
+      const libelleLower = s.sort.libelle.toLowerCase();
+      const isAdopted = libelleLower.includes('adopté') && !libelleLower.includes("n'a pas adopté") && !libelleLower.includes("pas adopté");
+      
+      const voteDate = new Date(s.dateScrutin);
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - voteDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const statusDetail = isAdopted ? (diffDays > 90 ? "En application" : "Adopté") : "Rejeté";
       const impactDetail = isAdopted ? `Impacte le secteur ${category}` : "Aucun impact (texte rejeté)";
       
       let entryDateDetail = "N/A";
       if (isAdopted) {
-        const voteDate = new Date(s.dateScrutin);
-        voteDate.setMonth(voteDate.getMonth() + 3);
-        entryDateDetail = voteDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        const entryDate = new Date(s.dateScrutin);
+        entryDate.setMonth(entryDate.getMonth() + 3);
+        entryDateDetail = entryDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
       }
 
       let cleanedObjet = s.objet.libelle;
