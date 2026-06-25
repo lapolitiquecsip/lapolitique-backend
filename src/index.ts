@@ -16,7 +16,8 @@ import {
   fetchPetitionsFn,
   fetchLiveLawsFn,
   syncAgendaFn,
-  generateWeeklyStatsFn
+  generateWeeklyStatsFn,
+  generateDossiersFn
 } from './lib/inngest.js';
 
 // Load routes
@@ -83,7 +84,8 @@ app.use('/api/inngest', serve({
     fetchPetitionsFn,
     fetchLiveLawsFn,
     syncAgendaFn,
-    generateWeeklyStatsFn
+    generateWeeklyStatsFn,
+    generateDossiersFn
   ]
 }));
 

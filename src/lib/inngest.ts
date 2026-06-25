@@ -1,5 +1,6 @@
 import { Inngest } from 'inngest';
 import { fetchAndParseVotes } from '../scripts/automation/fetch-votes.js';
+import { generateDossiers } from '../scripts/automation/dossier-generator.js';
 import { summarizeScrutins } from '../scripts/automation/scrutin-summarizer.js';
 import { main as fetchPetitions } from '../scripts/automation/fetch-petitions.js';
 import { syncLiveLaws } from '../scripts/automation/fetch-live-laws.js';
@@ -120,6 +121,23 @@ export const generateWeeklyStatsFn = inngest.createFunction(
   },
   async () => {
     await generateWeeklyStats();
+    return { success: true };
+  }
+);
+
+// 7. Generate Premium Dossiers for Adopted Laws
+export const generateDossiersFn = inngest.createFunction(
+  {
+    id: 'generate-dossiers',
+    triggers: [
+      { cron: '0 */2 * * *' }, // Every 2 hours
+      { event: 'cron/generate-dossiers' },
+      { event: 'scrutins.fetched' } // Run immediately after new votes are fetched
+    ],
+    retries: 3
+  },
+  async () => {
+    await generateDossiers();
     return { success: true };
   }
 );

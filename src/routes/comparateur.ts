@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { generateMockCommune } from '../utils/mockTerritoryGenerator.js';
+import { getElusForCommune } from '../utils/rne.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -796,14 +797,13 @@ router.get('/list', (req, res) => {
 });
 
 // GET /api/comparateur/:codeInsee
-router.get('/:codeInsee', (req, res) => {
+router.get('/:codeInsee', async (req, res) => {
   const codeInsee = req.params.codeInsee;
   const name = req.query.name as string || `Commune ${codeInsee}`;
 
   // Check in REGIONS
   const region = REGIONS.find(r => r.id === codeInsee);
   if (region) {
-    // Ensure regions have indicators (they should, but just in case)
     return res.json({ ...region, type: 'region' });
   }
 
@@ -819,113 +819,231 @@ router.get('/:codeInsee', (req, res) => {
         isEstimated: false
       });
     }
-    // Departments from the 101 list might not have indicators yet
-    // Generate mock indicators for them if missing
-    if (!(department as any).demographie) {
-      const mockIndicators = generateMockCommune(codeInsee, name);
-      return res.json({ ...department, ...mockIndicators, type: 'department', isEstimated: true });
-    }
     return res.json({ ...department, type: 'department' });
   }
 
   // Check in COMMUNES_INDICATORS
   const realCommune = COMMUNES_INDICATORS[codeInsee];
-  if (realCommune) {
-    return res.json({
-      ...realCommune,
-      type: 'commune',
-      isEstimated: false
-    });
-  }
 
-  const populationQuery = req.query.population ? parseInt(req.query.population as string) : undefined;
+  // Helper to parse OFGL results
+  const parseOFGLResults = (results: any[], year: number) => {
+    let depFonct = 0;
+    let depInvest = 0;
+    let encoursDette = 0;
+    let ptot = 0;
+
+    for (const record of results) {
+      if (record.agregat === 'Dépenses de fonctionnement') {
+        depFonct = record.montant;
+        ptot = record.ptot || record.ptot_n || ptot;
+      } else if (record.agregat === "Dépenses d'investissement hors remb") {
+        depInvest = record.montant;
+      } else if (record.agregat === 'Encours de dette') {
+        encoursDette = record.montant;
+      }
+    }
+
+    if (ptot === 0) {
+      const anyRecord = results.find((r: any) => r.ptot || r.ptot_n);
+      if (anyRecord) {
+        ptot = anyRecord.ptot || anyRecord.ptot_n;
+      }
+    }
+
+    if (depFonct > 0 && ptot > 0) {
+      const budgetHabitant = Math.round(depFonct / ptot);
+      const depTotal = depFonct + depInvest;
+      const investissement = depTotal > 0 ? Math.round((depInvest / depTotal) * 100) : 25;
+      const endettement = Math.round((encoursDette / depFonct) * 100);
+
+      return {
+        budgetHabitant,
+        endettement,
+        investissement,
+        populationTotal: ptot,
+        year
+      };
+    }
+    return null;
+  };
 
   // Otherwise, try to fetch real budget data from OFGL API dynamically
   const fetchOFGLData = async (code: string) => {
     const years = [2024, 2023, 2022];
     for (const year of years) {
+      // Try data.economie.gouv.fr first
+      try {
+        const whereClause = `insee="${code}" and exer=date'${year}' and type_de_budget="Budget principal" and (agregat="Dépenses de fonctionnement" or agregat="Dépenses d'investissement hors remb" or agregat="Encours de dette")`;
+        const url = `https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/comptes-individuels-des-communes-fichier-global-2023-2024/records?where=${encodeURIComponent(whereClause)}&limit=100`;
+        const response = await fetch(url);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.results && json.results.length > 0) {
+            const data = parseOFGLResults(json.results, year);
+            if (data) return data;
+          }
+        }
+      } catch (err) {
+        console.error(`Error querying data.economie.gouv.fr for ${code} in ${year}:`, err);
+      }
+
+      // Try data.ofgl.fr fallback
       try {
         const whereClause = `insee="${code}" and exer=date'${year}' and type_de_budget="Budget principal" and (agregat="Dépenses de fonctionnement" or agregat="Dépenses d'investissement hors remb" or agregat="Encours de dette")`;
         const url = `https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/records?where=${encodeURIComponent(whereClause)}&limit=100`;
         const response = await fetch(url);
-        if (!response.ok) continue;
-        const json = await response.json();
-        if (!json.results || json.results.length === 0) continue;
-
-        let depFonct = 0;
-        let depInvest = 0;
-        let encoursDette = 0;
-        let ptot = 0;
-
-        for (const record of json.results) {
-          if (record.agregat === 'Dépenses de fonctionnement') {
-            depFonct = record.montant;
-            ptot = record.ptot || record.ptot_n || ptot;
-          } else if (record.agregat === "Dépenses d'investissement hors remb") {
-            depInvest = record.montant;
-          } else if (record.agregat === 'Encours de dette') {
-            encoursDette = record.montant;
+        if (response.ok) {
+          const json = await response.json();
+          if (json.results && json.results.length > 0) {
+            const data = parseOFGLResults(json.results, year);
+            if (data) return data;
           }
-        }
-
-        if (ptot === 0) {
-          const anyRecord = json.results.find((r: any) => r.ptot || r.ptot_n);
-          if (anyRecord) {
-            ptot = anyRecord.ptot || anyRecord.ptot_n;
-          }
-        }
-
-        if (depFonct > 0 && ptot > 0) {
-          const budgetHabitant = Math.round(depFonct / ptot);
-          const depTotal = depFonct + depInvest;
-          const investissement = depTotal > 0 ? Math.round((depInvest / depTotal) * 100) : 25;
-          const endettement = Math.round((encoursDette / depFonct) * 100);
-
-          return {
-            budgetHabitant,
-            endettement,
-            investissement,
-            populationTotal: ptot,
-            year
-          };
         }
       } catch (err) {
-        console.error(`Error querying OFGL for ${code} in ${year}:`, err);
+        console.error(`Error querying data.ofgl.fr for ${code} in ${year}:`, err);
       }
     }
     return null;
   };
 
-  // Run fetching
-  fetchOFGLData(codeInsee).then((ofglData) => {
-    // Generate mock data for all other properties
-    const finalPop = ofglData ? ofglData.populationTotal : populationQuery;
-    const baseMock = generateMockCommune(codeInsee, name, finalPop);
-    
-    if (ofglData) {
-      // Override with verified official figures
-      return res.json({
-        ...baseMock,
-        isEstimated: false, // Mark as real verified data since budget/population are 100% official
-        demographie: {
-          ...baseMock.demographie,
-          populationTotal: ofglData.populationTotal
-        },
-        finances: {
-          budgetHabitant: ofglData.budgetHabitant,
-          endettement: ofglData.endettement,
-          investissement: ofglData.investissement
-        },
-        sources: `Données financières officielles DGFiP / OFGL (${ofglData.year})`
-      });
-    } else {
-      // Fallback fully to mock if API failed or no records found
-      return res.json(baseMock);
+  const parseDotationsResults = (results: any[]) => {
+    const sorted = results.sort((a: any, b: any) => {
+      const yearA = a.exer ? parseInt(a.exer) : 0;
+      const yearB = b.exer ? parseInt(b.exer) : 0;
+      return yearB - yearA;
+    });
+
+    const record = sorted[0];
+    const dgf = record.dgf || record.montant_dgf || record.dgf_tot || null;
+    const forfaitaire = record.forfaitaire || record.montant_df || record.forfait || null;
+    const dsr = record.dsr || record.montant_dsr || record.dsr_tot || null;
+    const dsu = record.dsu || record.montant_dsu || record.dsu_tot || null;
+    const dnp = record.dnp || record.montant_dnp || record.dnp_tot || null;
+    const year = record.exer || record.exercice || "2024";
+
+    return { dgf, forfaitaire, dsr, dsu, dnp, year };
+  };
+
+  // Try to fetch dotation data from OFGL
+  const fetchDotationsData = async (code: string) => {
+    // Try data.economie.gouv.fr
+    try {
+      const url = `https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/dotations-communes/records?where=code_insee%3D%22${code}%22&limit=5`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.results && json.results.length > 0) {
+          return parseDotationsResults(json.results);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching dotations from economie.gouv:", e);
     }
-  }).catch((err) => {
+
+    // Try data.ofgl.fr
+    try {
+      const url = `https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/dotations-communes/records?where=code_insee%3D%22${code}%22&limit=5`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.results && json.results.length > 0) {
+          return parseDotationsResults(json.results);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching dotations from ofgl:", e);
+    }
+    return null;
+  };
+
+  const populationQuery = req.query.population ? parseInt(req.query.population as string) : undefined;
+
+  // Run fetching in parallel
+  try {
+    const [ofglData, dotationsData, rneData] = await Promise.all([
+      fetchOFGLData(codeInsee),
+      fetchDotationsData(codeInsee),
+      getElusForCommune(codeInsee).catch(() => null)
+    ]);
+
+    const finalPop = ofglData ? ofglData.populationTotal : (realCommune ? realCommune.demographie?.populationTotal : populationQuery);
+    const baseMock = generateMockCommune(codeInsee, name, finalPop);
+
+    const rneFormatted = rneData && rneData.length > 0 ? (() => {
+      const maire = rneData.find(e => e.fonction === 'Maire') || null;
+      const adjoints = rneData.filter(e => e.fonction && e.fonction.toLowerCase().includes('adjoint'));
+      const conseillers = rneData.filter(e => !e.fonction || (!e.fonction.toLowerCase().includes('adjoint') && e.fonction !== 'Maire'));
+      
+      return {
+        maire: maire ? {
+          nom: maire.nom,
+          prenom: maire.prenom,
+          sexe: maire.sexe,
+          dateNaissance: maire.dateNaissance,
+          categoriePro: maire.categoriePro,
+          dateDebutMandat: maire.dateDebutMandat
+        } : null,
+        adjoints: adjoints.map(e => ({
+          nom: e.nom,
+          prenom: e.prenom,
+          sexe: e.sexe,
+          dateNaissance: e.dateNaissance,
+          categoriePro: e.categoriePro,
+          dateDebutMandat: e.dateDebutMandat,
+          fonction: e.fonction
+        })),
+        conseillers: conseillers.map(e => ({
+          nom: e.nom,
+          prenom: e.prenom,
+          sexe: e.sexe,
+          dateNaissance: e.dateNaissance,
+          categoriePro: e.categoriePro,
+          dateDebutMandat: e.dateDebutMandat
+        }))
+      };
+    })() : null;
+
+    const finalCommune = {
+      ...(realCommune || baseMock),
+      rne: rneFormatted,
+      dotations: dotationsData,
+      isEstimated: false
+    };
+
+    if (ofglData) {
+      finalCommune.demographie = {
+        ...finalCommune.demographie,
+        populationTotal: ofglData.populationTotal
+      };
+      finalCommune.finances = {
+        budgetHabitant: ofglData.budgetHabitant,
+        endettement: ofglData.endettement,
+        investissement: ofglData.investissement
+      };
+    }
+
+    const sourceList = [];
+    if (ofglData) {
+      sourceList.push(`Comptes individuels DGFiP / OFGL (${ofglData.year})`);
+    }
+    if (dotationsData) {
+      sourceList.push(`Dotations de l'État OFGL (${dotationsData.year})`);
+    }
+    if (rneFormatted) {
+      sourceList.push(`Répertoire National des Élus (RNE) data.gouv.fr`);
+    }
+    if (realCommune) {
+      sourceList.push(realCommune.sources || "INSEE, SSMSI, DREES");
+    }
+
+    finalCommune.sources = sourceList.length > 0 ? sourceList.join(" | ") : "Données géographiques officielles (geo.api.gouv.fr)";
+
+    return res.json(finalCommune);
+  } catch (err) {
     console.error("Error in comparateur route:", err);
     return res.json(generateMockCommune(codeInsee, name, populationQuery));
-  });
+  }
 });
 
 export default router;
+

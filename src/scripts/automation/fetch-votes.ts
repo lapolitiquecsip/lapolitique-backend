@@ -169,7 +169,7 @@ export async function fetchAndParseVotes() {
         });
       }
 
-      const libelleLower = s.sort.libelle.toLowerCase();
+      const libelleLower = (s.sort?.libelle || "").toLowerCase();
       const isAdopted = libelleLower.includes('adopté') && !libelleLower.includes("n'a pas adopté") && !libelleLower.includes("pas adopté");
       
       const voteDate = new Date(s.dateScrutin);
