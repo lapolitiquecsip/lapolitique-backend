@@ -243,7 +243,7 @@ async function processSource(
         continue;
       }
 
-      const { error: insertError } = await supabase.from('content').insert({
+      const insertPayload: Record<string, any> = {
         titre_original: item.title || 'Sans titre',
         titre_simplifie: summary.titre_simplifie,
         resume_flash: summary.resume_flash,
@@ -257,9 +257,20 @@ async function processSource(
         date_traitement: new Date().toISOString(),
         raw_text: cleanedText.substring(0, 5000),
         status: 'published',
-      });
+      };
 
-      if (insertError) throw insertError;
+      let { error: insertError } = await supabase.from('content').insert(insertPayload);
+
+      // If source_name column doesn't exist yet, retry without it
+      if (insertError?.message?.includes('source_name')) {
+        console.warn(`[Pipeline] source_name column missing, retrying without it...`);
+        const { source_name: _, ...payloadWithoutSourceName } = insertPayload;
+        const { error: retryError } = await supabase.from('content').insert(payloadWithoutSourceName);
+        insertError = retryError;
+      }
+
+      if (insertError) throw new Error(`Supabase insert error: ${insertError.message}`);
+
 
       console.log(`[Pipeline] ✓ ${summary.titre_simplifie}`);
       processedThisSource++;

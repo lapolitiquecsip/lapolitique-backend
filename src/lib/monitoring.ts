@@ -3,10 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 
 // Lazily load environment variables in case they aren't loaded yet
 const getSupabase = () => {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key);
+  try {
+    const url = (process.env.SUPABASE_URL || '').trim();
+    const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    if (!url || !key || !url.startsWith('http')) return null;
+    return createClient(url, key);
+  } catch {
+    return null;
+  }
 };
 
 export function initMonitoring() {
