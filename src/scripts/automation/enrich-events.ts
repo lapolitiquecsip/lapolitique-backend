@@ -21,31 +21,34 @@ async function enrichEvent(title: string, description: string) {
   try {
     const response = await resilientDeepSeek.createMessage({
       model: 'deepseek-v4-flash',
-      max_tokens: 300,
-      system: `Tu es un assistant expert en politique française. Ta mission est de transformer des événements parlementaires complexes en informations simples pour le grand public.
+      max_tokens: 400,
+      system: `Tu es un journaliste politique expert qui traduit des événements parlementaires arides en informations utiles pour les citoyens.
 
-RÈGLES CRITIQUES :
-1. Titre Court (short_title) : Maximum 8 mots. Très percutant. 
-   - SI le titre original est "Suite de l'ordre du jour" ou similaire, analyse la description pour trouver le VRAI sujet (ex: "Suite de l'examen de la loi agricole").
-2. Résumé (short_summary) : Une seule phrase, maximum 20 mots. Doit expliquer l'enjeu principal simplement. SI le texte mentionne le dépôt d'un projet de loi ou la publication d'un rapport, RÉSUME LE CONTENU et le but de ce rapport/projet (ex: "Ce rapport propose de réduire les impôts") au lieu de juste dire "Un rapport a été déposé".
+RÈGLES :
+1. "short_title" (max 9 mots) : reformule pour que le lecteur comprenne IMMÉDIATEMENT l'enjeu. Pas un copier-coller du titre original.
+   - Si c'est un examen de loi : dis ce que la loi veut faire ("La loi veut encadrer les loyers Airbnb")
+   - Si c'est une audition : dis qui et pourquoi ("Le ministre de l'Éco auditionné sur la dette")
+   - Si c'est un rapport : dis ce que le rapport révèle, pas juste qu'il existe
+   - Si c'est une séance : résume le sujet principal
 
-Réponds UNIQUEMENT au format JSON suivant :
+2. "short_summary" (1-2 phrases, 30 mots max) : quel est l'enjeu concret pour le citoyen ? Si le titre mentionne un chiffre, l'utiliser. Rédiger en français direct, sans jargon.
+
+Réponds UNIQUEMENT au format JSON :
 {
   "short_title": "...",
   "short_summary": "..."
 }`,
       messages: [
-        { role: 'user', content: `Simplifie cet événement :\n${content}` }
+        { role: 'user', content: `Simplifie cet événement parlementaire :\n${content}` }
       ],
     });
 
     let text = response.content[0].text;
-    
-    // Nettoyage si DeepSeek met des blocs markdown
+
     if (text.includes('```')) {
       text = text.replace(/```json\n?/, '').replace(/```\n?/, '').trim();
     }
-    
+
     return JSON.parse(text);
   } catch (error) {
     console.error("Erreur DeepSeek:", error);
@@ -54,14 +57,22 @@ Réponds UNIQUEMENT au format JSON suivant :
 }
 
 async function start() {
-  const today = new Date().toLocaleDateString('en-CA');
-  console.log(`Enrichissement des événements pour ${today}...`);
+  // Enrich events for the next 5 days (includes today + upcoming agenda items)
+  const today = new Date();
+  const in5Days = new Date(today);
+  in5Days.setDate(today.getDate() + 5);
+
+  const fromDate = today.toLocaleDateString('en-CA');
+  const toDate = in5Days.toLocaleDateString('en-CA');
+
+  console.log(`Enrichissement des événements du ${fromDate} au ${toDate}...`);
 
   const { data: events, error } = await supabase
     .from('events')
     .select('*')
-    .eq('date', today)
-    .is('short_summary', null); // On traite ceux qui n'ont pas encore de résumé
+    .gte('date', fromDate)
+    .lte('date', toDate)
+    .is('short_summary', null);
 
   if (error) {
     console.error("Erreur Supabase:", error);
@@ -70,12 +81,12 @@ async function start() {
 
   console.log(`${events?.length || 0} événements à traiter.`);
 
-  if (!events) return;
+  if (!events || events.length === 0) return;
 
   for (const event of events) {
-    console.log(`Traitement de : ${event.title.substring(0, 50)}...`);
+    console.log(`Traitement de : ${event.title?.substring(0, 60)}...`);
     const enrichment = await enrichEvent(event.title, event.description);
-    
+
     if (enrichment) {
       const { error: updateError } = await supabase
         .from('events')
@@ -89,8 +100,8 @@ async function start() {
       else console.log(`✅ ${enrichment.short_title}`);
     }
 
-    // Petit délai pour l'API
-    await new Promise(r => setTimeout(r, 500));
+    // Small delay to respect API rate limits
+    await new Promise(r => setTimeout(r, 300));
   }
 
   console.log("Enrichissement terminé !");

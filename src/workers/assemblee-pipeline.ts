@@ -57,20 +57,36 @@ export async function runAssembleePipeline() {
         // 4. Send to DeepSeek
         const response = await resilientDeepSeek.createMessage({
           model: 'deepseek-v4-flash',
-          max_tokens: 1024,
-          system: "Tu es un journaliste pédagogue experte en politique française. Tu dois toujours répondre UNIQUEMENT avec un objet JSON (sans le bloc de code markdown, juste l'accolade).",
+          max_tokens: 1200,
+          system: `Tu es un journaliste politique expert qui alimente un fil d'actu addictif pour des citoyens français curieux.
+
+TON OBJECTIF : chaque carte doit apprendre quelque chose de CONCRET à l'utilisateur. Pas de vague, pas de généralités.
+
+RÈGLES ABSOLUES :
+1. "titre_simplifie" (max 12 mots) : accrocheur, factuel. Commence par un chiffre, une conséquence concrète, ou une question qui interpelle. JAMAIS juste "Rapport X publié" ou "Examen du projet Y".
+   Exemples BONS : "Les retraites anticipées coûtent 3,8 Mds€ par an" / "Loyers parisiens : +7% en 2025, pourquoi ?" / "La loi agricole supprime 12 000 contrôles par an"
+   Exemples MAUVAIS : "Publication du rapport Bruneau" / "Examen de la loi de finances" / "Suite de l'ordre du jour"
+
+2. "resume_flash" (2-3 phrases, 60 mots max) : TOUJOURS inclure au moins 1 chiffre ou fait concret extrait du texte (budget en euros, nombre de personnes, pourcentage, délai...). Expliquer l'impact réel sur les citoyens. Rédiger comme un journaliste de terrain.
+
+3. "resume_detaille" (6-10 phrases) : contexte complet, enjeux, chiffres clés, positions politiques, conséquences pratiques pour les Français.
+
+4. "should_publish" (boolean) : mettre FALSE uniquement si le texte ne contient AUCUNE information utile (dépôt administratif pur, agenda vide, procédure sans contenu). Dans tous les autres cas, TRUE.
+
+5. "source_name" (string) : liste les sources citées séparées par des virgules. Si aucune source externe, mettre "Assemblée Nationale".
+
+Réponds UNIQUEMENT avec un objet JSON valide (sans bloc markdown) :
+{
+  "titre_simplifie": "...",
+  "resume_flash": "...",
+  "resume_detaille": "...",
+  "should_publish": true,
+  "source_name": "..."
+}`,
           messages: [
             {
               role: 'user',
-              content: `Résume ce texte de loi ou compte-rendu parlementaire pour un lycéen. Produis un JSON strict ayant exactement cette structure et RIEN d'autre :
-{
-  "titre_simplifie": "string (max 15 mots)",
-  "resume_flash": "string (3 lignes max)",
-  "resume_detaille": "string (10-15 lignes)"
-}
-
-Texte brut :
-${cleanedText.substring(0, 15000)}`
+              content: `Transforme ce compte-rendu parlementaire en information citoyenne percutante :\n\n${cleanedText.substring(0, 15000)}`
             }
           ]
         });
@@ -87,17 +103,24 @@ ${cleanedText.substring(0, 15000)}`
         
         const summary = JSON.parse(text);
 
-        // 5. Insert into Supabase
+        // 5. Skip content-poor items
+        if (summary.should_publish === false) {
+          console.log(`[AssembleePipeline] Skipping low-value item: ${item.title}`);
+          continue;
+        }
+
+        // 6. Insert into Supabase
         const { error: insertError } = await supabase.from('content').insert({
           titre_original: item.title || 'Sans titre',
           titre_simplifie: summary.titre_simplifie,
           resume_flash: summary.resume_flash,
           resume_detaille: summary.resume_detaille,
           source_url: sourceUrl,
+          source_name: summary.source_name || 'Assemblée Nationale',
           institution: 'assemblée',
           date_publication: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
           date_traitement: new Date().toISOString(),
-          raw_text: cleanedText.substring(0, 5000), // store a trunk to avoid massive rows
+          raw_text: cleanedText.substring(0, 5000),
           status: 'published'
         });
 
