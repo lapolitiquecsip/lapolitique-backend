@@ -1,17 +1,13 @@
-import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resilientDeepSeek } from '../lib/deepseek-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
 
 // Top 20 communes from local/page.tsx
 const COMMUNES = [
@@ -101,19 +97,19 @@ Consignes impératives :
 1. Soyez extrêmement rigoureux sur l'exactitude des chiffres pour chaque ville. Par exemple, le budget de fonctionnement par habitant et le taux de taxe foncière (taux TF) doivent correspondre précisément aux valeurs réelles publiées par l'OFGL / DGCL pour l'année 2023/2024. Le prix moyen du m² doit refléter le marché récent de chaque ville (ex: plus de 9000 €/m² à Paris, environ 4000 €/m² à Lyon, etc.).
 2. Renvoyez uniquement un tableau JSON valide contenant les objets structurés. Ne mettez aucun texte d'introduction ni de conclusion, pas de blocs de code markdown (comme \`\`\`json), juste le JSON pur.`;
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+  const response = await resilientDeepSeek.createMessage({
+    model: 'deepseek-v4-flash',
     max_tokens: 8000,
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const text = (response.content[0] as any).text;
+  const text = response.content[0].text;
   try {
     const jsonStr = text.substring(text.indexOf('['), text.lastIndexOf(']') + 1);
     const parsed = JSON.parse(jsonStr || text);
     return parsed;
   } catch (e: any) {
-    console.error("Failed to parse Claude response:", text);
+    console.error("Failed to parse DeepSeek response:", text);
     throw new Error(`JSON parsing failed: ${e.message}`);
   }
 }

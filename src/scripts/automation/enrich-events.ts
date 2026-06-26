@@ -1,9 +1,9 @@
 
 import { createClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resilientDeepSeek } from '../../lib/deepseek-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,16 +15,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
-
 async function enrichEvent(title: string, description: string) {
   const content = `Titre original: ${title}\nDescription: ${description}`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+    const response = await resilientDeepSeek.createMessage({
+      model: 'deepseek-v4-flash',
       max_tokens: 300,
       system: `Tu es un assistant expert en politique française. Ta mission est de transformer des événements parlementaires complexes en informations simples pour le grand public.
 
@@ -39,20 +35,20 @@ Réponds UNIQUEMENT au format JSON suivant :
   "short_summary": "..."
 }`,
       messages: [
-        { role: "user", content: `Simplifie cet événement :\n${content}` }
+        { role: 'user', content: `Simplifie cet événement :\n${content}` }
       ],
     });
 
-    let text = (response.content[0] as any).text;
+    let text = response.content[0].text;
     
-    // Nettoyage si Claude met des blocs markdown
+    // Nettoyage si DeepSeek met des blocs markdown
     if (text.includes('```')) {
       text = text.replace(/```json\n?/, '').replace(/```\n?/, '').trim();
     }
     
     return JSON.parse(text);
   } catch (error) {
-    console.error("Erreur Claude:", error);
+    console.error("Erreur DeepSeek:", error);
     return null;
   }
 }

@@ -1,5 +1,5 @@
 import { supabase } from '../../config/supabase.js';
-import { resilientAnthropic } from '../../lib/anthropic-client.js';
+import { resilientDeepSeek } from '../../lib/deepseek-client.js';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import crypto from 'crypto';
@@ -43,13 +43,12 @@ export async function main() {
 
   console.log(`> Found ${events.length} events. Preparing summary...`);
 
-  // 2. Format events for Claude
+  // 2. Format events for DeepSeek
   const eventsList = events.map(e => `- ${e.title}\n  ${e.description}`).join('\n\n');
 
-
-    // 3. Call Claude
-    const response = await resilientAnthropic.createMessage({
-      model: 'claude-sonnet-4-6',
+    // 3. Call DeepSeek
+    const response = await resilientDeepSeek.createMessage({
+      model: 'deepseek-v4-flash',
       max_tokens: 500,
       messages: [
         {
@@ -68,7 +67,7 @@ export async function main() {
 
     const summary = response.content[0].type === 'text' ? response.content[0].text : '';
 
-    if (!summary) throw new Error('Claude returned an empty summary');
+    if (!summary) throw new Error('DeepSeek returned an empty summary');
 
     console.log('\nGenerated Summary:\n', summary);
 

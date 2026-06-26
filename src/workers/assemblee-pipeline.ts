@@ -1,66 +1,11 @@
 import Parser from 'rss-parser';
 import * as cheerio from 'cheerio';
-import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../config/supabase.js';
 import * as Sentry from '@sentry/node';
 import { logStart, logSuccess, logError } from '../lib/monitoring.js';
+import { resilientDeepSeek } from '../lib/deepseek-client.js';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
 const parser = new Parser();
-
-const MAX_RETRIES = 3;
-
-/**
- * Fetch with exponential backoff
- */
-async function generateSummaryWithRetry(content: string, retryCount = 0): Promise<any> {
-  try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6", // Fast and cheap
-      max_tokens: 1024,
-      system: "Tu es un journaliste pédagogue experte en politique française. Tu dois toujours répondre UNIQUEMENT avec un objet JSON (sans le bloc de code markdown, juste l'accolade).",
-      messages: [
-        {
-          role: "user",
-          content: `Résume ce texte de loi ou compte-rendu parlementaire pour un lycéen. Produis un JSON strict ayant exactement cette structure et RIEN d'autre :
-{
-  "titre_simplifie": "string (max 15 mots)",
-  "resume_flash": "string (3 lignes max)",
-  "resume_detaille": "string (10-15 lignes)"
-}
-
-Texte brut :
-${content.substring(0, 15000)}` 
-        }
-      ]
-    });
-
-    const msgContent = response.content[0];
-    if (!msgContent) throw new Error("Anthropic response is empty");
-    let text = "";
-    if (msgContent.type === "text") {
-      text = msgContent.text;
-    }
-    
-    // Clean potential markdown wrap
-    text = text.trim();
-    if (text.startsWith("```json")) {
-      text = text.replace(/^```json/, '').replace(/```$/, '').trim();
-    }
-    
-    return JSON.parse(text);
-  } catch (error) {
-    if (retryCount < MAX_RETRIES - 1) {
-      const waitTime = Math.pow(2, retryCount) * 1000;
-      console.warn(`[AssembleePipeline] Anthropic error, retrying in ${waitTime}ms...`, error);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-      return generateSummaryWithRetry(content, retryCount + 1);
-    }
-    throw error;
-  }
-}
 
 export async function runAssembleePipeline() {
   console.log(`[AssembleePipeline] Starting run at ${new Date().toISOString()}`);
@@ -109,8 +54,38 @@ export async function runAssembleePipeline() {
           continue;
         }
 
-        // 4. Send to Anthropic
-        const summary = await generateSummaryWithRetry(cleanedText);
+        // 4. Send to DeepSeek
+        const response = await resilientDeepSeek.createMessage({
+          model: 'deepseek-v4-flash',
+          max_tokens: 1024,
+          system: "Tu es un journaliste pédagogue experte en politique française. Tu dois toujours répondre UNIQUEMENT avec un objet JSON (sans le bloc de code markdown, juste l'accolade).",
+          messages: [
+            {
+              role: 'user',
+              content: `Résume ce texte de loi ou compte-rendu parlementaire pour un lycéen. Produis un JSON strict ayant exactement cette structure et RIEN d'autre :
+{
+  "titre_simplifie": "string (max 15 mots)",
+  "resume_flash": "string (3 lignes max)",
+  "resume_detaille": "string (10-15 lignes)"
+}
+
+Texte brut :
+${cleanedText.substring(0, 15000)}`
+            }
+          ]
+        });
+
+        const msgContent = response.content[0];
+        if (!msgContent) throw new Error("DeepSeek response is empty");
+        let text = msgContent.text;
+        
+        // Clean potential markdown wrap
+        text = text.trim();
+        if (text.startsWith("```json")) {
+          text = text.replace(/^```json/, '').replace(/```$/, '').trim();
+        }
+        
+        const summary = JSON.parse(text);
 
         // 5. Insert into Supabase
         const { error: insertError } = await supabase.from('content').insert({

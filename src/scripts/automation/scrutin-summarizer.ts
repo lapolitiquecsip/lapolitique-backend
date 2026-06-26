@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
-import { resilientAnthropic } from '../../lib/anthropic-client.js';
+import { resilientDeepSeek } from '../../lib/deepseek-client.js';
 
 dotenv.config();
 
@@ -34,17 +34,13 @@ export async function summarizeScrutins() {
       try {
         console.log(`Processing: ${s.objet}`);
 
-        // Models available in 2026 - Optimized for this environment
-        const CLAUDE_MODELS = [
-          'claude-sonnet-4-6',
-          'claude-sonnet-4-6',
-          'claude-opus-4-20250514'
-        ];
+        // Try deepseek-v4-flash first, fall back to deepseek-v4-pro
+        const DEEPSEEK_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'];
 
         let success = false;
-        for (const model of CLAUDE_MODELS) {
+        for (const model of DEEPSEEK_MODELS) {
           try {
-            const response = await resilientAnthropic.createMessage({
+            const response = await resilientDeepSeek.createMessage({
               model: model,
               max_tokens: 1000,
               messages: [

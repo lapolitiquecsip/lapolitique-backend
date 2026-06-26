@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as cheerio from 'cheerio';
 import * as dotenv from 'dotenv';
 import path from 'path';
-import Anthropic from '@anthropic-ai/sdk';
+import { resilientDeepSeek } from '../../lib/deepseek-client.js';
 
 dotenv.config({ path: path.join(process.cwd(), '.env') });
 
@@ -10,10 +10,6 @@ const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
 
 async function generateBillAnalysis(bill: any, dossierHtml: string) {
   const $ = cheerio.load(dossierHtml);
@@ -41,8 +37,8 @@ Génère un JSON avec les champs suivants :
 
 Réponds UNIQUEMENT avec le JSON.`;
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+  const response = await resilientDeepSeek.createMessage({
+    model: "deepseek-v4-flash",
     max_tokens: 1500,
     messages: [{ role: "user", content: prompt }]
   });

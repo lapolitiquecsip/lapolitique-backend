@@ -1,5 +1,5 @@
 import { supabase } from '../../config/supabase.js';
-import { resilientAnthropic } from '../../lib/anthropic-client.js';
+import { resilientDeepSeek } from '../../lib/deepseek-client.js';
 import * as dotenv from 'dotenv';
 import crypto from 'crypto';
 import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
@@ -61,8 +61,8 @@ Sois percutant, précis et utilise des données réelles de la 17ème législatu
 Les couleurs doivent être obligatoirement des codes HEX, VIVES et suffisamment contrastées pour que le texte blanc soit lisible.`;
 
 
-    const response = await resilientAnthropic.createMessage({
-      model: "claude-sonnet-4-6",
+    const response = await resilientDeepSeek.createMessage({
+      model: "deepseek-v4-flash",
       max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
     });

@@ -1,29 +1,25 @@
-import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resilientDeepSeek } from '../lib/deepseek-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
-
 async function test() {
-  const models = ["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-8"];
+  const models = ['deepseek-v4-flash', 'deepseek-v4-pro'];
   
   for (const model of models) {
     try {
       console.log(`Testing model: ${model}...`);
-      const response = await anthropic.messages.create({
+      const response = await resilientDeepSeek.createMessage({
         model: model,
         max_tokens: 10,
-        messages: [{ role: "user", content: "Hi" }]
+        messages: [{ role: 'user', content: 'Hi' }]
       });
-      console.log(`✅ ${model} works!`);
+      console.log(`✅ ${model} works! Response: ${response.content[0]?.text}`);
     } catch (e: any) {
       console.log(`❌ ${model} failed: ${e.message}`);
     }

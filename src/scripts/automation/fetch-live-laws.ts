@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
-import { resilientAnthropic } from '../../lib/anthropic-client.js';
+import { resilientDeepSeek } from '../../lib/deepseek-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,8 +53,8 @@ Génère un JSON avec les champs suivants :
 Réponds UNIQUEMENT avec le JSON.`;
 
   try {
-    const response = await resilientAnthropic.createMessage({
-      model: "claude-sonnet-4-6",
+    const response = await resilientDeepSeek.createMessage({
+      model: "deepseek-v4-flash",
       max_tokens: 1500,
       messages: [{ role: "user", content: prompt }]
     });

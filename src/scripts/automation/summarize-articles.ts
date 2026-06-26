@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resilientDeepSeek } from '../../lib/deepseek-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,10 +13,6 @@ const supabase = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
 
 async function main() {
     console.log('--- START ARTICLE SUMMARIZATION ---');
@@ -40,8 +36,8 @@ async function main() {
         console.log(`\nProcessing: ${article.objet}`);
         
         try {
-            const response = await anthropic.messages.create({
-                model: 'claude-sonnet-4-6',
+            const response = await resilientDeepSeek.createMessage({
+                model: 'deepseek-v4-flash',
                 max_tokens: 300,
                 messages: [
                     {
@@ -73,7 +69,7 @@ Réponse :`
             }
 
         } catch (e: any) {
-            console.error(`Anthropic API Error:`, e.message);
+            console.error(`DeepSeek API Error:`, e.message);
         }
     }
 

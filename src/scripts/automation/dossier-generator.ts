@@ -1,14 +1,10 @@
 import { supabase } from '../../config/supabase.js';
-import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { logStart, logSuccess, logError } from '../../lib/monitoring.js';
+import { resilientDeepSeek } from '../../lib/deepseek-client.js';
 
 dotenv.config();
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
 
 const CATEGORIES = [
   "Économie",
@@ -99,15 +95,14 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
 `;
 
     try {
-      const msg = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
+      const msg = await resilientDeepSeek.createMessage({
+        model: "deepseek-v4-flash",
         max_tokens: 2500,
-        temperature: 0.3,
-        system: "Tu es un expert politique qui génère des JSON valides.",
+        system: "Tu es un expert politique qui génères des JSON valides.",
         messages: [{ role: "user", content: prompt }]
       });
 
-      const responseText = (msg.content[0] as any).text.trim();
+      const responseText = msg.content[0].text.trim();
       const jsonStart = responseText.indexOf('{');
       const jsonEnd = responseText.lastIndexOf('}');
       const jsonStr = responseText.substring(jsonStart, jsonEnd + 1);
@@ -139,8 +134,8 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
       }
 
     } catch (err: any) {
-      console.error(`Erreur avec Claude pour ${scrutin.objet}:`, err);
-      // Capture non-blocking individual Claude failure in Sentry
+      console.error(`Erreur avec DeepSeek pour ${scrutin.objet}:`, err);
+      // Capture non-blocking individual DeepSeek failure in Sentry
       import('@sentry/node').then(Sentry => {
         Sentry.captureException(err, { tags: { scrutin: scrutin.id, component: 'dossier-generator' } });
       });
