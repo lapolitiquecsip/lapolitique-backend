@@ -99,17 +99,14 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/subscribers', subscribersRoutes);
 app.use('/api/comparateur', comparateurRoutes);
 
-// Admin route to trigger pipeline manually
+// Admin route to trigger pipeline manually (fire-and-forget to avoid proxy timeout)
 app.post('/api/admin/run-pipeline', async (req, res) => {
   const { name } = req.query;
   if (name === 'assemblee') {
-    // Run async and return immediately (or wait, but better to await to send results back)
-    try {
-      const result = await runAssembleePipeline();
-      res.json({ message: 'Pipeline executed', result });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
+    res.json({ message: 'Pipeline started in background. Check Railway logs for progress.' });
+    runAssembleePipeline().catch((e: any) =>
+      console.error('[Admin] Pipeline error:', e.message)
+    );
   } else {
     res.status(400).json({ error: 'Unknown pipeline' });
   }
