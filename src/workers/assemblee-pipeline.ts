@@ -154,7 +154,7 @@ async function summarise(cleanedText: string, institution: string) {
 
   const response = await resilientDeepSeek.createMessage({
     model: 'deepseek-v4-flash',
-    max_tokens: 1200,
+    max_tokens: 2000,
     system: `Tu es un journaliste politique expert qui alimente un fil d'actu addictif pour des citoyens français curieux.
 
 TON OBJECTIF : chaque carte doit apprendre quelque chose de CONCRET à l'utilisateur. Pas de vague, pas de généralités.
@@ -190,8 +190,15 @@ Réponds UNIQUEMENT avec un objet JSON valide (sans bloc markdown) :
   });
 
   let text = response.content[0].text.trim();
+  // Strip markdown code fences if present
   if (text.startsWith('```')) {
     text = text.replace(/^```json?\n?/, '').replace(/```$/, '').trim();
+  }
+  // Robust JSON extraction: find outermost { ... } block
+  const jsonStart = text.indexOf('{');
+  const jsonEnd = text.lastIndexOf('}');
+  if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+    text = text.slice(jsonStart, jsonEnd + 1);
   }
   return JSON.parse(text);
 }
