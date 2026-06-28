@@ -173,12 +173,16 @@ export async function syncLiveLaws() {
     for (const bill of allBills) {
       const { data: existing } = await supabase
         .from('laws')
-        .select('id, content, timeline')
+        .select('id, content, timeline, summary')
         .eq('title', bill.title)
         .maybeSingle();
 
-      // Only process if new OR missing premium content OR status is placeholder
-      const needsAnalysis = !existing || !existing.content || existing.timeline === "Analyse du parcours législatif en cours...";
+      // Only process if new OR missing premium content OR status is placeholder OR has fallback/generic summary
+      const isGeneric = existing && (
+        existing.summary?.startsWith("Dossier législatif") ||
+        existing.content === "Détails du dossier disponibles sur le site de l'Assemblée nationale."
+      );
+      const needsAnalysis = !existing || !existing.content || existing.timeline === "Analyse du parcours législatif en cours..." || isGeneric;
       
       if (needsAnalysis) {
         if (insertedCount >= 100) {
