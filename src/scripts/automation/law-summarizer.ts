@@ -17,13 +17,16 @@ const supabase = createClient(
 async function summarizeLaws() {
   console.log('--- START LAW SUMMARIZATION ---');
 
+  const limit = parseInt(process.env.SUMMARIZE_LIMIT || '50', 10);
+  console.log(`> Using limit: ${limit}`);
+
   // Fetch laws that have generic summaries from the 17th legislature
   const { data: laws, error } = await supabase
     .from('laws')
     .select('id, title, summary')
     .ilike('summary', 'Dossier législatif n°DLR5L17%') // Find generic ones of current leg
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(limit);
 
   if (error) {
     console.error('Error fetching laws:', error);
