@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { resilientDeepSeek } from '../../lib/deepseek-client.js';
+import * as cheerio from 'cheerio';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,7 +24,7 @@ async function summarizeLaws() {
   // Fetch laws that have generic summaries from the 17th legislature
   const { data: laws, error } = await supabase
     .from('laws')
-    .select('id, title, summary')
+    .select('id, title, summary, source_urls')
     .ilike('summary', 'Dossier législatif n°DLR5L17%') // Find generic ones of current leg
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -39,6 +40,23 @@ async function summarizeLaws() {
     try {
       console.log(`Processing: ${l.title}`);
 
+      // Fetch extra context from official dossier URL for 10000% accurate summaries
+      let extraContext = "";
+      if (l.source_urls && l.source_urls[0]) {
+        try {
+          const resp = await fetch(l.source_urls[0]);
+          if (resp.ok) {
+            const html = await resp.text();
+            const $ = cheerio.load(html);
+            extraContext = $('.dossier-intro').text().trim() || 
+                           $('.expose-motifs').text().trim() || 
+                           $('body').text().replace(/\s+/g, ' ').substring(0, 3000);
+          }
+        } catch (e: any) {
+          console.warn(`  ⚠️ Could not fetch extra context: ${e.message}`);
+        }
+      }
+
       // Try deepseek-v4-flash first, fall back to deepseek-v4-pro
       const DEEPSEEK_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'];
 
@@ -52,9 +70,10 @@ async function summarizeLaws() {
               {
                 role: 'user',
                 content: `Analyse et résume ce projet/proposition de loi de l'Assemblée Nationale.
-                Sois simple, neutre et pédagogique.
+                Sois simple, neutre et pédagogique. Tu dois être extrêmement précis et te baser uniquement sur les informations fournies.
                 
-                Loi : ${l.title}
+                Titre de la loi : ${l.title}
+                ${extraContext ? `\nInformations extraites du dossier législatif :\n${extraContext.substring(0, 2500)}` : ''}
                 
                 Réponds au format JSON STRICT :
                 {
