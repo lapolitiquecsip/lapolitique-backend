@@ -38,7 +38,7 @@ async function generateBillAnalysis(bill: any, dossierHtml: string) {
   const prompt = `Tu es un expert en droit parlementaire français.
 Analyse ce projet ou proposition de loi :
 Titre : ${bill.title}
-Auteur : ${bill.author}
+Auteur (extrait basique) : ${bill.author}
 Type : ${bill.category}
 Extrait du dossier : ${introText.substring(0, 2000)}
 
@@ -49,6 +49,7 @@ Génère un JSON avec les champs suivants :
   MESURES PROPOSÉES : (pour détailler ce que le texte propose concrètement, avec des retours à la ligne pour chaque mesure).
   Sois technique et exhaustif, inclus tous les chiffres clés.
 - status: L'état d'avancement actuel (ex: "En commission", "Adopté en 1ère lecture", etc. basé sur ${status}).
+- author: L'initiateur exact du texte (ex: "Le Gouvernement" pour un projet de loi, ou le nom du député/sénateur pour une proposition). Si tu le trouves dans le texte, utilise-le, sinon garde "${bill.author}".
 
 Réponds UNIQUEMENT avec le JSON.`;
 
@@ -201,6 +202,7 @@ export async function syncLiveLaws() {
         if (analysis) {
           const billToSync = {
             ...bill,
+            author: analysis.author || bill.author,
             summary: analysis.summary,
             content: analysis.premium_summary, // We use 'content' for premium
             timeline: analysis.status,         // We use 'timeline' for status
