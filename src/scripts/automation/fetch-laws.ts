@@ -46,7 +46,7 @@ export async function syncLawsAN() {
   console.log(`> Checking database for existing laws (${titlesInFolder.size} unique titles)...`);
   const existingTitles = new Set<string>();
   const titlesArray = Array.from(titlesInFolder);
-  const chunkSize = 500;
+  const chunkSize = 50;
 
   for (let i = 0; i < titlesArray.length; i += chunkSize) {
     const chunk = titlesArray.slice(i, i + chunkSize);
@@ -98,7 +98,7 @@ export async function syncLawsAN() {
       source_urls: [`https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${uid}`]
     };
 
-    if (updatedCount < 100) {
+    if (updatedCount < 5000) {
       const { error } = await supabase
         .from('laws')
         .insert(law);
