@@ -171,11 +171,14 @@ export async function syncLiveLaws() {
     console.log(`\n> Analyzing up to ${Math.min(allBills.length, 100)} newest bills...`);
 
     for (const bill of allBills) {
-      const { data: existing } = await supabase
+      const { data: existingRows } = await supabase
         .from('laws')
         .select('id, content, timeline, summary')
         .eq('title', bill.title)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      const existing = existingRows && existingRows.length > 0 ? existingRows[0] : null;
 
       // Only process if new OR missing premium content OR status is placeholder OR has fallback/generic summary
       const isGeneric = existing && (

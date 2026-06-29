@@ -27,10 +27,45 @@ export async function syncLawsAN() {
     return;
   }
 
-  const { data: existingLaws } = await supabase.from('laws').select('title');
-  const existingTitles = new Set(existingLaws?.map((l: any) => l.title) || []);
-
   const files = fs.readdirSync(entriesDir);
+  console.log(`> Extracting titles from ${files.length} folders...`);
+
+  const titlesInFolder = new Set<string>();
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue;
+    try {
+      const raw = fs.readFileSync(path.join(entriesDir, file), 'utf8');
+      const dossier = JSON.parse(raw).dossierParlementaire;
+      if (dossier) {
+        const title = dossier.titreDossier?.titre || dossier.libelle || "Titre inconnu";
+        titlesInFolder.add(title.trim());
+      }
+    } catch (e) {}
+  }
+
+  console.log(`> Checking database for existing laws (${titlesInFolder.size} unique titles)...`);
+  const existingTitles = new Set<string>();
+  const titlesArray = Array.from(titlesInFolder);
+  const chunkSize = 500;
+
+  for (let i = 0; i < titlesArray.length; i += chunkSize) {
+    const chunk = titlesArray.slice(i, i + chunkSize);
+    const { data: existing, error } = await supabase
+      .from('laws')
+      .select('title')
+      .in('title', chunk);
+    
+    if (error) {
+      console.error('Error checking existing titles:', error.message);
+    }
+    
+    if (existing) {
+      for (const row of existing) {
+        existingTitles.add(row.title.trim());
+      }
+    }
+  }
+
   console.log(`> Processing ${files.length} legislative folders...`);
 
   let updatedCount = 0;
@@ -45,7 +80,7 @@ export async function syncLawsAN() {
 
     const title = dossier.titreDossier?.titre || dossier.libelle || "Titre inconnu";
     
-    if (existingTitles.has(title)) continue; // Skip existing laws quickly
+    if (existingTitles.has(title.trim())) continue; // Skip existing laws quickly
 
     const category = dossier.procedureParlementaire?.libelle || 'Législation';
     const uid = dossier.uid;

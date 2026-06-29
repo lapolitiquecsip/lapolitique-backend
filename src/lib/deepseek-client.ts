@@ -73,7 +73,7 @@ export class ResilientDeepSeek {
 
   constructor() {
     this.client = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY || '',
+      apiKey: process.env.DEEPSEEK_API_KEY || 'dummy-key-for-compilation',
       baseURL: 'https://api.deepseek.com',
     });
   }
