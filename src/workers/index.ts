@@ -3,6 +3,7 @@ import { fetchAndParseVotes } from '../scripts/automation/fetch-votes.js';
 import { generateDossiers } from '../scripts/automation/dossier-generator.js';
 import { syncLawsAN } from '../scripts/automation/fetch-laws.js';
 import { syncLiveLaws } from '../scripts/automation/fetch-live-laws.js';
+import { summarizeLaws } from '../scripts/automation/law-summarizer.js';
 import * as Sentry from '@sentry/node';
 
 export function startWorkers() {
@@ -20,7 +21,8 @@ export function startWorkers() {
       { name: 'fetchAndParseVotes', fn: fetchAndParseVotes },
       { name: 'generateDossiers', fn: generateDossiers },
       { name: 'syncLawsAN', fn: syncLawsAN },
-      { name: 'syncLiveLaws', fn: syncLiveLaws }
+      { name: 'syncLiveLaws', fn: syncLiveLaws },
+      { name: 'summarizeLaws', fn: summarizeLaws }
     ];
 
     for (const task of tasks) {

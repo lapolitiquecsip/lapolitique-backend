@@ -15,7 +15,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
-async function summarizeLaws() {
+export async function summarizeLaws() {
   console.log('--- START LAW SUMMARIZATION ---');
 
   const limit = parseInt(process.env.SUMMARIZE_LIMIT || '50', 10);
@@ -127,4 +127,6 @@ async function summarizeLaws() {
   console.log('--- END LAW SUMMARIZATION ---');
 }
 
-summarizeLaws();
+if (process.argv[1] && (process.argv[1].endsWith('law-summarizer.ts') || process.argv[1].endsWith('law-summarizer.js'))) {
+  summarizeLaws().catch(console.error);
+}
