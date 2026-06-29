@@ -85,6 +85,9 @@ export async function syncLawsAN() {
     const category = dossier.procedureParlementaire?.libelle || 'Législation';
     const uid = dossier.uid;
 
+    // ONLY import dossiers from the 17th legislature
+    if (!uid || !uid.startsWith('DLR5L17')) continue;
+
     const law = {
       title,
       summary: `Dossier législatif n°${uid}. Ce document regroupe l'ensemble des étapes et actes relatifs à cette proposition ou ce projet de loi.`,
