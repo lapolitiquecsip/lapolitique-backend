@@ -21,6 +21,19 @@ export async function syncLawsAN() {
   try {
     await downloadAndUnzip(LAWS_URL, DATA_DIR);
 
+    // Load all deputies to build a map of an_id -> full name
+    const { data: dbDeputies } = await supabase
+      .from('deputies')
+      .select('an_id, first_name, last_name');
+    const deputyMap = new Map<string, string>();
+    if (dbDeputies) {
+      for (const d of dbDeputies) {
+        if (d.an_id) {
+          deputyMap.set(d.an_id.trim(), `${d.first_name} ${d.last_name}`);
+        }
+      }
+    }
+
   const entriesDir = path.join(DATA_DIR, 'json/dossierParlementaire');
   if (!fs.existsSync(entriesDir)) {
     console.error('Error: json/dossier directory not found in zip.');
@@ -88,6 +101,30 @@ export async function syncLawsAN() {
     // ONLY import dossiers from the 17th legislature
     if (!uid || !uid.startsWith('DLR5L17')) continue;
 
+    // Parse the author(s) from JSON
+    let author = category.toLowerCase().includes('projet') ? 'Le Gouvernement' : 'Député(s)';
+    const init = dossier.initiateur;
+    if (init && init.acteurs) {
+      const acteurs = init.acteurs.acteur;
+      const actorRefs: string[] = [];
+      
+      if (Array.isArray(acteurs)) {
+        for (const act of acteurs) {
+          if (act.acteurRef) actorRefs.push(act.acteurRef.trim());
+        }
+      } else if (acteurs && acteurs.acteurRef) {
+        actorRefs.push(acteurs.acteurRef.trim());
+      }
+      
+      const authorNames = actorRefs
+        .map(ref => deputyMap.get(ref))
+        .filter(Boolean) as string[];
+        
+      if (authorNames.length > 0) {
+        author = authorNames.join(', ');
+      }
+    }
+
     const law = {
       title,
       summary: `Dossier législatif n°${uid}. Ce document regroupe l'ensemble des étapes et actes relatifs à cette proposition ou ce projet de loi.`,
@@ -95,6 +132,7 @@ export async function syncLawsAN() {
       content: "Détails du dossier disponibles sur le site de l'Assemblée nationale.",
       impact: "À évaluer suite aux débats parlementaires.",
       category: category,
+      author: author,
       source_urls: [`https://www.assemblee-nationale.fr/dyn/17/dossiers_legislatifs/${uid}`]
     };
 

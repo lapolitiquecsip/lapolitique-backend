@@ -85,6 +85,45 @@ export async function syncLiveLaws() {
   let insertedCount = 0;
 
   try {
+    // 1. Load all deputies from DB for name-matching
+    const { data: dbDeputies } = await supabase
+      .from('deputies')
+      .select('first_name, last_name');
+    const deputyNames = dbDeputies?.map(d => `${d.first_name} ${d.last_name}`) || [];
+
+    // 2. Load all existing laws for duplicate check cache
+    const existingLaws: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from('laws')
+        .select('id, title, source_urls, content, timeline, summary, author')
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      existingLaws.push(...data);
+      if (data.length < pageSize) break;
+      page++;
+    }
+    
+    const lawMapByUrl = new Map<string, any>();
+    const lawMapByTitle = new Map<string, any>();
+    
+    if (existingLaws) {
+      for (const row of existingLaws) {
+        if (row.title) {
+          lawMapByTitle.set(row.title.trim(), row);
+        }
+        if (row.source_urls) {
+          for (const url of row.source_urls) {
+            lawMapByUrl.set(url.trim(), row);
+          }
+        }
+      }
+    }
+
     for (const source of SOURCES) {
       console.log(`\n> Scraping ${source.category} from: ${source.url}`);
       const response = await fetch(source.url);
@@ -129,9 +168,26 @@ export async function syncLiveLaws() {
           if (authorLink.length > 0) {
             author = authorLink.text().trim();
           } else {
-            // 2. Fallback to subtitle parsing with refined regex
-            const authorMatch = subtitle.match(/(?:de loi organique de|de loi de)\s+([^,]+?)(?:\s+et plusieurs|\s+relative|\s+visant|\s+déposée|$)/i);
-            author = authorMatch ? authorMatch[1].trim() : "Député(s)";
+            // 2. Try to match name from subtitle text using regex
+            const authorMatch = subtitle.match(/(?:proposition de loi|projet de loi)[^]*? de (?:M\.|Mme|MM\.|Mmes)?\s*([^,]+?)(?:\s+et plusieurs|\s+visant|\s+relative|\s+tendant|\s+relativement|\s+déposée|$)/i);
+            if (authorMatch) {
+              author = authorMatch[1].trim();
+            } else {
+              author = "Député(s)";
+            }
+          }
+
+          // 3. Scan subtitle for known deputy names as a fallback
+          if (!author || author === 'Député(s)') {
+            const matchedDeputies: string[] = [];
+            for (const name of deputyNames) {
+              if (subtitle.toLowerCase().includes(name.toLowerCase())) {
+                matchedDeputies.push(name);
+              }
+            }
+            if (matchedDeputies.length > 0) {
+              author = matchedDeputies.join(', ');
+            }
           }
         }
 
@@ -171,21 +227,17 @@ export async function syncLiveLaws() {
     console.log(`\n> Analyzing up to ${Math.min(allBills.length, 100)} newest bills...`);
 
     for (const bill of allBills) {
-      const { data: existingRows } = await supabase
-        .from('laws')
-        .select('id, content, timeline, summary')
-        .eq('title', bill.title)
-        .order('created_at', { ascending: false })
-        .limit(1);
+      const urlKey = bill.source_urls[0].trim();
+      const titleKey = bill.title.trim();
+      const existing = lawMapByUrl.get(urlKey) || lawMapByTitle.get(titleKey);
       
-      const existing = existingRows && existingRows.length > 0 ? existingRows[0] : null;
-
-      // Only process if new OR missing premium content OR status is placeholder OR has fallback/generic summary
+      // Only process if new OR missing premium content OR status is placeholder OR has fallback/generic summary OR has a generic author
       const isGeneric = existing && (
         existing.summary?.startsWith("Dossier législatif") ||
         existing.content === "Détails du dossier disponibles sur le site de l'Assemblée nationale."
       );
-      const needsAnalysis = !existing || !existing.content || existing.timeline === "Analyse du parcours législatif en cours..." || isGeneric;
+      const isGenericAuthor = !existing || !existing.author || existing.author === 'Député(s)' || existing.author === 'Non spécifié';
+      const needsAnalysis = !existing || !existing.content || existing.timeline === "Analyse du parcours législatif en cours..." || isGeneric || (bill.category === 'Proposition de loi' && isGenericAuthor);
       
       if (needsAnalysis) {
         if (insertedCount >= 100) {
@@ -228,9 +280,13 @@ export async function syncLiveLaws() {
         } else {
           // Fallback if AI fails
           const { published_at, ...billToSync } = bill;
-          if (!existing) {
+          if (existing) {
+            await supabase.from('laws').update(billToSync).eq('id', existing.id);
+            console.log("  ✅ Updated with fallback data");
+          } else {
             await supabase.from('laws').insert(billToSync);
             insertedCount++;
+            console.log("  ✅ Inserted with fallback data");
           }
         }
       }
