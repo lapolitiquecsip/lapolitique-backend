@@ -10,12 +10,26 @@ const PROMPT_VERSION = "legislative-v1";
 
 export async function summarizeLegislativeDossiers() {
   return trackLegislativeSync("legislative_summaries", async () => {
-  const { data: dossiers, error } = await supabase.from("legislative_dossiers")
-    .select("id,title,text_type,author_name,category,status_label,current_chamber,source_urls,source_hash")
-    .order("latest_step_at", { ascending: false, nullsFirst: false }).limit(50);
-  if (error) throw error;
+  const fields = "id,title,text_type,author_name,category,status_label,current_chamber,source_urls,source_hash";
+  const { data: promulgatedLinks, error: promulgatedError } = await supabase.from("promulgated_laws").select("dossier_id");
+  if (promulgatedError) throw promulgatedError;
+  const promulgatedIds = (promulgatedLinks ?? []).map(row => row.dossier_id);
+  const { data: publicActive, error: publicActiveError } = await supabase.rpc("public_legislative_dossiers", { p_limit: 50 });
+  if (publicActiveError) throw publicActiveError;
+  const activeIds = (publicActive ?? []).map((row: any) => row.id);
+  const [promulgatedResult, activeResult] = await Promise.all([
+    promulgatedIds.length
+      ? supabase.from("legislative_dossiers").select(fields).in("id", promulgatedIds)
+      : Promise.resolve({ data: [], error: null }),
+    activeIds.length
+      ? supabase.from("legislative_dossiers").select(fields).in("id", activeIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (promulgatedResult.error) throw promulgatedResult.error;
+  if (activeResult.error) throw activeResult.error;
+  const dossiers = [...new Map([...(promulgatedResult.data ?? []), ...(activeResult.data ?? [])].map(dossier => [dossier.id, dossier])).values()];
   let generated = 0;
-  for (const dossier of dossiers ?? []) {
+  for (const dossier of dossiers) {
     const [stepsResult, amendmentsResult, scrutinsResult] = await Promise.all([
       supabase.from("legislative_steps").select("step_label,chamber,occurred_at,source_url,source_hash").eq("dossier_id", dossier.id).order("sequence").limit(100),
       supabase.from("legislative_amendments").select("number,author_name,subject,outcome_label,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(100),
@@ -38,6 +52,7 @@ export async function summarizeLegislativeDossiers() {
     try {
       const response = await resilientDeepSeek.createMessage({
         model: "deepseek-v4-flash", max_tokens: 1800,
+        responseFormat: "json_object",
         system: `Tu rédiges uniquement une analyse éditoriale à partir des faits officiels fournis. N'invente aucun auteur, statut, date, vote, montant ou mesure. Si les faits sont insuffisants, indique clairement les limites. Réponds en JSON strict avec public_summary (2-3 phrases) et premium_summary (analyse structurée détaillée).`,
         messages: [{ role: "user", content: JSON.stringify(officialFacts) }],
       });

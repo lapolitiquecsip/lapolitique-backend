@@ -138,5 +138,5 @@ app.post('/api/admin/seed', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
-  startWorkers(); // Re-enabled after indexing
+  if (process.env.DISABLE_WORKERS !== 'true') startWorkers();
 });

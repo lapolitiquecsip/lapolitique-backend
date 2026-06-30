@@ -15,6 +15,8 @@ const DEPARTMENTS_INDICATORS = JSON.parse(fs.readFileSync(indicatorsPath, 'utf8'
 
 const communesIndicatorsPath = path.resolve(__dirname, '../data/communes_indicators.json');
 const COMMUNES_INDICATORS = JSON.parse(fs.readFileSync(communesIndicatorsPath, 'utf8'));
+const regionsIndicatorsPath = path.resolve(__dirname, '../data/regions_indicators.json');
+const REGIONS_INDICATORS = JSON.parse(fs.readFileSync(regionsIndicatorsPath, 'utf8'));
 
 const REGIONS = [
   {
@@ -804,7 +806,7 @@ router.get('/:codeInsee', async (req, res) => {
   // Check in REGIONS
   const region = REGIONS.find(r => r.id === codeInsee);
   if (region) {
-    return res.json({ ...region, type: 'region' });
+    return res.json({ ...region, ...REGIONS_INDICATORS[codeInsee], type: 'region', isEstimated: false });
   }
 
   // Check in DEPARTMENTS
