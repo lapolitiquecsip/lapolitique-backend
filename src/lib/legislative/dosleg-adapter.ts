@@ -9,7 +9,7 @@ export async function parseDoslegDump(lines: AsyncIterable<string>, since = "202
   const positions = new Map<string, string>();
   const scrutins = new Map<string, any>();
   const urls = new Map<string, string>();
-  const votes: Array<{ key: string; senatorId: string; positionCode: string }> = [];
+  const votes = new Map<string, Array<{ senatorId: string; positionCode: string }>>();
   let table: string | null = null;
   for await (const rawLine of lines) {
     const line = rawLine.replace(/\r$/, "");
@@ -24,7 +24,14 @@ export async function parseDoslegDump(lines: AsyncIterable<string>, since = "202
       const voterCount = integer(fields[7]); const expressed = integer(fields[8]);
       scrutins.set(key(fields[0], fields[1]), { session: fields[0], number: fields[1], title: fields[3] ?? "Scrutin public", votedAt: fields[4], forCount: integer(fields[5]), againstCount: integer(fields[6]), abstainCount: Math.max(0, voterCount - expressed), resultLabel: fields[15] ?? "" });
     } else if (table === "corscr" && fields[0] && fields[1] && fields[4]) urls.set(key(fields[0], fields[1]), fields[4]);
-    else if (table === "votsen" && fields[0] && fields[1] && fields[2] && fields[3]) votes.push({ key: key(fields[0], fields[1]), senatorId: fields[2], positionCode: fields[3] });
+    else if (table === "votsen" && fields[0] && fields[1] && fields[2] && fields[3]) {
+      const scrutinKey = key(fields[0], fields[1]);
+      if (scrutins.has(scrutinKey)) {
+        const scrutinVotes = votes.get(scrutinKey) ?? [];
+        scrutinVotes.push({ senatorId: fields[2], positionCode: fields[3] });
+        votes.set(scrutinKey, scrutinVotes);
+      }
+    }
   }
   const mapPosition = (code: string) => {
     const label = (positions.get(code) ?? code).toLowerCase();
@@ -34,7 +41,7 @@ export async function parseDoslegDump(lines: AsyncIterable<string>, since = "202
     return "non_voting";
   };
   return [...scrutins.entries()].map(([scrutinKey, scrutin]) => {
-    const scrutinVotes = votes.filter(vote => vote.key === scrutinKey).map(vote => ({ voterOfficialId: vote.senatorId, voterName: senators.get(vote.senatorId)?.name ?? vote.senatorId, groupCode: senators.get(vote.senatorId)?.groupCode ?? null, position: mapPosition(vote.positionCode) }));
+    const scrutinVotes = (votes.get(scrutinKey) ?? []).map(vote => ({ voterOfficialId: vote.senatorId, voterName: senators.get(vote.senatorId)?.name ?? vote.senatorId, groupCode: senators.get(vote.senatorId)?.groupCode ?? null, position: mapPosition(vote.positionCode) }));
     const groups = new Map<string, { groupCode: string; forCount: number; againstCount: number; abstainCount: number; nonVotingCount: number }>();
     for (const vote of scrutinVotes) {
       if (!vote.groupCode) continue;
