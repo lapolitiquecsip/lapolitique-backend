@@ -6,17 +6,20 @@ import { fileURLToPath } from "node:url";
 import { extract } from "tar";
 import { supabase } from "../../config/supabase.js";
 import { parseJorfXml } from "../../lib/legislative/jorf-adapter.js";
-import { promoteFromJorf, stableHash, type NormalizedDossier } from "../../lib/legislative/normalization.js";
+import { selectJorfArchiveUrls } from "../../lib/legislative/jorf-archives.js";
+import { legislativeTitleMatchScore, promoteFromJorf, stableHash, type NormalizedDossier } from "../../lib/legislative/normalization.js";
 
 const DIRECTORY_URL = "https://echanges.dila.gouv.fr/OPENDATA/JORFSIMPLE/";
 
-async function latestArchiveUrl() {
+async function archiveUrls(year?: number) {
   const response = await fetch(DIRECTORY_URL, { signal: AbortSignal.timeout(30_000) });
   if (!response.ok) throw new Error(`DILA archive index HTTP ${response.status}`);
-  const matches = [...(await response.text()).matchAll(/href="(JORFSIMPLE_\d{8}-\d{6}\.tar\.gz)"/g)].map(match => match[1]);
-  const latest = matches.sort().at(-1);
-  if (!latest) throw new Error("No JORFSIMPLE archive found in the DILA directory");
-  return new URL(latest, DIRECTORY_URL).toString();
+  const urls = selectJorfArchiveUrls(await response.text(), DIRECTORY_URL, year ? {
+    year,
+    through: new Date().toISOString().slice(0, 10),
+  } : {});
+  if (!urls.length) throw new Error(`No JORFSIMPLE archive found${year ? ` for ${year}` : ""}`);
+  return urls;
 }
 
 async function xmlFiles(directory: string): Promise<string[]> {
@@ -29,18 +32,48 @@ async function xmlFiles(directory: string): Promise<string[]> {
   return nested.flat();
 }
 
-export async function syncJorf() {
+async function recordsFromArchive(archiveUrl: string, root: string) {
+  const archiveDirectory = await fs.mkdtemp(path.join(root, "archive-"));
+  const archive = path.join(archiveDirectory, "jorf.tar.gz");
+  try {
+    const response = await fetch(archiveUrl, { signal: AbortSignal.timeout(60_000) });
+    if (!response.ok) throw new Error(`DILA archive HTTP ${response.status}: ${archiveUrl}`);
+    await fs.writeFile(archive, Buffer.from(await response.arrayBuffer()));
+    await extract({ file: archive, cwd: archiveDirectory, filter: entryPath => /JORFTEXT.*\.xml$/.test(entryPath) });
+    return (await Promise.all((await xmlFiles(archiveDirectory)).map(async file => parseJorfXml(await fs.readFile(file, "utf8")))))
+      .filter((record): record is NonNullable<typeof record> => record !== null);
+  } finally {
+    await fs.rm(archiveDirectory, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+  }
+}
+
+async function mapConcurrent<T, R>(values: T[], concurrency: number, mapper: (value: T, index: number) => Promise<R>) {
+  const results = new Array<R>(values.length);
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, async () => {
+    while (cursor < values.length) {
+      const index = cursor++;
+      results[index] = await mapper(values[index], index);
+    }
+  }));
+  return results;
+}
+
+export async function syncJorf(options: { year?: number } = {}) {
   const { data: run, error: runError } = await supabase.from("legislative_sync_runs").insert({ pipeline: "jorf", status: "running" }).select("id").single();
   if (runError) throw runError;
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "lapolitique-jorf-"));
   try {
-    const archiveUrl = await latestArchiveUrl();
-    const archive = path.join(temp, "jorf.tar.gz");
-    const response = await fetch(archiveUrl, { signal: AbortSignal.timeout(60_000) });
-    if (!response.ok) throw new Error(`DILA archive HTTP ${response.status}`);
-    await fs.writeFile(archive, Buffer.from(await response.arrayBuffer()));
-    await extract({ file: archive, cwd: temp, filter: entryPath => /JORFTEXT.*\.xml$/.test(entryPath) });
-    const records = (await Promise.all((await xmlFiles(temp)).map(async file => parseJorfXml(await fs.readFile(file, "utf8"))))).filter((record): record is NonNullable<typeof record> => record !== null);
+    const urls = await archiveUrls(options.year);
+    const archiveRecords = await mapConcurrent(urls, 6, async (archiveUrl, index) => {
+      const records = await recordsFromArchive(archiveUrl, temp);
+      if (options.year && ((index + 1) % 25 === 0 || index + 1 === urls.length)) {
+        console.log(`JORF backfill: ${index + 1}/${urls.length} archives inspected.`);
+      }
+      return records;
+    });
+    const records = [...new Map(archiveRecords.flat().map(record => [record.jorfId, record])).values()]
+      .filter(record => !options.year || record.publishedAt.startsWith(String(options.year)));
 
     const rows: any[] = [];
     const pageSize = 1_000;
@@ -75,7 +108,11 @@ export async function syncJorf() {
 
     let promotedCount = 0;
     for (const record of records) {
-      const match = dossiers.map(dossier => ({ dossier, promotion: promoteFromJorf(dossier, record) })).find(value => value.promotion);
+      const match = dossiers
+        .map(dossier => ({ dossier, score: legislativeTitleMatchScore(dossier.title, record.title), promotion: promoteFromJorf(dossier, record) }))
+        .filter(value => value.promotion)
+        .sort((a, b) => b.score - a.score
+          || Number(b.dossier.officialId.startsWith("DLR5L17")) - Number(a.dossier.officialId.startsWith("DLR5L17")))[0];
       await supabase.from("legislative_source_records").upsert({ provider: "DILA", record_type: "jorf_law", official_id: record.jorfId, source_url: record.sourceUrl, source_updated_at: record.publishedAt, source_hash: stableHash(record), raw_excerpt: record }, { onConflict: "provider,record_type,official_id,source_hash" });
       if (!match?.promotion) continue;
       const promotion = match.promotion;
@@ -94,17 +131,38 @@ export async function syncJorf() {
       await supabase.from("legislative_dossiers").update({ status_code: "promulgated", status_label: "Promulguée", current_chamber: "JORF", updated_at: new Date().toISOString() }).eq("id", match.dossier.id);
       promotedCount++;
     }
-    await supabase.from("legislative_sync_runs").update({ status: "success", finished_at: new Date().toISOString(), processed_count: records.length, details: { archiveUrl, promotedCount } }).eq("id", run.id);
+    const [{ data: promotedDossiers, error: promotedError }, { data: linkedLaws, error: linkedError }] = await Promise.all([
+      supabase.from("legislative_dossiers").select("id").eq("status_code", "promulgated"),
+      supabase.from("promulgated_laws").select("dossier_id"),
+    ]);
+    if (promotedError) throw promotedError;
+    if (linkedError) throw linkedError;
+    const linkedIds = new Set((linkedLaws ?? []).map(row => row.dossier_id));
+    const orphanIds = (promotedDossiers ?? []).map(row => row.id).filter(id => !linkedIds.has(id));
+    for (let offset = 0; offset < orphanIds.length; offset += 50) {
+      const { error } = await supabase.from("legislative_dossiers").update({
+        status_code: "awaiting_jorf_verification",
+        status_label: "Publication JORF à vérifier",
+        updated_at: new Date().toISOString(),
+      }).in("id", orphanIds.slice(offset, offset + 50));
+      if (error) throw error;
+    }
+    await supabase.from("legislative_sync_runs").update({ status: "success", finished_at: new Date().toISOString(), processed_count: records.length, details: { archiveCount: urls.length, year: options.year ?? null, promotedCount } }).eq("id", run.id);
     console.log(`JORF: ${records.length} laws inspected, ${promotedCount} dossiers promoted.`);
     return { records: records.length, promoted: promotedCount };
   } catch (error: any) {
     await supabase.from("legislative_sync_runs").update({ status: "failed", finished_at: new Date().toISOString(), error_count: 1, details: { error: error.message } }).eq("id", run.id);
     throw error;
   } finally {
-    await fs.rm(temp, { recursive: true, force: true });
+    await fs.rm(temp, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
   }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  syncJorf().catch(error => { console.error(error); process.exitCode = 1; });
+  const yearArgument = process.argv.find(argument => argument.startsWith("--year="));
+  const year = yearArgument ? Number(yearArgument.slice("--year=".length)) : undefined;
+  if (yearArgument && (!Number.isInteger(year) || year! < 1990 || year! > new Date().getUTCFullYear())) {
+    throw new Error(`Invalid JORF backfill year: ${yearArgument}`);
+  }
+  syncJorf({ year }).catch(error => { console.error(error); process.exitCode = 1; });
 }

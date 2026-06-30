@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import type { JorfRecord } from "./normalization.js";
 
-const parser = new XMLParser({ ignoreAttributes: false, trimValues: true });
+const parser = new XMLParser({ ignoreAttributes: false, trimValues: true, processEntities: false });
 
 export function parseJorfXml(xml: string): (JorfRecord & { jorfId: string }) | null {
   const text = parser.parse(xml)?.TEXTE;

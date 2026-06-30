@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   classifyLegislativeText,
+  legislativeTitleMatchScore,
   normalizeDossier,
   promoteFromJorf,
 } from "../../src/lib/legislative/normalization.js";
@@ -58,4 +59,20 @@ test("matches a JORF title containing its legal prefix and footnote", () => {
     publishedAt: "2026-06-30",
     sourceUrl: "https://legifrance.gouv.fr",
   }));
+});
+
+test("matches AN project/proposal prefixes with their enacted JORF title", () => {
+  assert.ok(legislativeTitleMatchScore(
+    "Projet de loi de finances pour 2026",
+    "LOI n° 2026-103 du 19 février 2026 de finances pour 2026 (1)",
+  ) >= 0.5);
+  assert.ok(legislativeTitleMatchScore(
+    "Proposition de loi relative à la confidentialité des consultations des juristes d’entreprise",
+    "LOI n° 2026-122 du 23 février 2026 relative à la confidentialité des consultations des juristes d'entreprise (1)",
+  ) >= 0.5);
+  assert.ok(legislativeTitleMatchScore(
+    "Projet de loi relatif à la restitution de biens culturels provenant d’États qui, du fait d’une appropriation illicite, en ont été privés",
+    "LOI n° 2026-351 du 9 mai 2026 relatif à la restitution de biens culturels ayant fait l'objet d'une appropriation illicite (1)",
+  ) >= 0.5);
+  assert.ok(legislativeTitleMatchScore("Projet de loi de finances", "Loi relative au logement") < 0.5);
 });

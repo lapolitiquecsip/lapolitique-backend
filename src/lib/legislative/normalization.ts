@@ -97,12 +97,32 @@ function normalizeForMatch(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\W+/g, " ").trim();
 }
 
+function canonicalLegislativeTitle(value: string): string {
+  return normalizeForMatch(value)
+    .replace(/^loi(?: organique)? n [0-9 -]+ du [0-9]+ [a-z]+ [0-9]+ /, "")
+    .replace(/^(?:projet|proposition) de loi(?: organique)? /, "")
+    .replace(/^(?:visant|tendant) a /, "")
+    .replace(/^relati(?:f|ve) a /, "")
+    .replace(/^(?:portant|autorisant|facilitant) /, "")
+    .replace(/ [0-9]+$/, "")
+    .trim();
+}
+
+export function legislativeTitleMatchScore(left: string, right: string): number {
+  const a = canonicalLegislativeTitle(left);
+  const b = canonicalLegislativeTitle(right);
+  if (a === b || a.includes(b) || b.includes(a)) return 1;
+  const ignored = new Set(["a", "au", "aux", "de", "des", "du", "d", "et", "en", "la", "le", "les", "l", "pour", "par", "sur", "un", "une"]);
+  const tokensA = new Set(a.split(" ").filter(token => token.length > 1 && !ignored.has(token)));
+  const tokensB = new Set(b.split(" ").filter(token => token.length > 1 && !ignored.has(token)));
+  if (!tokensA.size || !tokensB.size) return 0;
+  const common = [...tokensA].filter(token => tokensB.has(token)).length;
+  return (2 * common) / (tokensA.size + tokensB.size);
+}
+
 export function promoteFromJorf(dossier: NormalizedDossier, record: JorfRecord) {
   if (record.nature.toUpperCase() !== "LOI") return null;
-  const a = normalizeForMatch(dossier.title);
-  const b = normalizeForMatch(record.title);
-  const titleMatches = a === b || a.includes(b) || b.includes(a);
-  if (!titleMatches) return null;
+  if (legislativeTitleMatchScore(dossier.title, record.title) < 0.5) return null;
   return {
     dossierOfficialId: dossier.officialId,
     jorfNor: record.nor,
