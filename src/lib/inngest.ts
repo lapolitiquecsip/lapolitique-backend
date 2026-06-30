@@ -9,6 +9,7 @@ import { main as fetchSenatAgenda } from '../scripts/automation/fetch-senat-agen
 import { main as fetchElyseeAgenda } from '../scripts/automation/fetch-elysee-agenda.js';
 import { main as summarizeDailySenat } from '../scripts/automation/summarize-daily-senat.js';
 import { generateWeeklyStats } from '../scripts/automation/generate-weekly-stats.js';
+import { syncDeputyStats } from '../scripts/automation/fetch-deputy-stats.js';
 
 export const inngest = new Inngest({ id: 'lapolitique-backend' });
 
@@ -138,6 +139,22 @@ export const generateDossiersFn = inngest.createFunction(
   },
   async () => {
     await generateDossiers();
+    return { success: true };
+  }
+);
+
+// 8. Daily Deputy Stats Sync from data.gouv.fr
+export const syncDeputyStatsFn = inngest.createFunction(
+  {
+    id: 'sync-deputy-stats',
+    triggers: [
+      { cron: '0 4 * * *' }, // Daily at 04:00 UTC
+      { event: 'cron/sync-deputy-stats' }
+    ],
+    retries: 3
+  },
+  async () => {
+    await syncDeputyStats();
     return { success: true };
   }
 );
