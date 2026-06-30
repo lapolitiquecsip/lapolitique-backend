@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { classifyLegislativeText, stableHash } from "./normalization.js";
 
-const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, trimValues: true });
+const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, trimValues: true, processEntities: false });
 const array = <T>(value: T | T[] | null | undefined): T[] => value == null ? [] : Array.isArray(value) ? value : [value];
 
 export function parseSenateText(xml: string, sourceUpdatedAt: string) {

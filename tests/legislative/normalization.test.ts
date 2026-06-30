@@ -42,3 +42,20 @@ test("only a matching official JORF law promotes a dossier", () => {
   assert.equal(promoted?.jorfNor, "ABCX2600001L");
   assert.equal(promoted?.promulgatedAt, "2026-06-30");
 });
+
+test("matches a JORF title containing its legal prefix and footnote", () => {
+  const dossier = normalizeDossier({
+    uid: "DLR5L17N51968",
+    title: "Améliorer l'accès au logement des travailleurs des services publics",
+    procedureLabel: "Proposition de loi",
+    authorNames: [],
+    sourceUrl: "https://assemblee-nationale.fr/dossier",
+  });
+  assert.ok(promoteFromJorf(dossier, {
+    nature: "LOI",
+    nor: "VLOC2515640L",
+    title: "LOI n° 2026-553 du 29 juin 2026 visant à améliorer l'accès au logement des travailleurs des services publics (1)",
+    publishedAt: "2026-06-30",
+    sourceUrl: "https://legifrance.gouv.fr",
+  }));
+});

@@ -31,7 +31,9 @@ function chamberFor(code: string): NormalizedStep["chamber"] {
 }
 
 function statusCodeFor(code: string): string {
-  if (/PROM|JO/.test(code)) return "promulgated";
+  // AN workflow metadata may announce a promulgation/publication step, but the
+  // canonical `promulgated` status is reserved for a matched DILA JORF record.
+  if (/PROM|JO/.test(code)) return "awaiting_jorf_verification";
   if (/CC/.test(code)) return "constitutional_review";
   if (/CMP/.test(code)) return "joint_committee";
   if (/DEC|VOTE/.test(code)) return "voted";

@@ -41,8 +41,7 @@ CREATE TABLE public.legislative_steps (
   sequence INTEGER NOT NULL,
   source_url TEXT NOT NULL,
   source_updated_at TIMESTAMPTZ NOT NULL,
-  source_hash TEXT NOT NULL,
-  UNIQUE (dossier_id, sequence)
+  source_hash TEXT NOT NULL
 );
 
 CREATE TABLE public.legislative_amendments (
@@ -307,5 +306,13 @@ $$;
 GRANT EXECUTE ON FUNCTION public.public_promulgated_laws(TEXT,TEXT,DATE,TEXT,INTEGER) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.public_legislative_dossiers(TEXT,TEXT,TEXT,TEXT,TIMESTAMPTZ,TEXT,INTEGER) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.public_legislative_dossier(UUID) TO anon, authenticated;
+
+GRANT ALL ON public.legislative_dossiers, public.legislative_steps,
+  public.legislative_amendments, public.legislative_scrutins,
+  public.legislative_votes, public.legislative_group_results,
+  public.promulgated_laws, public.legislative_source_records,
+  public.legislative_analyses, public.legislative_sync_runs TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT SELECT ON public.deputies, public.profiles, public.subscribers TO service_role;
 
 COMMIT;

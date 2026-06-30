@@ -42,8 +42,19 @@ export async function syncJorf() {
     await extract({ file: archive, cwd: temp, filter: entryPath => /JORFTEXT.*\.xml$/.test(entryPath) });
     const records = (await Promise.all((await xmlFiles(temp)).map(async file => parseJorfXml(await fs.readFile(file, "utf8"))))).filter((record): record is NonNullable<typeof record> => record !== null);
 
-    const { data: rows, error: dossierError } = await supabase.from("legislative_dossiers").select("*").eq("legislature", 17);
-    if (dossierError) throw dossierError;
+    const rows: any[] = [];
+    const pageSize = 1_000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data: page, error: dossierError } = await supabase
+        .from("legislative_dossiers")
+        .select("*")
+        .eq("legislature", 17)
+        .order("id")
+        .range(offset, offset + pageSize - 1);
+      if (dossierError) throw dossierError;
+      rows.push(...(page ?? []));
+      if ((page?.length ?? 0) < pageSize) break;
+    }
     const dossiers: Array<NormalizedDossier & { id: string }> = (rows ?? []).map(row => ({
       id: row.id,
       officialId: row.official_id,

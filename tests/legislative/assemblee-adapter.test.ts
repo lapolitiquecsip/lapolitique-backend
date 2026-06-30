@@ -25,3 +25,21 @@ test("extracts official author and chronologically ordered steps from AN open da
 test("rejects dossiers outside the XVII legislature", () => {
   assert.equal(parseAssembleeDossier({ dossierParlementaire: { uid: "DLR5L16N1", legislature: "16" } }, new Map()), null);
 });
+
+test("does not promote a dossier from an AN promulgation step alone", () => {
+  const parsed = parseAssembleeDossier({ dossierParlementaire: {
+    uid: "DLR5L17N50004",
+    legislature: "17",
+    titreDossier: { titre: "Proposition de loi de contrôle" },
+    procedureParlementaire: { libelle: "Proposition de loi ordinaire" },
+    actesLegislatifs: { acteLegislatif: {
+      uid: "L17-PROM-50004",
+      codeActe: "PROM-PUB",
+      libelleActe: { libelleCourt: "Publication annoncée" },
+      dateActe: "2026-06-30T10:00:00+02:00",
+    } },
+  } }, new Map());
+
+  assert.equal(parsed?.dossier.statusCode, "awaiting_jorf_verification");
+  assert.notEqual(parsed?.dossier.statusCode, "promulgated");
+});

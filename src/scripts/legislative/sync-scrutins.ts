@@ -7,6 +7,7 @@ import { parseAssembleeScrutin } from "../../lib/legislative/scrutin-adapter.js"
 
 const URL = "https://data.assemblee-nationale.fr/static/openData/repository/17/loi/scrutins/Scrutins.json.zip";
 const chunks = <T>(values: T[], size = 500) => Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size));
+const queryChunks = <T>(values: T[]) => chunks(values, 50);
 
 export async function syncScrutins() {
   const { data: run, error: runError } = await supabase.from("legislative_sync_runs").insert({ pipeline: "scrutins_an", status: "running" }).select("id").single();
@@ -23,17 +24,18 @@ export async function syncScrutins() {
     const dossiers = (dossiersResult.data ?? []).map(row => ({ id: row.id, officialId: row.official_id, title: row.title }));
     const actors = new Map((deputiesResult.data ?? []).map(row => [row.an_id, `${row.first_name} ${row.last_name}`.trim()]));
     const zip = new AdmZip(Buffer.from(await archiveResponse.arrayBuffer()));
-    const parsed = zip.getEntries().filter(entry => entry.entryName.endsWith(".json"))
+    const parsedEntries = zip.getEntries().filter(entry => entry.entryName.endsWith(".json"))
       .map(entry => parseAssembleeScrutin(JSON.parse(entry.getData().toString("utf8")), dossiers, actors))
       .filter((value): value is NonNullable<typeof value> => value !== null);
+    const parsed = [...new Map(parsedEntries.map(value => [value.scrutin.officialId, value])).values()];
 
-    const amendments = parsed.flatMap(value => value.amendment ? [value.amendment] : []);
+    const amendments = [...new Map(parsed.flatMap(value => value.amendment ? [[value.amendment.officialId, value.amendment] as const] : [])).values()];
     for (const batch of chunks(amendments)) {
       const { error } = await supabase.from("legislative_amendments").upsert(batch.map(value => ({ official_id: value.officialId, dossier_id: value.dossierId, chamber: value.chamber, number: value.number, author_name: value.authorName, subject: value.subject, outcome_code: value.outcomeCode, outcome_label: value.outcomeLabel, voted_at: value.votedAt, source_url: value.sourceUrl, source_updated_at: value.sourceUpdatedAt, source_hash: value.sourceHash })), { onConflict: "official_id" });
       if (error) throw error;
     }
     const amendmentIds = new Map<string, string>();
-    for (const batch of chunks(amendments.map(value => value.officialId))) {
+    for (const batch of queryChunks(amendments.map(value => value.officialId))) {
       const { data, error } = await supabase.from("legislative_amendments").select("id,official_id").in("official_id", batch);
       if (error) throw error;
       for (const row of data ?? []) amendmentIds.set(row.official_id, row.id);
@@ -51,17 +53,19 @@ export async function syncScrutins() {
       if (error) throw error;
     }
     const scrutinIds = new Map<string, string>();
-    for (const batch of chunks(parsed.map(value => value.scrutin.officialId))) {
+    for (const batch of queryChunks(parsed.map(value => value.scrutin.officialId))) {
       const { data, error } = await supabase.from("legislative_scrutins").select("id,official_id").in("official_id", batch);
       if (error) throw error;
       for (const row of data ?? []) scrutinIds.set(row.official_id, row.id);
     }
-    const votes = parsed.flatMap(value => value.votes.map(vote => ({ scrutin_id: scrutinIds.get(value.scrutin.officialId), voter_official_id: vote.voterOfficialId, voter_name: vote.voterName, group_code: vote.groupCode, position: vote.position }))).filter(value => value.scrutin_id);
+    const voteRows = parsed.flatMap(value => value.votes.map(vote => ({ scrutin_id: scrutinIds.get(value.scrutin.officialId), voter_official_id: vote.voterOfficialId, voter_name: vote.voterName, group_code: vote.groupCode, position: vote.position }))).filter(value => value.scrutin_id);
+    const votes = [...new Map(voteRows.map(value => [`${value.scrutin_id}:${value.voter_official_id}`, value])).values()];
     for (const batch of chunks(votes)) {
       const { error } = await supabase.from("legislative_votes").upsert(batch, { onConflict: "scrutin_id,voter_official_id" });
       if (error) throw error;
     }
-    const groups = parsed.flatMap(value => value.groupResults.map(group => ({ scrutin_id: scrutinIds.get(value.scrutin.officialId), group_code: group.groupCode, for_count: group.forCount, against_count: group.againstCount, abstain_count: group.abstainCount, non_voting_count: group.nonVotingCount }))).filter(value => value.scrutin_id && value.group_code);
+    const groupRows = parsed.flatMap(value => value.groupResults.map(group => ({ scrutin_id: scrutinIds.get(value.scrutin.officialId), group_code: group.groupCode, for_count: group.forCount, against_count: group.againstCount, abstain_count: group.abstainCount, non_voting_count: group.nonVotingCount }))).filter(value => value.scrutin_id && value.group_code);
+    const groups = [...new Map(groupRows.map(value => [`${value.scrutin_id}:${value.group_code}`, value])).values()];
     for (const batch of chunks(groups)) {
       const { error } = await supabase.from("legislative_group_results").upsert(batch, { onConflict: "scrutin_id,group_code" });
       if (error) throw error;

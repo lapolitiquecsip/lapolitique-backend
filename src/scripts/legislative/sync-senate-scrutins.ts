@@ -13,6 +13,12 @@ const DATASET_API = "https://www.data.gouv.fr/api/1/datasets/53ae96eaa3a729709f5
 const RESOURCE_ID = "ce330551-f159-4f93-bbaa-4028e8fe1ae3";
 const chunks = <T>(values: T[], size = 500) => Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size));
 const normalized = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\W+/g, " ").trim();
+const senateTimestamp = (value: string) => {
+  const normalizedValue = value.includes(" ") ? value.replace(" ", "T") : `${value}T12:00:00`;
+  const date = new Date(`${normalizedValue}Z`);
+  if (Number.isNaN(date.getTime())) throw new Error(`Invalid DOSLEG scrutin date: ${value}`);
+  return date.toISOString();
+};
 
 export async function syncSenateScrutins() {
   return trackLegislativeSync("senate_scrutins", async () => {
@@ -36,7 +42,7 @@ export async function syncSenateScrutins() {
     return dossier ? [{ record, dossierId: dossier.id }] : [];
   });
   for (const batch of chunks(linked)) {
-    const { error } = await supabase.from("legislative_scrutins").upsert(batch.map(({ record, dossierId }) => ({ official_id: record.officialId, dossier_id: dossierId, chamber: "SENAT", title: record.title, result_code: record.resultLabel, result_label: record.resultLabel, for_count: record.forCount, against_count: record.againstCount, abstain_count: record.abstainCount, voted_at: new Date(`${record.votedAt}T12:00:00Z`).toISOString(), source_url: record.sourceUrl, source_updated_at: resource.last_modified, source_hash: record.sourceHash })), { onConflict: "official_id" });
+    const { error } = await supabase.from("legislative_scrutins").upsert(batch.map(({ record, dossierId }) => ({ official_id: record.officialId, dossier_id: dossierId, chamber: "SENAT", title: record.title, result_code: record.resultLabel, result_label: record.resultLabel, for_count: record.forCount, against_count: record.againstCount, abstain_count: record.abstainCount, voted_at: senateTimestamp(record.votedAt), source_url: record.sourceUrl, source_updated_at: resource.last_modified, source_hash: record.sourceHash })), { onConflict: "official_id" });
     if (error) throw error;
   }
   const ids = new Map<string, string>();
