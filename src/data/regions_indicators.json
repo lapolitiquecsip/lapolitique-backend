@@ -34,16 +34,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 434,
+      "endettement": 165.9,
+      "investissement": 43.3
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 29.4,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -58,6 +58,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -96,16 +101,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 561,
+      "endettement": 100.3,
+      "investissement": 30.9
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 31,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -120,6 +125,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -158,16 +168,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 562,
+      "endettement": 109.4,
+      "investissement": 31.8
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 41.5,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -182,6 +192,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -220,16 +235,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 645,
+      "endettement": 84.7,
+      "investissement": 41.8
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 20.8,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -244,6 +259,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -282,16 +302,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 641,
+      "endettement": 133.1,
+      "investissement": 36.6
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 19.5,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -306,6 +326,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -344,16 +369,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 657,
+      "endettement": 100.3,
+      "investissement": 38.8
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 38.1,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -368,6 +393,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -406,16 +436,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 445,
+      "endettement": 162.3,
+      "investissement": 36
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 20.7,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -430,6 +460,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -468,16 +503,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 492,
+      "endettement": 116.3,
+      "investissement": 37.1
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 23.9,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -492,6 +527,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -530,16 +570,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 539,
+      "endettement": 132.7,
+      "investissement": 36.7
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 42.5,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -554,6 +594,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -592,16 +637,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 530,
+      "endettement": 145.2,
+      "investissement": 36.9
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 49.1,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -616,6 +661,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -654,16 +704,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 473,
+      "endettement": 79,
+      "investissement": 38
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 48.6,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -678,6 +728,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -716,16 +771,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 532,
+      "endettement": 120.4,
+      "investissement": 30.9
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 69.6,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -740,6 +795,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -778,16 +838,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 3916,
+      "endettement": 94.3,
+      "investissement": 24.8
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 89.1,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -802,6 +862,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -840,16 +905,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 1437,
+      "endettement": 144.2,
+      "investissement": 51.8
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 60,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -864,6 +929,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -902,16 +972,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 3299,
+      "endettement": 94.1,
+      "investissement": 19.8
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 58.4,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -926,6 +996,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -964,16 +1039,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 2233,
+      "endettement": 40.3,
+      "investissement": 32.3
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 99.4,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -988,6 +1063,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },
@@ -1026,16 +1106,16 @@
       "proprietaires": null
     },
     "finances": {
-      "budgetHabitant": null,
-      "endettement": null,
-      "investissement": null
+      "budgetHabitant": 926,
+      "endettement": 173.6,
+      "investissement": 40.2
     },
     "environnement": {
       "qualiteAir": null,
       "surfaceNaturelle": 69.3,
       "risques": null
     },
-    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
     "provenance": {
       "dataset": "ODD_DEP/ODD_REG",
       "url": "https://www.insee.fr/fr/statistiques/4505239",
@@ -1050,6 +1130,11 @@
         "infrac_tx_homicides": 2024,
         "part_pls": 2025,
         "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
       }
     }
   },

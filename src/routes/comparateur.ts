@@ -968,7 +968,8 @@ router.get('/:codeInsee', async (req, res) => {
       getElusForCommune(codeInsee).catch(() => null)
     ]);
 
-    const finalPop = ofglData ? ofglData.populationTotal : (realCommune ? realCommune.demographie?.populationTotal : populationQuery);
+    const officialPopulation = realCommune?.demographie?.populationTotal;
+    const finalPop = officialPopulation ?? ofglData?.populationTotal ?? populationQuery;
     const baseMock = generateMockCommune(codeInsee, name, finalPop);
 
     const rneFormatted = rneData && rneData.length > 0 ? (() => {
@@ -1007,6 +1008,7 @@ router.get('/:codeInsee', async (req, res) => {
 
     const finalCommune = {
       ...(realCommune || baseMock),
+      provenance: realCommune ? { population: COMMUNES_INDICATORS._meta.population } : undefined,
       rne: rneFormatted,
       dotations: dotationsData,
       isEstimated: false
@@ -1015,7 +1017,7 @@ router.get('/:codeInsee', async (req, res) => {
     if (ofglData) {
       finalCommune.demographie = {
         ...finalCommune.demographie,
-        populationTotal: ofglData.populationTotal
+        populationTotal: officialPopulation ?? ofglData.populationTotal
       };
       finalCommune.finances = {
         budgetHabitant: ofglData.budgetHabitant,
@@ -1035,7 +1037,7 @@ router.get('/:codeInsee', async (req, res) => {
       sourceList.push(`Répertoire National des Élus (RNE) data.gouv.fr`);
     }
     if (realCommune) {
-      sourceList.push(realCommune.sources || "INSEE, SSMSI, DREES");
+      sourceList.push(COMMUNES_INDICATORS._meta.source);
     }
 
     finalCommune.sources = sourceList.length > 0 ? sourceList.join(" | ") : "Données géographiques officielles (geo.api.gouv.fr)";

@@ -40,3 +40,48 @@ export function buildOfficialTerritory(rows: OddRow[]) {
     provenance: { dataset: "ODD_DEP/ODD_REG", url: "https://www.insee.fr/fr/statistiques/4505239", years: years(["pop"], ["taux_chom_bit", "total"], ["niveau_vie_median"], ["taux_pvt", "total"], ["part_20_24_sortis_nondip"], ["apl_medgen_moins65"], ["esper_vie", "homme"], ["infrac_tx_homicides"], ["part_pls"], ["surf_sols", "nat"]) },
   };
 }
+
+export interface RegionalBudgetRecord {
+  reg_code: string;
+  reg_name: string;
+  agregat: string;
+  montant: number;
+  ptot: number;
+}
+
+export function buildRegionalFinances(records: RegionalBudgetRecord[]) {
+  const amount = (aggregate: string) => records.find(record => record.agregat === aggregate)?.montant ?? null;
+  const population = records.find(record => record.ptot > 0)?.ptot ?? null;
+  const operating = amount("Dépenses de fonctionnement");
+  const investment = amount("Dépenses d'investissement hors remb");
+  const debt = amount("Encours de dette");
+  const revenue = amount("Recettes de fonctionnement");
+  const totalExpenses = operating !== null && investment !== null ? operating + investment : null;
+  return {
+    budgetHabitant: totalExpenses !== null && population ? Math.round(totalExpenses / population) : null,
+    endettement: debt !== null && revenue ? round(100 * debt / revenue) : null,
+    investissement: investment !== null && totalExpenses ? round(100 * investment / totalExpenses) : null,
+  };
+}
+
+export function buildCommunePopulations(rows: Array<Record<string, string>>) {
+  const output: Record<string, any> = { _meta: {
+    source: "Insee — Population de référence 2023, en vigueur au 1er janvier 2026",
+    population: { valueType: "population municipale", year: 2023, url: "https://www.insee.fr/fr/statistiques/8680726" },
+  } };
+  Object.assign(output, Object.fromEntries(rows.map(row => [row.COM, {
+    id: row.COM,
+    name: row.Commune,
+    demographie: { populationTotal: Number(row.PMUN) },
+  }])));
+  for (const [parentCode, department, name] of [["75056", "75", "Paris"], ["69123", "69", "Lyon"], ["13055", "13", "Marseille"]]) {
+    const districts = rows.filter(row => row.DEP === department && /Arrondissement$/.test(row.Commune));
+    if (districts.length) output[parentCode] = {
+      id: parentCode,
+      name,
+      demographie: { populationTotal: districts.reduce((total, row) => total + Number(row.PMUN), 0) },
+      populationAggregation: "arrondissements municipaux",
+    };
+  }
+  return output;
+}
