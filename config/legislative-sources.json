@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "discoveredAt": "2026-06-30T10:25:58.270Z",
+  "mcpEndpoint": "https://mcp.data.gouv.fr/mcp",
+  "datasets": [
+    {
+      "role": "jorf",
+      "datasetId": "53ca3560a3a7294a1ddd784e",
+      "title": "JORF: les données de l'édition Lois et décrets du Journal officiel",
+      "organization": "Premier ministre",
+      "verifiedAt": "2026-06-30T10:25:57.757Z",
+      "info": {
+        "result": "Dataset Information: JORF: les données de l'édition ''Lois et décrets'' du Journal officiel \n\nID: 53ca3560a3a7294a1ddd784e\nSlug: jorf-les-donnees-de-l-edition-lois-et-decrets-du-journal-officiel\nURL: https://www.data.gouv.fr/datasets/jorf-les-donnees-de-l-edition-lois-et-decrets-du-journal-officiel/\n\nFull description: Le fonds documentaire des documents publiés dans l'édition \" Lois et décrets \" du Journal officiel depuis 1990 est constitué :\n\n- des lois, ordonnances, décrets, arrêtés et circulaires \n\n- des décisions émanant d'institutions ou de juridictions qui doivent être publiés au Journal officiel (Conseil constitutionnel, Conseil supérieur de l'audiovisuel, Autorité de régulation des télécommunications …)\n\n- des avis et communications depuis le 1er janvier 2002 (avis aux importateurs, exportateurs, avis...\n\nOrganization: Premier ministre\n  Organization ID: 534fffa5a3a7292c64a7809e\n\nTags: arretes, circulaires, decrets, dila, donnees-juridiques, information-legale, lois, ordonnances\n\nResources: 5 file(s)\n\nCreated: 2014-07-18T10:40:12.374000+00:00\nLast updated: 2026-06-30T08:57:56.125000+00:00\n\nLicense: fr-lo\nUpdate frequency: punctual"
+      },
+      "resources": {
+        "result": "Resources in dataset: JORF: les données de l'édition ''Lois et décrets'' du Journal officiel \nDataset ID: 53ca3560a3a7294a1ddd784e\nTotal resources: 5\n\n1. avertissement-metadonnees-textes-entreprise-20181212.pdf\n   Resource ID: 28dbc276-ab81-4902-8569-cd61776016a6\n   Format: pdf\n   Size: 176.0 KB\n   MIME type: application/pdf\n   Type: main\n   URL: https://static.data.gouv.fr/resources/jorf-les-donnees-de-l-edition-lois-et-decrets-du-journal-officiel/20181214-183652/avertissement-metadonnees-textes-entreprise-20181212.pdf\n\n2. Présentation du JORF\n   Resource ID: a57e6f65-58ca-48bf-b527-37fd88cfcb71\n   Format: pdf\n   Type: main\n   URL: https://echanges.dila.gouv.fr/OPENDATA/JORF/DILA_JORF_Presentation_20170824.pdf\n\n3. JORF Données légales \n   Resource ID: 825258fd-8d0c-4356-b684-b33b72b2e81f\n   Format: xml\n   Type: main\n   URL: https://echanges.dila.gouv.fr/OPENDATA/JORF/\n\n4. DTD LEGIFRANCE\n   Resource ID: 1efe163c-f2fa-4c71-9efa-ff4e3ffdf25a\n   Format: dtd\n   Type: main\n   URL: https://echanges.dila.gouv.fr/OPENDATA/DTD_LEGIFRANCE\n\n5. JORF simple\n   Resource ID: 4ec72a95-2113-4f90-a632-0aeace534f71\n   Format: xml\n   Type: main\n   URL: https://echanges.dila.gouv.fr/OPENDATA/JORFSIMPLE/\n"
+      }
+    },
+    {
+      "role": "senate_amendments",
+      "datasetId": "53a8b7f8a3a72905b7ce595d",
+      "title": "Amendements déposés au Sénat",
+      "organization": "Sénat",
+      "verifiedAt": "2026-06-30T10:25:57.933Z",
+      "info": {
+        "result": "Dataset Information: Amendements déposés au Sénat\n\nID: 53a8b7f8a3a72905b7ce595d\nSlug: amendements-deposes-au-senat\nURL: https://www.data.gouv.fr/datasets/amendements-deposes-au-senat/\n\nFull description: La base « Amendements (Ameli) » vous permet d’accéder à l’ensemble des amendements déposés au Sénat en commission (depuis octobre 2010) et en séance publique (depuis octobre 2001). Pour chaque amendement sont indiqués son ou ses auteur(s), son contenu, son objet, s’il a été adopté ou non, etc.\n\nLe jeu complet des amendements déposés sur chaque texte, en commission ou en séance, est disponible au format CSV, par lecture et par ordre de dépôt, dans le dossier législatif du texte considéré.\n\nPour p...\n\nOrganization: Sénat\n  Organization ID: 53a8b6eba3a72905b7ce595b\n\nTags: amendements, projet-de-loi, proposition-de-loi, senat, senateurs\n\nResources: 2 file(s)\n\nCreated: 2014-06-20T17:05:36.268000+00:00\nLast updated: 2026-06-29T02:15:03+00:00\n\nLicense: fr-lo\nUpdate frequency: daily"
+      },
+      "resources": {
+        "result": "Resources in dataset: Amendements déposés au Sénat\nDataset ID: 53a8b7f8a3a72905b7ce595d\nTotal resources: 2\n\n1. amendements_au_PLF_pour_2020.csv\n   Resource ID: 9b12974d-41e5-4467-96d0-6dd8b31a2416\n   Format: csv\n   Size: 8.7 MB\n   MIME type: text/csv\n   Type: main\n   URL: https://static.data.gouv.fr/resources/amendements-deposes-au-senat/20200124-090742/jeu-complet-2019-2020-139.csv\n\n2. Base de données SQL (intégrale)\n   Resource ID: 35253631-23d5-4237-b20b-d485ae3ee716\n   Format: sql\n   Type: main\n   URL: https://data.senat.fr/data/ameli/ameli.zip\n"
+      }
+    },
+    {
+      "role": "senate_texts",
+      "datasetId": "5f342a6200f7d85baeeef842",
+      "title": "Dispositifs des textes (Monalisa / Akoma Ntoso)",
+      "organization": "Sénat",
+      "verifiedAt": "2026-06-30T10:25:58.102Z",
+      "info": {
+        "result": "Dataset Information: Dispositifs des textes (Monalisa / Akoma Ntoso)\n\nID: 5f342a6200f7d85baeeef842\nSlug: dispositifs-des-textes-monalisa-akoma-ntoso\nURL: https://www.data.gouv.fr/datasets/dispositifs-des-textes-monalisa-akoma-ntoso/\n\nFull description: Les données « Dispositifs des textes (Monalisa) » contiennent l’ensemble des dispositifs des projets de loi, propositions de loi ou propositions de résolution déposés ou adoptés au Sénat depuis le 1er décembre 2019. Ces données sont structurées sous forme de fichiers XML en suivant la norme internationale d’échange de données parlementaires, législatives et judiciaires Akoma Ntoso....\n\nOrganization: Sénat\n  Organization ID: 53a8b6eba3a72905b7ce595b\n\nTags: dossier-legislatif, projet-de-loi, proposition-de-loi, senat, senateurs\n\nResources: 3 file(s)\n\nCreated: 2020-08-12T19:44:02.298000+00:00\nLast updated: 2026-06-26T14:30:14+00:00\n\nLicense: fr-lo\nUpdate frequency: continuous"
+      },
+      "resources": {
+        "result": "Resources in dataset: Dispositifs des textes (Monalisa / Akoma Ntoso)\nDataset ID: 5f342a6200f7d85baeeef842\nTotal resources: 3\n\n1. Liste des textes déposés\n   Resource ID: 5d7383b1-b900-4aab-a36a-12ce87cad1ac\n   Format: xml\n   MIME type: text/xml\n   Type: main\n   URL: https://www.senat.fr/akomantoso/depots.xml\n\n2. Liste des textes adoptés\n   Resource ID: 3be5a49f-be2c-4a15-a43e-0777f693cf2f\n   Format: xml\n   MIME type: text/xml\n   Type: main\n   URL: https://www.senat.fr/akomantoso/adoptions.xml\n\n3. Format XML Akoma Ntoso pour l'échange de dispositif de texte\n   Resource ID: f233ba6e-5ea8-41df-8dca-50c2032b5eb4\n   Format: pdf\n   MIME type: application/pdf\n   Type: documentation\n   URL: https://data.senat.fr/wp-content/uploads/2020/07/akomantoso-2.pdf\n"
+      }
+    },
+    {
+      "role": "senate_legislative_work",
+      "datasetId": "53ae96eaa3a729709f56d51d",
+      "title": "Travaux législatifs (Sénat)",
+      "organization": "Sénat",
+      "verifiedAt": "2026-06-30T10:25:58.270Z",
+      "info": {
+        "result": "Dataset Information: Travaux législatifs (Sénat)\n\nID: 53ae96eaa3a729709f56d51d\nSlug: travaux-legislatifs-senat\nURL: https://www.data.gouv.fr/datasets/travaux-legislatifs-senat/\n\nFull description: La base \"Dossiers législatifs (Dosleg)\" contient l'ensemble des informations sur les documents parlementaires déposés au Sénat (références depuis octobre 1977 et liens vers le texte intégral depuis octobre 1995). Vous y trouverez, entre autres, les données relatives aux projets et propositions de loi, les rapports législatifs ou d’information, les textes de commission, etc.\n\nPour plus d'informations, voir : [http://data.senat.fr/dosleg/](http://data.senat.fr/dosleg/)...\n\nOrganization: Sénat\n  Organization ID: 53a8b6eba3a72905b7ce595b\n\nTags: parlement, projet-de-loi, projet-de-loi-de-finances, proposition-de-loi, rapport, senat\n\nResources: 5 file(s)\n\nCreated: 2014-06-20T16:02:48.007000+00:00\nLast updated: 2026-06-30T01:58:28+00:00\n\nLicense: fr-lo\nUpdate frequency: daily"
+      },
+      "resources": {
+        "result": "Resources in dataset: Travaux législatifs (Sénat)\nDataset ID: 53ae96eaa3a729709f56d51d\nTotal resources: 5\n\n1. Base de données SQL (intégrale)\n   Resource ID: ce330551-f159-4f93-bbaa-4028e8fe1ae3\n   Format: sql\n   Type: main\n   URL: https://data.senat.fr/data/dosleg/dosleg.zip\n\n2. Liste des dossiers législatifs (extrait)\n   Resource ID: d7e34c8a-0637-4826-96fa-288fd83f5d4d\n   Format: csv\n   Type: main\n   URL: https://data.senat.fr/data/dosleg/dossiers-legislatifs.csv\n\n3. Liste des lois promulguées (extrait)\n   Resource ID: a6155e6b-9061-42d6-93ea-256369f5533f\n   Format: csv\n   Type: main\n   URL: https://data.senat.fr/data/dosleg/promulguees.csv\n\n4. Liste des propositions de lois déposées au Sénat (extrait)\n   Resource ID: 7698274a-65f6-4687-8b2b-6961199b6922\n   Format: csv\n   Type: main\n   URL: https://data.senat.fr/data/dosleg/ppl.csv\n\n5. Liste des rapports d'information (extrait)\n   Resource ID: 492a2438-60b1-4359-9eae-acbc7729b8d3\n   Format: csv\n   Type: main\n   URL: https://data.senat.fr/data/dosleg/rapports.csv\n"
+      }
+    }
+  ],
+  "directSources": [
+    {
+      "role": "assemblee_dossiers",
+      "url": "https://data.assemblee-nationale.fr/static/openData/repository/17/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip"
+    }
+  ]
+}
