@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 dotenv.config();
 import { apiLimiter } from './middleware/rateLimit.js';
-import { startWorkers } from './workers/index.js';
 import { runAssembleePipeline } from './workers/assemblee-pipeline.js';
 import { runSeed } from './scripts/seed.js';
 import { serve } from 'inngest/express';
@@ -138,5 +137,5 @@ app.post('/api/admin/seed', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
-  if (process.env.DISABLE_WORKERS !== 'true') startWorkers();
+  console.log('[Scheduler] Runtime workers are disabled; scheduled imports run exclusively in GitHub Actions.');
 });

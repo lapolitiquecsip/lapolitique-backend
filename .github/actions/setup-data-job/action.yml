@@ -1,0 +1,11 @@
+name: Setup data job
+description: Install the pinned Node dependencies used by data imports
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+    - shell: bash
+      run: npm ci

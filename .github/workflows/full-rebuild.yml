@@ -1,0 +1,44 @@
+name: Full data rebuild
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        type: choice
+        options: [all, territories, officials, government, state-budget, elections, legislation]
+        default: all
+      mode:
+        type: choice
+        options: [backfill, dry-run]
+        default: dry-run
+concurrency:
+  group: full-rebuild-${{ inputs.domain }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      INGESTION_MODE: ${{ inputs.mode }}
+      LEGISLATIVE_SUMMARY_LIMIT: 10000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:register-sources
+      - if: inputs.domain == 'all' || inputs.domain == 'territories'
+        run: npm run compile:official-territories && npm run data:sync-territories
+      - if: inputs.domain == 'all' || inputs.domain == 'officials'
+        run: npm run data:sync-rne && npx tsx src/scripts/import-senators-real.ts
+      - if: inputs.domain == 'all' || inputs.domain == 'government'
+        run: npm run data:sync-government
+      - if: inputs.domain == 'all' || inputs.domain == 'state-budget'
+        run: npm run data:sync-state-budget
+      - if: inputs.domain == 'all' || inputs.domain == 'elections'
+        run: npm run data:sync-elections
+      - if: inputs.domain == 'all' || inputs.domain == 'legislation'
+        run: npm run automation:laws && npm run automation:senate && npm run automation:senate:amendments && npm run automation:senate:scrutins && npm run automation:votes && npm run automation:jorf && npm run automation:legislative:summaries
+      - run: npm run data:reconcile

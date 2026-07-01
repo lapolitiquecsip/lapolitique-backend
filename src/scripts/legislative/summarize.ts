@@ -14,9 +14,21 @@ export async function summarizeLegislativeDossiers() {
   const { data: promulgatedLinks, error: promulgatedError } = await supabase.from("promulgated_laws").select("dossier_id");
   if (promulgatedError) throw promulgatedError;
   const promulgatedIds = (promulgatedLinks ?? []).map(row => row.dossier_id);
-  const { data: publicActive, error: publicActiveError } = await supabase.rpc("public_legislative_dossiers", { p_limit: 50 });
-  if (publicActiveError) throw publicActiveError;
-  const activeIds = (publicActive ?? []).map((row: any) => row.id);
+  const requestedLimit = Math.max(1, Number(process.env.LEGISLATIVE_SUMMARY_LIMIT ?? 50));
+  const activeIds: string[] = [];
+  let cursorDate: string | null = null;
+  let cursorId: string | null = null;
+  while (activeIds.length < requestedLimit) {
+    const pageSize = Math.min(100, requestedLimit - activeIds.length);
+    const { data: page, error: pageError } = await supabase.rpc("public_legislative_dossiers", { p_limit: pageSize, p_cursor_date: cursorDate, p_cursor_id: cursorId });
+    if (pageError) throw pageError;
+    if (!page?.length) break;
+    activeIds.push(...page.map((row: any) => row.id));
+    const last = page.at(-1) as any;
+    cursorDate = last.source_updated_at;
+    cursorId = last.id;
+    if (page.length < pageSize) break;
+  }
   const [promulgatedResult, activeResult] = await Promise.all([
     promulgatedIds.length
       ? supabase.from("legislative_dossiers").select(fields).in("id", promulgatedIds)
