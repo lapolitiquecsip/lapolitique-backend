@@ -30,6 +30,14 @@
     "data:sync-state-budget": "tsx src/scripts/data/sync-state-budget.ts",
     "data:sync-government": "tsx src/scripts/data/sync-government.ts",
     "data:sync-elections": "tsx src/scripts/data/sync-elections.ts",
+    "data:sync-drees-apl": "tsx src/scripts/data/sync-drees-apl.ts",
+    "data:sync-ssmsi": "tsx src/scripts/data/sync-ssmsi.ts",
+    "data:sync-dvf": "tsx src/scripts/data/sync-dvf.ts",
+    "data:sync-rpls": "tsx src/scripts/data/sync-rpls.ts",
+    "data:sync-depp-bac": "tsx src/scripts/data/sync-depp-bac.ts",
+    "data:sync-georisques": "tsx src/scripts/data/sync-georisques.ts",
+    "data:sync-atmo": "tsx src/scripts/data/sync-atmo.ts",
+    "data:sync-territorial-sources": "npm run data:sync-drees-apl && npm run data:sync-ssmsi && npm run data:sync-dvf && npm run data:sync-rpls && npm run data:sync-depp-bac && npm run data:sync-georisques && npm run data:sync-atmo",
     "data:reconcile": "tsx src/scripts/data/reconcile.ts",
     "automation:enrich": "tsx src/scripts/automation/enrich-events.ts",
     "automation:browseract": "tsx src/scripts/automation/browseract-scraper.ts",
@@ -49,6 +57,7 @@
     "cors": "^2.8.6",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.3.1",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",
     "fast-xml-parser": "^5.5.12",
@@ -74,5 +83,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
+  },
+  "overrides": {
+    "uuid": "11.1.0"
   }
 }

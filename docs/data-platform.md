@@ -22,6 +22,7 @@ Supabase is the canonical store. GitHub Actions is the only production scheduler
 
 - `npm run data:register-sources`: seed/update the official source registry.
 - `npm run data:sync-territories`: publish compiled official territorial values.
+- `npm run data:sync-territorial-sources`: import DREES APL, SSMSI, DVF, RPLS, DEPP, GASPAR and ATMO indicators.
 - `npm run data:sync-rne`: discover and import current RNE resources.
 - `npm run data:sync-government`: import the latest DILA government protocol.
 - `npm run data:sync-state-budget`: import official 2024 execution, 2025 LFI and 2026 PLF mission values.
@@ -29,3 +30,18 @@ Supabase is the canonical store. GitHub Actions is the only production scheduler
 - `npm run data:reconcile`: record stale sources and fail after two consecutive source failures.
 
 Do not re-enable `startWorkers()` or add Inngest cron triggers. Add new recurring work as a GitHub Actions workflow with `concurrency`, `workflow_dispatch`, a timeout, and a dry-run input.
+
+## Territorial indicator contracts
+
+| Public indicator | Canonical code | Official source | Reference |
+|---|---|---|---|
+| Access to general practitioners | `health_apl_gp` | DREES APL workbook | Latest annual sheet |
+| Violence rate | `security_violence_rate` | SSMSI | Latest published year |
+| Theft and burglary rate | `security_theft_burglary_rate` | SSMSI | Latest published year |
+| Median sale price per m² | `housing_sale_price_m2` | data.gouv.fr/DGFiP DVF statistics | Last ten semesters |
+| Social housing share | `housing_social_share` | SDES RPLS national workbook | 2024 |
+| Baccalaureate success | `education_bac_success` | DEPP | Latest session |
+| Major risk count and level | `environment_major_risk_count`, `environment_risk_exposure_level` | Géorisques GASPAR | Current archive |
+| Mean daily air-quality index | `environment_atmo_mean_index` | Atmo France/AASQA | Current calendar year |
+
+The SSMSI violence aggregate only combines victim-based categories. The theft aggregate is explicitly labelled as recorded offences. Suppressed communal values (`est_diffuse=ndiff`) are never reconstructed. The GASPAR level is reproducible: 1 for one or two distinct risks, 2 for three or four, and 3 for five or more. ATMO remains on its official 1–6 scale; it is not converted to a synthetic score out of 100.

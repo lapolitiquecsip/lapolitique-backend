@@ -30,7 +30,7 @@ jobs:
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:register-sources
       - if: inputs.domain == 'all' || inputs.domain == 'territories'
-        run: npm run compile:official-territories && npm run data:sync-territories
+        run: npm run compile:official-territories && npm run data:sync-territories && npm run data:sync-territorial-sources
       - if: inputs.domain == 'all' || inputs.domain == 'officials'
         run: npm run data:sync-rne && npx tsx src/scripts/import-senators-real.ts
       - if: inputs.domain == 'all' || inputs.domain == 'government'
