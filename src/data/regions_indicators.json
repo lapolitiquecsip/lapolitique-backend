@@ -1,0 +1,1203 @@
+{
+  "11": {
+    "id": "11",
+    "name": "�le-de-France",
+    "demographie": {
+      "populationTotal": 12380964,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 7,
+      "revenuMedian": 2101,
+      "pauvrete": 16.1
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 14.66
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 2.75,
+      "esperanceVie": 84
+    },
+    "securite": {
+      "atteintesPersonnes": 8.72,
+      "atteintesBiens": 25.77
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 26.06,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 434,
+      "endettement": 165.9,
+      "investissement": 43.3
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 29.4,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "24": {
+    "id": "24",
+    "name": "Centre-Val de Loire",
+    "demographie": {
+      "populationTotal": 2581597,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 6.9,
+      "revenuMedian": 1898,
+      "pauvrete": 13.5
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 16.08
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 2.52,
+      "esperanceVie": 82.3
+    },
+    "securite": {
+      "atteintesPersonnes": 8.04,
+      "atteintesBiens": 13.83
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 16.54,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 561,
+      "endettement": 100.3,
+      "investissement": 30.9
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 31,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "27": {
+    "id": "27",
+    "name": "Bourgogne-Franche-Comt�",
+    "demographie": {
+      "populationTotal": 2803977,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 6.6,
+      "revenuMedian": 1896,
+      "pauvrete": 13.4
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 15.34
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.11,
+      "esperanceVie": 82
+    },
+    "securite": {
+      "atteintesPersonnes": 7.76,
+      "atteintesBiens": 10.33
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 14.52,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 562,
+      "endettement": 109.4,
+      "investissement": 31.8
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 41.5,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "28": {
+    "id": "28",
+    "name": "Normandie",
+    "demographie": {
+      "populationTotal": 3339074,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 7,
+      "revenuMedian": 1873,
+      "pauvrete": 13.7
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 15.49
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.15,
+      "esperanceVie": 81.8
+    },
+    "securite": {
+      "atteintesPersonnes": 8.35,
+      "atteintesBiens": 11.61
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 20.19,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 645,
+      "endettement": 84.7,
+      "investissement": 41.8
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 20.8,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "32": {
+    "id": "32",
+    "name": "Hauts-de-France",
+    "demographie": {
+      "populationTotal": 5998916,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 9,
+      "revenuMedian": 1785,
+      "pauvrete": 18
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 18.95
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.67,
+      "esperanceVie": 81.1
+    },
+    "securite": {
+      "atteintesPersonnes": 10.58,
+      "atteintesBiens": 14.73
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 22.86,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 641,
+      "endettement": 133.1,
+      "investissement": 36.6
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 19.5,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "44": {
+    "id": "44",
+    "name": "Grand Est",
+    "demographie": {
+      "populationTotal": 5560079,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 7.3,
+      "revenuMedian": 1913,
+      "pauvrete": 15.1
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 15.76
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.5,
+      "esperanceVie": 82
+    },
+    "securite": {
+      "atteintesPersonnes": 8.2,
+      "atteintesBiens": 12.56
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 16.81,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 657,
+      "endettement": 100.3,
+      "investissement": 38.8
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 38.1,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "52": {
+    "id": "52",
+    "name": "Pays de la Loire",
+    "demographie": {
+      "populationTotal": 3879216,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 5.9,
+      "revenuMedian": 1921,
+      "pauvrete": 11
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 13.05
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.26,
+      "esperanceVie": 83.1
+    },
+    "securite": {
+      "atteintesPersonnes": 7.29,
+      "atteintesBiens": 13.98
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 14.16,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 445,
+      "endettement": 162.3,
+      "investissement": 36
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 20.7,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "53": {
+    "id": "53",
+    "name": "Bretagne",
+    "demographie": {
+      "populationTotal": 3422845,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 6,
+      "revenuMedian": 1937,
+      "pauvrete": 11.1
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 11.69
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.72,
+      "esperanceVie": 82.3
+    },
+    "securite": {
+      "atteintesPersonnes": 7.15,
+      "atteintesBiens": 11.67
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 12.14,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 492,
+      "endettement": 116.3,
+      "investissement": 37.1
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 23.9,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "75": {
+    "id": "75",
+    "name": "Nouvelle-Aquitaine",
+    "demographie": {
+      "populationTotal": 6113384,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 6.6,
+      "revenuMedian": 1893,
+      "pauvrete": 13.8
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 14.26
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.69,
+      "esperanceVie": 82.7
+    },
+    "securite": {
+      "atteintesPersonnes": 7.6,
+      "atteintesBiens": 14.63
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 11.4,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 539,
+      "endettement": 132.7,
+      "investissement": 36.7
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 42.5,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "76": {
+    "id": "76",
+    "name": "Occitanie",
+    "demographie": {
+      "populationTotal": 6080731,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 8.8,
+      "revenuMedian": 1834,
+      "pauvrete": 17.5
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 16.2
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.4,
+      "esperanceVie": 83
+    },
+    "securite": {
+      "atteintesPersonnes": 7.97,
+      "atteintesBiens": 16.29
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 11.69,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 530,
+      "endettement": 145.2,
+      "investissement": 36.9
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 49.1,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "84": {
+    "id": "84",
+    "name": "Auvergne-Rh�ne-Alpes",
+    "demographie": {
+      "populationTotal": 8163884,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 6.4,
+      "revenuMedian": 1983,
+      "pauvrete": 13.3
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 14.09
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.32,
+      "esperanceVie": 83.5
+    },
+    "securite": {
+      "atteintesPersonnes": 7.55,
+      "atteintesBiens": 17.96
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 16.37,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 473,
+      "endettement": 79,
+      "investissement": 38
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 48.6,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "93": {
+    "id": "93",
+    "name": "Provence-Alpes-C�te d'Azur",
+    "demographie": {
+      "populationTotal": 5170312,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 7.9,
+      "revenuMedian": 1902,
+      "pauvrete": 17.4
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 16.24
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.55,
+      "esperanceVie": 83.3
+    },
+    "securite": {
+      "atteintesPersonnes": 8.76,
+      "atteintesBiens": 20.63
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 14.38,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 532,
+      "endettement": 120.4,
+      "investissement": 30.9
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 69.6,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "94": {
+    "id": "94",
+    "name": "Corse",
+    "demographie": {
+      "populationTotal": 351276,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 6.5,
+      "revenuMedian": 1866,
+      "pauvrete": 18.1
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 17.33
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 3.04,
+      "esperanceVie": 83.7
+    },
+    "securite": {
+      "atteintesPersonnes": 6.14,
+      "atteintesBiens": 7.14
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 10.17,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 3916,
+      "endettement": 94.3,
+      "investissement": 24.8
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 89.1,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "01": {
+    "id": "01",
+    "name": "Guadeloupe",
+    "demographie": {
+      "populationTotal": 383569,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 16.8,
+      "revenuMedian": null,
+      "pauvrete": null
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 13.92
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 2.89,
+      "esperanceVie": 79.7
+    },
+    "securite": {
+      "atteintesPersonnes": 14.06,
+      "atteintesBiens": 15.4
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 22.51,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 1437,
+      "endettement": 144.2,
+      "investissement": 51.8
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 60,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": null,
+        "taux_pvt": null,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "02": {
+    "id": "02",
+    "name": "Martinique",
+    "demographie": {
+      "populationTotal": 361019,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 12.3,
+      "revenuMedian": 1648,
+      "pauvrete": 26.8
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 13.99
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 2.93,
+      "esperanceVie": 81.3
+    },
+    "securite": {
+      "atteintesPersonnes": 13.21,
+      "atteintesBiens": 12.33
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 20.8,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 3299,
+      "endettement": 94.1,
+      "investissement": 19.8
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 58.4,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "03": {
+    "id": "03",
+    "name": "Guyane",
+    "demographie": {
+      "populationTotal": 288382,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 16.9,
+      "revenuMedian": null,
+      "pauvrete": null
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 36.85
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 1.55,
+      "esperanceVie": 78.9
+    },
+    "securite": {
+      "atteintesPersonnes": 15.9,
+      "atteintesBiens": 19.61
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 26.04,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 2233,
+      "endettement": 40.3,
+      "investissement": 32.3
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 99.4,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": null,
+        "taux_pvt": null,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "04": {
+    "id": "04",
+    "name": "La R�union",
+    "demographie": {
+      "populationTotal": 881348,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": 17.3,
+      "revenuMedian": 1423,
+      "pauvrete": 36.1
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 20.1
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": 4.53,
+      "esperanceVie": 81.3
+    },
+    "securite": {
+      "atteintesPersonnes": 12.55,
+      "atteintesBiens": 7.44
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 24.05,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": 926,
+      "endettement": 173.6,
+      "investissement": 40.2
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 69.3,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026 | OFGL/DGFiP — Comptes des régions 2024, budget principal",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2022,
+        "taux_chom_bit": 2024,
+        "niveau_vie_median": 2021,
+        "taux_pvt": 2021,
+        "part_20_24_sortis_nondip": 2022,
+        "apl_medgen_moins65": 2023,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      },
+      "regionalAccounts": {
+        "dataset": "ofgl-base-regions",
+        "year": 2024,
+        "url": "https://data.ofgl.fr/explore/dataset/ofgl-base-regions/"
+      }
+    }
+  },
+  "06": {
+    "id": "06",
+    "name": "Mayotte",
+    "demographie": {
+      "populationTotal": 256518,
+      "densite": null,
+      "evolution10ans": null,
+      "moins25ans": null,
+      "plus65ans": null
+    },
+    "economie": {
+      "chomage": null,
+      "revenuMedian": null,
+      "pauvrete": null
+    },
+    "education": {
+      "bac": null,
+      "diplomesSup": null,
+      "decrochage": 61.22
+    },
+    "sante": {
+      "medecins10k": null,
+      "scoreAPL": null,
+      "esperanceVie": 74.3
+    },
+    "securite": {
+      "atteintesPersonnes": 12.58,
+      "atteintesBiens": 12.44
+    },
+    "logement": {
+      "prixM2": null,
+      "logementsSociaux": 4.76,
+      "proprietaires": null
+    },
+    "finances": {
+      "budgetHabitant": null,
+      "endettement": null,
+      "investissement": null
+    },
+    "environnement": {
+      "qualiteAir": null,
+      "surfaceNaturelle": 70.4,
+      "risques": null
+    },
+    "sources": "Insee/SDES — Indicateurs territoriaux de développement durable, édition 2026",
+    "provenance": {
+      "dataset": "ODD_DEP/ODD_REG",
+      "url": "https://www.insee.fr/fr/statistiques/4505239",
+      "years": {
+        "pop": 2017,
+        "taux_chom_bit": null,
+        "niveau_vie_median": null,
+        "taux_pvt": null,
+        "part_20_24_sortis_nondip": 2017,
+        "apl_medgen_moins65": null,
+        "esper_vie": 2024,
+        "infrac_tx_homicides": 2024,
+        "part_pls": 2025,
+        "surf_sols": 2023
+      }
+    }
+  }
+}

@@ -9,18 +9,14 @@ import { main as fetchSenatAgenda } from '../scripts/automation/fetch-senat-agen
 import { main as fetchElyseeAgenda } from '../scripts/automation/fetch-elysee-agenda.js';
 import { main as summarizeDailySenat } from '../scripts/automation/summarize-daily-senat.js';
 import { generateWeeklyStats } from '../scripts/automation/generate-weekly-stats.js';
-import { syncDeputyStats } from '../scripts/automation/fetch-deputy-stats.js';
 
 export const inngest = new Inngest({ id: 'lapolitique-backend' });
 
-// 1. Fetch votes hourly
+// Inngest is event-only. GitHub Actions is the sole production scheduler.
 export const fetchVotesFn = inngest.createFunction(
   { 
     id: 'fetch-votes', 
-    triggers: [
-      { cron: '0 * * * *' },
-      { event: 'cron/fetch-votes' }
-    ],
+    triggers: [{ event: 'cron/fetch-votes' }],
     retries: 3 
   },
   async ({ step }) => {
@@ -55,10 +51,7 @@ export const scrutinSummarizerFn = inngest.createFunction(
 export const fetchPetitionsFn = inngest.createFunction(
   { 
     id: 'fetch-petitions', 
-    triggers: [
-      { cron: '0 */6 * * *' },
-      { event: 'cron/fetch-petitions' }
-    ],
+    triggers: [{ event: 'cron/fetch-petitions' }],
     retries: 3 
   },
   async () => {
@@ -71,10 +64,7 @@ export const fetchPetitionsFn = inngest.createFunction(
 export const fetchLiveLawsFn = inngest.createFunction(
   { 
     id: 'fetch-live-laws', 
-    triggers: [
-      { cron: '0 */2 * * *' },
-      { event: 'cron/fetch-live-laws' }
-    ],
+    triggers: [{ event: 'cron/fetch-live-laws' }],
     retries: 3 
   },
   async () => {
@@ -87,10 +77,7 @@ export const fetchLiveLawsFn = inngest.createFunction(
 export const syncAgendaFn = inngest.createFunction(
   {
     id: 'sync-agenda',
-    triggers: [
-      { cron: '0 2 * * *' },
-      { event: 'cron/sync-agenda' }
-    ],
+    triggers: [{ event: 'cron/sync-agenda' }],
     retries: 3
   },
   async ({ step }) => {
@@ -114,10 +101,7 @@ export const syncAgendaFn = inngest.createFunction(
 export const generateWeeklyStatsFn = inngest.createFunction(
   {
     id: 'generate-weekly-stats',
-    triggers: [
-      { cron: '42 4 * * 1' }, // Every Monday at 04:42 UTC
-      { event: 'cron/generate-weekly-stats' }
-    ],
+    triggers: [{ event: 'cron/generate-weekly-stats' }],
     retries: 3
   },
   async () => {
@@ -131,30 +115,13 @@ export const generateDossiersFn = inngest.createFunction(
   {
     id: 'generate-dossiers',
     triggers: [
-      { cron: '0 */2 * * *' }, // Every 2 hours
       { event: 'cron/generate-dossiers' },
-      { event: 'scrutins.fetched' } // Run immediately after new votes are fetched
+      { event: 'scrutins.fetched' }
     ],
     retries: 3
   },
   async () => {
     await generateDossiers();
-    return { success: true };
-  }
-);
-
-// 8. Daily Deputy Stats Sync from data.gouv.fr
-export const syncDeputyStatsFn = inngest.createFunction(
-  {
-    id: 'sync-deputy-stats',
-    triggers: [
-      { cron: '0 4 * * *' }, // Daily at 04:00 UTC
-      { event: 'cron/sync-deputy-stats' }
-    ],
-    retries: 3
-  },
-  async () => {
-    await syncDeputyStats();
     return { success: true };
   }
 );

@@ -1,0 +1,27 @@
+name: Data quality reconciliation
+on:
+  schedule:
+    - cron: '19 4 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [reconcile, dry-run]
+        default: reconcile
+concurrency:
+  group: data-reconcile
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      INGESTION_MODE: ${{ inputs.mode || 'reconcile' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:reconcile

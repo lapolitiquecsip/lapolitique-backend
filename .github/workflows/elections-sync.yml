@@ -1,0 +1,30 @@
+name: Election results
+on:
+  workflow_dispatch:
+    inputs:
+      election_id:
+        description: Official identifier such as 2026_muni_t2
+        required: true
+        default: 2026_muni_t2
+      mode:
+        type: choice
+        options: [incremental, backfill, dry-run]
+        default: dry-run
+concurrency:
+  group: elections-${{ inputs.election_id }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      INGESTION_MODE: ${{ inputs.mode }}
+      ELECTION_ID: ${{ inputs.election_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:sync-elections

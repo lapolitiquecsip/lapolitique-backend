@@ -60,6 +60,7 @@ export interface DeepSeekMessageParams {
   max_tokens: number;
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   system?: string;
+  responseFormat?: 'json_object';
 }
 
 export interface DeepSeekMessage {
@@ -114,6 +115,7 @@ export class ResilientDeepSeek {
             model: params.model,
             max_tokens: params.max_tokens,
             messages,
+            response_format: params.responseFormat ? { type: params.responseFormat } : undefined,
           });
 
           const timeoutPromise = new Promise<never>((_, reject) => {

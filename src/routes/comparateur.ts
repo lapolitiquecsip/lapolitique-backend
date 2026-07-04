@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { generateMockCommune } from '../utils/mockTerritoryGenerator.js';
 import { getElusForCommune } from '../utils/rne.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { supabase } from '../config/supabase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +15,8 @@ const DEPARTMENTS_INDICATORS = JSON.parse(fs.readFileSync(indicatorsPath, 'utf8'
 
 const communesIndicatorsPath = path.resolve(__dirname, '../data/communes_indicators.json');
 const COMMUNES_INDICATORS = JSON.parse(fs.readFileSync(communesIndicatorsPath, 'utf8'));
+const regionsIndicatorsPath = path.resolve(__dirname, '../data/regions_indicators.json');
+const REGIONS_INDICATORS = JSON.parse(fs.readFileSync(regionsIndicatorsPath, 'utf8'));
 
 const REGIONS = [
   {
@@ -801,10 +803,62 @@ router.get('/:codeInsee', async (req, res) => {
   const codeInsee = req.params.codeInsee;
   const name = req.query.name as string || `Commune ${codeInsee}`;
 
+  // Canonical path: all current indicators come from the normalized Supabase model.
+  // The legacy code below is retained only for databases where the migration has not yet been applied.
+  const [{ data: canonicalTerritory, error: territoryError }, { data: canonicalIndicators, error: indicatorsError }] = await Promise.all([
+    supabase.rpc('public_territory', { p_code: codeInsee }),
+    supabase.rpc('public_territory_indicators', { p_code: codeInsee, p_domain: null }),
+  ]);
+  if (!territoryError && !indicatorsError && canonicalTerritory) {
+    const payload: any = {
+      id: canonicalTerritory.code,
+      name: canonicalTerritory.name,
+      type: canonicalTerritory.type,
+      demographie: {}, economie: {}, education: {}, sante: {}, securite: {}, logement: {}, finances: {}, environnement: {},
+      source_urls: canonicalTerritory.source_urls || [],
+      source_updated_at: canonicalTerritory.source_updated_at,
+      collected_at: canonicalTerritory.collected_at,
+      data_freshness: canonicalTerritory.data_freshness,
+      quality_status: canonicalTerritory.quality_status,
+      isEstimated: false,
+    };
+    const mappings: Record<string, [string, string]> = {
+      populationTotal: ['demographie', 'populationTotal'], densite: ['demographie', 'densite'], evolution10ans: ['demographie', 'evolution10ans'], moins25ans: ['demographie', 'moins25ans'], plus65ans: ['demographie', 'plus65ans'],
+      chomage: ['economie', 'chomage'], revenuMedian: ['economie', 'revenuMedian'], pauvrete: ['economie', 'pauvrete'],
+      bac: ['education', 'bac'], diplomesSup: ['education', 'diplomesSup'], decrochage: ['education', 'decrochage'], education_bac_success: ['education', 'bac'],
+      medecins10k: ['sante', 'medecins10k'], scoreAPL: ['sante', 'scoreAPL'], health_apl_gp: ['sante', 'scoreAPL'], esperanceVie: ['sante', 'esperanceVie'],
+      atteintesPersonnes: ['securite', 'atteintesPersonnes'], atteintesBiens: ['securite', 'atteintesBiens'], security_violence_rate: ['securite', 'atteintesPersonnes'], security_theft_burglary_rate: ['securite', 'atteintesBiens'],
+      prixM2: ['logement', 'prixM2'], logementsSociaux: ['logement', 'logementsSociaux'], proprietaires: ['logement', 'proprietaires'], housing_sale_price_m2: ['logement', 'prixM2'], housing_social_share: ['logement', 'logementsSociaux'],
+      budgetHabitant: ['finances', 'budgetHabitant'], endettement: ['finances', 'endettement'], investissement: ['finances', 'investissement'],
+      qualiteAir: ['environnement', 'qualiteAir'], surfaceNaturelle: ['environnement', 'surfaceNaturelle'], risques: ['environnement', 'risques'], environment_atmo_mean_index: ['environnement', 'qualiteAir'], environment_risk_exposure_level: ['environnement', 'risques'], environment_major_risk_count: ['environnement', 'nombreRisques'],
+    };
+    const newest = new Map<string, any>();
+    for (const indicator of canonicalIndicators || []) {
+      const current = newest.get(indicator.indicator_code);
+      if (!current || indicator.reference_year > current.reference_year) newest.set(indicator.indicator_code, indicator);
+    }
+    payload.indicator_provenance = {};
+    for (const [code, indicator] of newest) {
+      const mapping = mappings[code];
+      if (!mapping) continue;
+      payload[mapping[0]][mapping[1]] = indicator.value;
+      payload.indicator_provenance[code] = { reference_year: indicator.reference_year, unit: indicator.unit, methodology_version: indicator.methodology_version, source_urls: indicator.source_urls, quality_status: indicator.quality_status };
+      payload.source_urls.push(...(indicator.source_urls || []));
+    }
+    payload.source_urls = [...new Set(payload.source_urls)];
+    payload.sources = payload.source_urls.join(' | ');
+    return res.json(payload);
+  }
+  return res.status(503).json({
+    error: 'Référentiel territorial canonique indisponible',
+    code: codeInsee,
+    details: territoryError?.message || indicatorsError?.message || 'Territoire absent du référentiel',
+  });
+
   // Check in REGIONS
   const region = REGIONS.find(r => r.id === codeInsee);
   if (region) {
-    return res.json({ ...region, type: 'region' });
+    return res.json({ ...region, ...REGIONS_INDICATORS[codeInsee], type: 'region', isEstimated: false });
   }
 
   // Check in DEPARTMENTS
@@ -966,8 +1020,13 @@ router.get('/:codeInsee', async (req, res) => {
       getElusForCommune(codeInsee).catch(() => null)
     ]);
 
-    const finalPop = ofglData ? ofglData.populationTotal : (realCommune ? realCommune.demographie?.populationTotal : populationQuery);
-    const baseMock = generateMockCommune(codeInsee, name, finalPop);
+    const officialPopulation = realCommune?.demographie?.populationTotal;
+    const finalPop = officialPopulation ?? ofglData?.populationTotal ?? populationQuery;
+    const emptyOfficialTerritory = {
+      id: codeInsee, name, type: 'commune',
+      demographie: finalPop ? { populationTotal: finalPop } : {},
+      economie: {}, education: {}, sante: {}, securite: {}, logement: {}, finances: {}, environnement: {},
+    };
 
     const rneFormatted = rneData && rneData.length > 0 ? (() => {
       const maire = rneData.find(e => e.fonction === 'Maire') || null;
@@ -1004,7 +1063,8 @@ router.get('/:codeInsee', async (req, res) => {
     })() : null;
 
     const finalCommune = {
-      ...(realCommune || baseMock),
+      ...(realCommune || emptyOfficialTerritory),
+      provenance: realCommune ? { population: COMMUNES_INDICATORS._meta.population } : undefined,
       rne: rneFormatted,
       dotations: dotationsData,
       isEstimated: false
@@ -1013,7 +1073,7 @@ router.get('/:codeInsee', async (req, res) => {
     if (ofglData) {
       finalCommune.demographie = {
         ...finalCommune.demographie,
-        populationTotal: ofglData.populationTotal
+        populationTotal: officialPopulation ?? ofglData.populationTotal
       };
       finalCommune.finances = {
         budgetHabitant: ofglData.budgetHabitant,
@@ -1033,7 +1093,7 @@ router.get('/:codeInsee', async (req, res) => {
       sourceList.push(`Répertoire National des Élus (RNE) data.gouv.fr`);
     }
     if (realCommune) {
-      sourceList.push(realCommune.sources || "INSEE, SSMSI, DREES");
+      sourceList.push(COMMUNES_INDICATORS._meta.source);
     }
 
     finalCommune.sources = sourceList.length > 0 ? sourceList.join(" | ") : "Données géographiques officielles (geo.api.gouv.fr)";
@@ -1041,7 +1101,7 @@ router.get('/:codeInsee', async (req, res) => {
     return res.json(finalCommune);
   } catch (err) {
     console.error("Error in comparateur route:", err);
-    return res.json(generateMockCommune(codeInsee, name, populationQuery));
+    return res.status(503).json({ error: 'Données officielles temporairement indisponibles', code: codeInsee });
   }
 });
 

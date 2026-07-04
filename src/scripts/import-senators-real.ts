@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function importSenators() {
+export async function importSenators() {
   console.log('Fetching senators data from official Open Data Senat...');
   
   try {
@@ -48,23 +48,26 @@ async function importSenators() {
 
     const senatorsToInsert = activeSenators.map((s: any) => {
       return {
+        official_id: String(s.Matricule),
         first_name: s.Prenom_usuel,
         last_name: s.Nom_usuel,
         photo_url: generatePhotoUrl(s.Prenom_usuel, s.Nom_usuel, s.Matricule),
         party: s.Groupe_politique,
+        group_name: s.Groupe_politique,
         department: s.Circonscription,
         department_code: s.Circonscription ? s.Circonscription.substring(0, 2) : '', 
         slug: generateSlug(s.Prenom_usuel, s.Nom_usuel),
         biography: `${s.Prenom_usuel} ${s.Nom_usuel} est sénateur (${s.Groupe_politique}) du département : ${s.Circonscription}.`,
-        legal_issues: 'Aucune affaire connue'
+        legal_issues: null,
+        source_urls: ['https://data.senat.fr/data/senateurs/ODSEN_GENERAL.json'],
+        source_updated_at: new Date().toISOString(),
+        collected_at: new Date().toISOString(),
+        quality_status: 'verified'
       };
     });
 
-    console.log('Clearing existing senators...');
-    await supabase.from('senators').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-    console.log('Inserting new senators...');
-    const { error } = await supabase.from('senators').insert(senatorsToInsert);
+    console.log('Upserting senators by official identifier...');
+    const { error } = await supabase.from('senators').upsert(senatorsToInsert, { onConflict: 'official_id' });
 
     if (error) {
       console.error('Error inserting senators:', error);
@@ -73,7 +76,8 @@ async function importSenators() {
     }
   } catch (error) {
     console.error('Import failed:', error);
+    throw error;
   }
 }
 
-importSenators();
+importSenators().catch(() => { process.exitCode = 1; });

@@ -1,6 +1,7 @@
 node_modules
 dist
 .env
+data/official-local/
 .DS_Store
 *.zip
 *.log

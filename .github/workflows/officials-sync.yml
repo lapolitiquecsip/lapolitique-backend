@@ -1,0 +1,23 @@
+name: National elected officials
+on:
+  schedule:
+    - cron: '12 1 * * *'
+  workflow_dispatch:
+concurrency:
+  group: officials-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:register-sources
+      - run: npm run data:sync-government
+      - run: npx tsx src/scripts/import-senators-real.ts
