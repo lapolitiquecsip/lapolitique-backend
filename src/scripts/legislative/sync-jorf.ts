@@ -32,13 +32,28 @@ async function xmlFiles(directory: string): Promise<string[]> {
   return nested.flat();
 }
 
+async function fetchArchiveBuffer(archiveUrl: string, attempts = 5): Promise<Buffer> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const response = await fetch(archiveUrl, { signal: AbortSignal.timeout(60_000) });
+      if (!response.ok) throw new Error(`DILA archive HTTP ${response.status}: ${archiveUrl}`);
+      return Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      // Le serveur DILA coupe/temporise régulièrement (UND_ERR_SOCKET, TimeoutError).
+      // On réessaie avec un backoff progressif plutôt que d'abandonner tout le backfill.
+      lastError = error;
+      if (attempt < attempts) await new Promise(resolve => setTimeout(resolve, attempt * 2_000));
+    }
+  }
+  throw lastError;
+}
+
 async function recordsFromArchive(archiveUrl: string, root: string) {
   const archiveDirectory = await fs.mkdtemp(path.join(root, "archive-"));
   const archive = path.join(archiveDirectory, "jorf.tar.gz");
   try {
-    const response = await fetch(archiveUrl, { signal: AbortSignal.timeout(60_000) });
-    if (!response.ok) throw new Error(`DILA archive HTTP ${response.status}: ${archiveUrl}`);
-    await fs.writeFile(archive, Buffer.from(await response.arrayBuffer()));
+    await fs.writeFile(archive, await fetchArchiveBuffer(archiveUrl));
     await extract({ file: archive, cwd: archiveDirectory, filter: entryPath => /JORFTEXT.*\.xml$/.test(entryPath) });
     return (await Promise.all((await xmlFiles(archiveDirectory)).map(async file => parseJorfXml(await fs.readFile(file, "utf8")))))
       .filter((record): record is NonNullable<typeof record> => record !== null);
@@ -127,7 +142,13 @@ export async function syncJorf(options: { year?: number } = {}) {
         source_updated_at: new Date().toISOString(),
         source_hash: promotion.sourceHash,
       }, { onConflict: "jorf_id" });
-      if (error) throw error;
+      // Un dossier ne peut être promulgué qu'une fois. Si une autre publication JORF est
+      // déjà liée à ce dossier, on ignore ce doublon (contrainte dossier_id) au lieu
+      // d'interrompre tout le backfill : les imports restent idempotents.
+      if (error) {
+        if (error.code === "23505") continue;
+        throw error;
+      }
       await supabase.from("legislative_dossiers").update({ status_code: "promulgated", status_label: "Promulguée", current_chamber: "JORF", updated_at: new Date().toISOString() }).eq("id", match.dossier.id);
       promotedCount++;
     }
