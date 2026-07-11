@@ -6,7 +6,7 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 const parser = new Parser({ timeout: 15000 });
 
 // Version du schéma de bio : incrémenter force la régénération des fiches existantes.
-const BIO_VERSION = 3;
+const BIO_VERSION = 4;
 
 // Flux d'actualité politique pour détecter les déclarations de candidature.
 const NEWS_FEEDS = [
@@ -133,6 +133,7 @@ EXIGENCES :
 Réponds en JSON strict :
 {
   "summary": "accroche 1-2 phrases",
+  "naissance": { "date": "AAAA-MM-JJ (ou AAAA si jour inconnu)", "ville": "ville de naissance", "pays": "pays de naissance", "pays_code": "code ISO 3166-1 alpha-2 en minuscules, ex: fr, sn, dz" },
   "famille": ["..."],
   "parents": ["profession et parcours du père", "profession et parcours de la mère", "fratrie..."],
   "etudes": ["diplômes, écoles, années"],
@@ -150,7 +151,13 @@ Réponds en JSON strict :
   }, { timeoutMs: 150000 });
   const text = response.content[0]?.text ?? "";
   const match = text.match(/\{[\s\S]*\}/);
-  return match ? JSON.parse(match[0]) : null;
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch (err: any) {
+    console.warn(`[Presidential] JSON de bio invalide pour ${name} (ignoré): ${err.message}`);
+    return null;
+  }
 }
 
 // ---- Pipeline principal ---------------------------------------------------
@@ -162,14 +169,18 @@ export async function syncPresidentialCandidates() {
     .select("id, full_name, normalized_name, bio");
   for (const row of allExisting ?? []) {
     if (row.bio && (row.bio as any)._v === BIO_VERSION) continue; // déjà à jour
-    const wiki = await wikipediaData(row.full_name);
-    if (!wiki.extract) continue;
-    const bio = await structureBio(row.full_name, wiki.extract);
-    if (!bio) continue;
-    await supabase.from("presidential_candidates").update({
-      bio: { ...bio, _v: BIO_VERSION }, summary: bio.summary ?? null, updated_at: new Date().toISOString(),
-    }).eq("id", row.id);
-    console.log(`[Presidential] ↻ Bio détaillée régénérée : ${row.full_name}`);
+    try {
+      const wiki = await wikipediaData(row.full_name);
+      if (!wiki.extract) continue;
+      const bio = await structureBio(row.full_name, wiki.extract);
+      if (!bio) continue;
+      await supabase.from("presidential_candidates").update({
+        bio: { ...bio, _v: BIO_VERSION }, summary: bio.summary ?? null, updated_at: new Date().toISOString(),
+      }).eq("id", row.id);
+      console.log(`[Presidential] ↻ Bio détaillée régénérée : ${row.full_name}`);
+    } catch (err: any) {
+      console.error(`[Presidential] Échec ré-enrichissement ${row.full_name}: ${err.message}`);
+    }
   }
 
   console.log("[Presidential] Détection des candidats 2027...");
