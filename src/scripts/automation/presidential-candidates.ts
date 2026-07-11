@@ -6,7 +6,7 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 const parser = new Parser({ timeout: 15000 });
 
 // Version du schéma de bio : incrémenter force la régénération des fiches existantes.
-const BIO_VERSION = 4;
+const BIO_VERSION = 5;
 
 // Flux d'actualité politique pour détecter les déclarations de candidature.
 const NEWS_FEEDS = [
@@ -134,6 +134,9 @@ Réponds en JSON strict :
 {
   "summary": "accroche 1-2 phrases",
   "naissance": { "date": "AAAA-MM-JJ (ou AAAA si jour inconnu)", "ville": "ville de naissance", "pays": "pays de naissance", "pays_code": "code ISO 3166-1 alpha-2 en minuscules, ex: fr, sn, dz" },
+  "profession": "métier d'origine avant/hors politique, 2-4 mots (ex: Avocate, Médecin). Sinon \"\"",
+  "formation": "école ou diplôme le plus notable, 1-4 mots (ex: ENA, Sciences Po, HEC). Sinon \"\"",
+  "enfants": "nombre d'enfants si mentionné, ex: \"4 enfants\". Sinon \"\"",
   "famille": ["..."],
   "parents": ["profession et parcours du père", "profession et parcours de la mère", "fratrie..."],
   "etudes": ["diplômes, écoles, années"],
