@@ -58,7 +58,7 @@ async function gatherHeadlines(): Promise<string> {
 async function detectCandidates(headlines: string): Promise<Detected[]> {
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
-    max_tokens: 1500,
+    max_tokens: 4000,
     responseFormat: "json_object",
     system: `Tu analyses des extraits d'actualité politique française pour identifier les personnes ayant OFFICIELLEMENT DÉCLARÉ leur candidature à l'élection présidentielle française de 2027.
 
@@ -80,16 +80,32 @@ Réponds en JSON strict : { "candidates": [ { "full_name": "...", "party": "..."
 
 // ---- 3. Grounding Wikipédia : photo + texte de référence ------------------
 async function wikipediaData(name: string): Promise<{ extract: string; photo?: string; url?: string }> {
+  const headers = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitique.fr)" };
   try {
     const res = await fetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`, {
-      headers: { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitique.fr)" },
-      signal: AbortSignal.timeout(12000),
+      headers, signal: AbortSignal.timeout(12000),
     });
     if (!res.ok) return { extract: "" };
     const data: any = await res.json();
     if (data.type === "disambiguation") return { extract: "" };
+
+    // Article complet en texte brut (grounding détaillé de la bio).
+    let extract = data.extract || "";
+    try {
+      const title = data.title || name;
+      const full = await fetch(
+        `https://fr.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&titles=${encodeURIComponent(title)}`,
+        { headers, signal: AbortSignal.timeout(12000) },
+      );
+      if (full.ok) {
+        const json: any = await full.json();
+        const page: any = Object.values(json?.query?.pages ?? {})[0];
+        if (page?.extract && page.extract.length > extract.length) extract = page.extract;
+      }
+    } catch { /* on garde le résumé court en repli */ }
+
     return {
-      extract: data.extract || "",
+      extract,
       photo: data.originalimage?.source || data.thumbnail?.source,
       url: data.content_urls?.desktop?.page,
     };
@@ -102,7 +118,7 @@ async function wikipediaData(name: string): Promise<{ extract: string; photo?: s
 async function structureBio(name: string, reference: string) {
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
-    max_tokens: 1800,
+    max_tokens: 3500,
     responseFormat: "json_object",
     system: `Tu structures une biographie UNIQUEMENT à partir du texte de référence fourni (issu de Wikipédia). N'ajoute AUCUNE information absente du texte. Si une rubrique est inconnue, mets une chaîne vide. Réponds en JSON strict :
 {
