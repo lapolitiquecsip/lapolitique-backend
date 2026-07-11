@@ -70,7 +70,7 @@ RÈGLES STRICTES :
 
 Réponds en JSON strict : { "candidates": [ { "full_name": "...", "party": "...", "political_side": "gauche|centre|droite|extreme-gauche|extreme-droite|autre", "declared_at": "YYYY-MM-DD ou null", "confidence": 0.0, "source_url": "..." } ] }`,
     messages: [{ role: "user", content: `Extraits d'actualité :\n\n${headlines}` }],
-  });
+  }, { timeoutMs: 90000 });
   const text = response.content[0]?.text ?? "";
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return [];
@@ -118,17 +118,33 @@ async function wikipediaData(name: string): Promise<{ extract: string; photo?: s
 async function structureBio(name: string, reference: string) {
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
-    max_tokens: 3500,
+    max_tokens: 8000,
     responseFormat: "json_object",
-    system: `Tu structures une biographie UNIQUEMENT à partir du texte de référence fourni (issu de Wikipédia). N'ajoute AUCUNE information absente du texte. Si une rubrique est inconnue, mets une chaîne vide. Réponds en JSON strict :
+    system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN qui ne soit dans le texte.
+
+EXIGENCES :
+- Sois EXHAUSTIF et PRÉCIS : dates exactes, chiffres, pourcentages, noms propres, lieux, intitulés de fonctions.
+- Chaque rubrique est un TABLEAU de points (bullet points). Mets PLUSIEURS points par rubrique dès que l'information existe (vise 3 à 8 points quand c'est possible).
+- Si une rubrique est réellement absente du texte, renvoie un tableau vide [].
+
+Réponds en JSON strict :
 {
-  "summary": "accroche 1 phrase",
-  "famille": "...", "parents": "...", "etudes": "...", "parcours": "...",
-  "jobs": "...", "passions": "...", "faits_marquants": "...",
-  "sorties_mediatiques": "...", "realisations": "..."
+  "summary": "accroche 1-2 phrases",
+  "famille": ["..."],
+  "parents": ["profession et parcours du père", "profession et parcours de la mère", "fratrie..."],
+  "etudes": ["diplômes, écoles, années"],
+  "parcours": ["étapes de carrière politique, avec dates et fonctions"],
+  "jobs": ["métiers exercés hors politique, avec dates"],
+  "passions": ["centres d'intérêt, engagements personnels"],
+  "faits_marquants": ["événements marquants avec dates/chiffres"],
+  "sorties_mediatiques": ["apparitions médiatiques notables, livres, émissions"],
+  "realisations": ["actions/lois/réformes concrètes portées, avec dates"],
+  "positions": ["principales idées, combats et positions politiques"],
+  "controverses": ["affaires, polémiques, condamnations éventuelles, avec dates"],
+  "chronologie": ["AAAA : événement clé", "AAAA : événement clé"]
 }`,
-    messages: [{ role: "user", content: `Personne : ${name}\n\nTexte de référence :\n${reference.slice(0, 12000)}` }],
-  });
+    messages: [{ role: "user", content: `Personne : ${name}\n\nTexte de référence :\n${reference.slice(0, 45000)}` }],
+  }, { timeoutMs: 150000 });
   const text = response.content[0]?.text ?? "";
   const match = text.match(/\{[\s\S]*\}/);
   return match ? JSON.parse(match[0]) : null;
@@ -136,13 +152,29 @@ async function structureBio(name: string, reference: string) {
 
 // ---- Pipeline principal ---------------------------------------------------
 export async function syncPresidentialCandidates() {
+  // 0) Ré-enrichir les fiches existantes dont la bio n'a pas la structure détaillée
+  //    (marqueur : présence de "chronologie"). Mise à jour en place, sans supprimer.
+  const { data: allExisting } = await supabase
+    .from("presidential_candidates")
+    .select("id, full_name, normalized_name, bio");
+  for (const row of allExisting ?? []) {
+    if (row.bio && Array.isArray((row.bio as any).chronologie)) continue; // déjà détaillée
+    const wiki = await wikipediaData(row.full_name);
+    if (!wiki.extract) continue;
+    const bio = await structureBio(row.full_name, wiki.extract);
+    if (!bio) continue;
+    await supabase.from("presidential_candidates").update({
+      bio, summary: bio.summary ?? null, updated_at: new Date().toISOString(),
+    }).eq("id", row.id);
+    console.log(`[Presidential] ↻ Bio détaillée régénérée : ${row.full_name}`);
+  }
+
   console.log("[Presidential] Détection des candidats 2027...");
   const headlines = await gatherHeadlines();
   const detected = await detectCandidates(headlines);
   console.log(`[Presidential] ${detected.length} candidat(s) déclaré(s) détecté(s).`);
 
-  const { data: existing } = await supabase.from("presidential_candidates").select("normalized_name");
-  const known = new Set((existing ?? []).map(row => row.normalized_name));
+  const known = new Set((allExisting ?? []).map(row => row.normalized_name));
 
   let added = 0;
   for (const candidate of detected) {
