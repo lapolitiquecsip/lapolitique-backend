@@ -5,6 +5,9 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 
 const parser = new Parser({ timeout: 15000 });
 
+// Version du schéma de bio : incrémenter force la régénération des fiches existantes.
+const BIO_VERSION = 3;
+
 // Flux d'actualité politique pour détecter les déclarations de candidature.
 const NEWS_FEEDS = [
   "https://www.lemonde.fr/politique/rss_full.xml",
@@ -135,7 +138,7 @@ Réponds en JSON strict :
   "etudes": ["diplômes, écoles, années"],
   "parcours": ["étapes de carrière politique, avec dates et fonctions"],
   "jobs": ["métiers exercés hors politique, avec dates"],
-  "passions": ["centres d'intérêt, engagements personnels"],
+  "passions": ["hobbies et centres d'intérêt PERSONNELS et NON politiques uniquement : sports, arts, musique, lectures, loisirs, cuisine, animaux, voyages, etc. NE PAS mettre d'engagements ou de combats politiques ici. Si le texte n'en mentionne aucun, renvoie []"],
   "faits_marquants": ["événements marquants avec dates/chiffres"],
   "sorties_mediatiques": ["apparitions médiatiques notables, livres, émissions"],
   "realisations": ["actions/lois/réformes concrètes portées, avec dates"],
@@ -158,13 +161,13 @@ export async function syncPresidentialCandidates() {
     .from("presidential_candidates")
     .select("id, full_name, normalized_name, bio");
   for (const row of allExisting ?? []) {
-    if (row.bio && Array.isArray((row.bio as any).chronologie)) continue; // déjà détaillée
+    if (row.bio && (row.bio as any)._v === BIO_VERSION) continue; // déjà à jour
     const wiki = await wikipediaData(row.full_name);
     if (!wiki.extract) continue;
     const bio = await structureBio(row.full_name, wiki.extract);
     if (!bio) continue;
     await supabase.from("presidential_candidates").update({
-      bio, summary: bio.summary ?? null, updated_at: new Date().toISOString(),
+      bio: { ...bio, _v: BIO_VERSION }, summary: bio.summary ?? null, updated_at: new Date().toISOString(),
     }).eq("id", row.id);
     console.log(`[Presidential] ↻ Bio détaillée régénérée : ${row.full_name}`);
   }
@@ -200,7 +203,7 @@ export async function syncPresidentialCandidates() {
       photo_url: wiki.photo ?? null,
       photo_credit: wiki.photo ? "Wikimedia Commons" : null,
       summary: bio?.summary ?? null,
-      bio: bio ?? null,
+      bio: bio ? { ...bio, _v: BIO_VERSION } : null,
       source_urls: [candidate.source_url, wiki.url].filter(Boolean),
       confidence: candidate.confidence,
     });
