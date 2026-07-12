@@ -32,17 +32,31 @@ export async function syncRegionFinances() {
   let total = 0;
   for (const ind of INDICATORS) {
     const rows = await fetchIndicator(ind.agregat);
-    const payload = rows
-      .filter(r => r.reg_code && r.exer)
-      .map(r => ({
-        region_code: String(r.reg_code),
-        region_name: r.reg_name ?? null,
-        year: Number(r.exer),
-        indicator: ind.code,
-        montant_millions: r.montant_en_millions ?? null,
-        euros_par_habitant: r.euros_par_habitant ?? null,
-        updated_at: new Date().toISOString(),
-      }));
+
+    // Agrège les régions historiques regroupées sous le même code avant la réforme
+    // de 2016 (ex. Grand Est 2012 = Alsace + Champagne-Ardenne + Lorraine).
+    // On somme les montants et on recompose la population pour le €/habitant.
+    const agg = new Map<string, { region_code: string; region_name: string | null; year: number; montant: number; pop: number }>();
+    for (const r of rows) {
+      if (!r.reg_code || !r.exer) continue;
+      const key = `${r.reg_code}-${r.exer}`;
+      const montant = Number(r.montant_en_millions) || 0;
+      const eph = Number(r.euros_par_habitant) || 0;
+      const pop = eph ? (montant * 1_000_000) / eph : 0;
+      const cur = agg.get(key) ?? { region_code: String(r.reg_code), region_name: r.reg_name ?? null, year: Number(r.exer), montant: 0, pop: 0 };
+      cur.montant += montant;
+      cur.pop += pop;
+      agg.set(key, cur);
+    }
+    const payload = [...agg.values()].map(a => ({
+      region_code: a.region_code,
+      region_name: a.region_name,
+      year: a.year,
+      indicator: ind.code,
+      montant_millions: a.montant,
+      euros_par_habitant: a.pop ? (a.montant * 1_000_000) / a.pop : null,
+      updated_at: new Date().toISOString(),
+    }));
 
     for (let i = 0; i < payload.length; i += 500) {
       const { error } = await supabase

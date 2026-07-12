@@ -1,0 +1,21 @@
+name: Finances des régions (OFGL)
+on:
+  schedule:
+    - cron: '30 4 1 * *'   # mensuel, le 1er du mois
+  workflow_dispatch:
+concurrency:
+  group: regions-finances-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:sync-region-finances
