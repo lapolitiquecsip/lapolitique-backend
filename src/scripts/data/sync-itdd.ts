@@ -41,9 +41,14 @@ function extractRows(r: any, level: string, latestOnly: boolean) {
 }
 
 async function* streamCsv(url: string) {
-  const res = await fetch(url, { headers: { "User-Agent": "LaPolitiqueBot/1.0" }, signal: AbortSignal.timeout(180000) });
+  const res = await fetch(url, { headers: { "User-Agent": "LaPolitiqueBot/1.0" }, signal: AbortSignal.timeout(300000) });
   if (!res.ok || !res.body) throw new Error(`ITDD HTTP ${res.status}: ${url}`);
-  const parser = Readable.fromWeb(res.body as any).pipe(parse({ columns: true, delimiter: ";", relax_quotes: true, relax_column_count: true, skip_empty_lines: true }));
+  const source = Readable.fromWeb(res.body as any);
+  const parser = parse({ columns: true, delimiter: ";", relax_quotes: true, relax_column_count: true, skip_empty_lines: true });
+  // Propage les erreurs du téléchargement au parser pour qu'elles soient
+  // attrapées par le retry (sinon 'error' non géré = crash du process).
+  source.on("error", (e) => parser.destroy(e));
+  source.pipe(parser);
   for await (const record of parser) yield record;
 }
 
@@ -52,7 +57,7 @@ async function upsertBatch(rows: any[]) {
   if (error) console.error("[ITDD] upsert:", error.message);
 }
 
-async function ingest(url: string, level: string, latestOnly: boolean) {
+async function ingestOnce(url: string, level: string, latestOnly: boolean) {
   let batch: any[] = [];
   let n = 0;
   for await (const r of streamCsv(url)) {
@@ -62,6 +67,20 @@ async function ingest(url: string, level: string, latestOnly: boolean) {
   }
   if (batch.length) { await upsertBatch(batch); n += batch.length; }
   return n;
+}
+
+// Les téléchargements DIDO coupent parfois (UND_ERR_SOCKET). On réessaie le
+// fichier plutôt que d'abandonner tout le run (upsert idempotent).
+async function ingest(url: string, level: string, latestOnly: boolean, attempts = 4) {
+  for (let a = 1; a <= attempts; a++) {
+    try { return await ingestOnce(url, level, latestOnly); }
+    catch (e: any) {
+      console.warn(`[ITDD] échec ${a}/${attempts} (${level}) : ${e.message}`);
+      if (a < attempts) await new Promise(r => setTimeout(r, a * 3000));
+    }
+  }
+  console.error(`[ITDD] abandon du fichier ${url}`);
+  return 0;
 }
 
 export async function syncItdd() {
