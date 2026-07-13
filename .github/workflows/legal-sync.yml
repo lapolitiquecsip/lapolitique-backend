@@ -1,0 +1,21 @@
+name: Situation juridique (casier-politique)
+on:
+  schedule:
+    - cron: '15 4 * * *'   # chaque jour ~06h15 Paris
+  workflow_dispatch:
+concurrency:
+  group: legal-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  legal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run automation:legal

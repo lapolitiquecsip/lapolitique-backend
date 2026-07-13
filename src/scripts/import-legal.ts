@@ -105,6 +105,7 @@ async function main() {
 
     await updateTable('deputies', recordsByName);
     await updateTable('senators', recordsByName);
+    await updateCandidates(recordsByName);
 
     console.log('\n--- TERMINE ---');
     await logSuccess('importLegal', 1, hcId, 'Legal records updated successfully.');
@@ -145,6 +146,39 @@ async function updateTable(tableName: string, recordsByName: Record<string, Lega
     }
   }
   console.log(`> ${updatedCount} profiles updated.`);
+}
+
+// Les candidats à la présidentielle n'ont qu'un champ `full_name` (pas de
+// first/last séparés) → matching par nom normalisé, dans les deux sens.
+async function updateCandidates(recordsByName: Record<string, LegalRecord[]>) {
+  console.log(`\n> Updating presidential_candidates...`);
+  const { data: candidates, error } = await supabase
+    .from('presidential_candidates')
+    .select('id, full_name, legal_issues');
+
+  if (error) { console.log(`> (table presidential_candidates indisponible: ${error.message})`); return; }
+
+  let updatedCount = 0;
+  for (const candidate of candidates || []) {
+    const fullName = (candidate.full_name || '').trim();
+    const records =
+      recordsByName[fullName] ||
+      findPartialMatch(fullName, recordsByName);
+
+    let legalStatus = "Aucune affaire judiciaire connue ou signalée à ce jour.";
+    if (records && records.length > 0) {
+      legalStatus = records
+        .sort((a, b) => b.year - a.year)
+        .map(r => r.summary)
+        .join('\n\n\n');
+    }
+
+    if (candidate.legal_issues !== legalStatus) {
+      await supabase.from('presidential_candidates').update({ legal_issues: legalStatus }).eq('id', candidate.id);
+      updatedCount++;
+    }
+  }
+  console.log(`> ${updatedCount} candidate profiles updated.`);
 }
 
 function findPartialMatch(fullName: string, recordsByName: Record<string, LegalRecord[]>): LegalRecord[] | null {
