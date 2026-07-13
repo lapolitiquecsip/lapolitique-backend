@@ -10,31 +10,82 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-const ENRICH_VERSION = 1; // incrémenter pour forcer un ré-enrichissement
+const ENRICH_VERSION = 3; // incrémenter pour forcer un ré-enrichissement (v3 = + logo P154)
 
 const WIKI_HEADERS = { 'User-Agent': 'LaPolitiqueBot/1.0 (contact@lapolitique.fr)' };
 
-async function wikipedia(title: string): Promise<{ extract: string; url?: string; logo?: string }> {
+async function wikipedia(title: string): Promise<{ extract: string; url?: string; logo?: string; qid?: string }> {
   try {
     const res = await fetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, {
       headers: WIKI_HEADERS, signal: AbortSignal.timeout(12000),
     });
     if (!res.ok) return { extract: '' };
     const data: any = await res.json();
+    if (data.type === 'disambiguation') return { extract: '' };
     let extract = data.extract || '';
+    let qid: string | undefined;
     try {
       const full = await fetch(
-        `https://fr.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&titles=${encodeURIComponent(data.title || title)}`,
+        `https://fr.wikipedia.org/w/api.php?action=query&prop=extracts|pageprops&ppprop=wikibase_item&explaintext=1&redirects=1&format=json&titles=${encodeURIComponent(data.title || title)}`,
         { headers: WIKI_HEADERS, signal: AbortSignal.timeout(12000) },
       );
       if (full.ok) {
         const json: any = await full.json();
         const page: any = Object.values(json?.query?.pages ?? {})[0];
         if (page?.extract && page.extract.length > extract.length) extract = page.extract;
+        qid = page?.pageprops?.wikibase_item;
       }
     } catch { /* repli sur le résumé court */ }
-    return { extract, url: data.content_urls?.desktop?.page, logo: data.originalimage?.source || data.thumbnail?.source };
+    return { extract, qid, url: data.content_urls?.desktop?.page, logo: data.originalimage?.source || data.thumbnail?.source };
   } catch { return { extract: '' }; }
+}
+
+// Données structurées Wikidata : fondation (P571), adhérents (P2124), siège (P159), logo (P154).
+async function wikidata(qid: string): Promise<{ founded?: string; members?: string; headquarters?: string; logo?: string }> {
+  try {
+    const res = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`, {
+      headers: WIKI_HEADERS, signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return {};
+    const json: any = await res.json();
+    const claims = json?.entities?.[qid]?.claims || {};
+    const out: { founded?: string; members?: string; headquarters?: string; logo?: string } = {};
+
+    // P154 — logo (fichier Commons) → URL via Special:FilePath
+    const logoFile = claims.P154?.[0]?.mainsnak?.datavalue?.value;
+    if (logoFile) out.logo = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(logoFile)}?width=240`;
+
+    // P571 — date de fondation
+    const inception = claims.P571?.[0]?.mainsnak?.datavalue?.value?.time;
+    if (inception) { const m = inception.match(/([0-9]{4})/); if (m) out.founded = m[1]; }
+
+    // P2124 — nombre d'adhérents (prendre la valeur la plus récente via P585)
+    const memberClaims = (claims.P2124 || []).filter((c: any) => c?.mainsnak?.datavalue?.value?.amount);
+    if (memberClaims.length) {
+      memberClaims.sort((a: any, b: any) => {
+        const ya = a.qualifiers?.P585?.[0]?.datavalue?.value?.time || '';
+        const yb = b.qualifiers?.P585?.[0]?.datavalue?.value?.time || '';
+        return yb.localeCompare(ya);
+      });
+      const best = memberClaims[0];
+      const amount = String(best.mainsnak.datavalue.value.amount).replace(/^\+/, '');
+      const year = (best.qualifiers?.P585?.[0]?.datavalue?.value?.time || '').match(/([0-9]{4})/)?.[1];
+      const n = Number(amount);
+      out.members = `${isNaN(n) ? amount : n.toLocaleString('fr-FR')}${year ? ` (${year})` : ''}`;
+    }
+
+    // P159 — siège (item → libellé fr)
+    const hqId = claims.P159?.[0]?.mainsnak?.datavalue?.value?.id;
+    if (hqId) {
+      try {
+        const lr = await fetch(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${hqId}&props=labels&languages=fr&format=json`, {
+          headers: WIKI_HEADERS, signal: AbortSignal.timeout(12000),
+        });
+        if (lr.ok) { const lj: any = await lr.json(); out.headquarters = lj?.entities?.[hqId]?.labels?.fr?.value; }
+      } catch { /* siège optionnel */ }
+    }
+    return out;
+  } catch { return {}; }
 }
 
 async function structure(name: string, reference: string) {
@@ -88,16 +139,18 @@ async function main() {
       if (!wiki.extract) { console.log(`  (pas de Wikipédia pour ${party.name})`); continue; }
       const info = await structure(party.name, wiki.extract);
       if (!info) continue;
+      // Wikidata (structuré) prioritaire pour fondation / adhérents / siège.
+      const wd = wiki.qid ? await wikidata(wiki.qid) : {};
       const { error: upErr } = await supabase.from('political_parties').update({
         summary: info.summary || null,
-        founded: info.founded || null,
-        members: info.members || null,
+        founded: wd.founded || info.founded || null,
+        members: wd.members || info.members || null,
         budget: info.budget || null,
         leader: info.leader || null,
         orientation: info.orientation || null,
-        headquarters: info.headquarters || null,
+        headquarters: wd.headquarters || info.headquarters || null,
         website: info.website || null,
-        logo_url: wiki.logo || null,
+        logo_url: wd.logo || wiki.logo || null,
         source_url: wiki.url || null,
         bio: { _v: ENRICH_VERSION },
         enriched_at: new Date().toISOString(),
