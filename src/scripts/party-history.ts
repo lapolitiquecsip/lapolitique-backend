@@ -14,6 +14,27 @@ const H = { 'User-Agent': 'LaPolitiqueBot/1.0 (contact@lapolitique.fr)' };
 
 type Row = { party_slug: string; kind: string; year: number; value: number | null; label: string; source: string };
 
+// Résultats nationaux OFFICIELS (Ministère de l'Intérieur) — faits publics, par parti.
+// Européennes 2024 (score de liste) ; Présidentielle 2022 1er tour (candidat → parti).
+const OFFICIAL_RESULTS: Array<{ slug: string; kind: string; year: number; value: number; label: string }> = [
+  // Européennes 2024
+  { slug: 'rassemblement-national', kind: 'europeennes', year: 2024, value: 31.37, label: 'liste Bardella' },
+  { slug: 'renaissance', kind: 'europeennes', year: 2024, value: 14.60, label: 'liste Besoin d’Europe' },
+  { slug: 'parti-socialiste', kind: 'europeennes', year: 2024, value: 13.83, label: 'liste PS–Place publique' },
+  { slug: 'la-france-insoumise', kind: 'europeennes', year: 2024, value: 9.89, label: 'liste LFI' },
+  { slug: 'les-republicains', kind: 'europeennes', year: 2024, value: 7.25, label: 'liste LR' },
+  { slug: 'les-ecologistes', kind: 'europeennes', year: 2024, value: 5.50, label: 'liste Les Écologistes' },
+  { slug: 'parti-communiste-francais', kind: 'europeennes', year: 2024, value: 2.36, label: 'liste PCF' },
+  // Présidentielle 2022 (1er tour)
+  { slug: 'renaissance', kind: 'presidentielle', year: 2022, value: 27.85, label: '1er tour (Macron)' },
+  { slug: 'rassemblement-national', kind: 'presidentielle', year: 2022, value: 23.15, label: '1er tour (Le Pen)' },
+  { slug: 'la-france-insoumise', kind: 'presidentielle', year: 2022, value: 21.95, label: '1er tour (Mélenchon)' },
+  { slug: 'les-republicains', kind: 'presidentielle', year: 2022, value: 4.78, label: '1er tour (Pécresse)' },
+  { slug: 'les-ecologistes', kind: 'presidentielle', year: 2022, value: 4.63, label: '1er tour (Jadot)' },
+  { slug: 'parti-communiste-francais', kind: 'presidentielle', year: 2022, value: 2.28, label: '1er tour (Roussel)' },
+  { slug: 'parti-socialiste', kind: 'presidentielle', year: 2022, value: 1.75, label: '1er tour (Hidalgo)' },
+];
+
 async function wiki(title: string): Promise<{ extract: string; qid?: string }> {
   try {
     const s = await fetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, { headers: H, signal: AbortSignal.timeout(12000) });
@@ -101,12 +122,18 @@ async function main() {
     }
     try { rows.push(...await electionSeries(p.name, extract, p.slug)); } catch (e: any) { console.error(`  élections ${p.name}: ${e.message}`); }
 
-    if (!rows.length) { console.log(`  (aucune donnée pour ${p.name})`); continue; }
+    // Résultats officiels (prioritaires) : on retire les points Wikipédia du même scrutin/année.
+    const official: Row[] = OFFICIAL_RESULTS.filter(o => o.slug === p.slug)
+      .map(o => ({ party_slug: o.slug, kind: o.kind, year: o.year, value: o.value, label: o.label, source: 'officiel (Min. Intérieur)' }));
+    const officialKeys = new Set(official.map(o => `${o.kind}|${o.year}`));
+    const merged = rows.filter(r => !(r.source === 'wikipedia' && officialKeys.has(`${r.kind}|${r.year}`))).concat(official);
+
+    if (!merged.length) { console.log(`  (aucune donnée pour ${p.name})`); continue; }
     // Remplace proprement l'historique du parti (évolue avec la source).
     await supabase.from('party_history').delete().eq('party_slug', p.slug);
     // Déduplique sur la clé primaire (slug, kind, year, label).
     const seen = new Set<string>();
-    const uniq = rows.filter(r => { const k = `${r.kind}|${r.year}|${r.label}`; if (seen.has(k)) return false; seen.add(k); return true; });
+    const uniq = merged.filter(r => { const k = `${r.kind}|${r.year}|${r.label}`; if (seen.has(k)) return false; seen.add(k); return true; });
     const { error } = await supabase.from('party_history').insert(uniq);
     if (error) { console.error(`  insert ${p.name}: ${error.message}`); continue; }
     console.log(`> ✓ ${p.name} : ${uniq.length} points`);
