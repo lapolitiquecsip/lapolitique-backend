@@ -21,5 +21,7 @@ jobs:
       - uses: ./.github/actions/setup-data-job
       # 1) Fiches + statistiques datan (quotidien)
       - run: npm run data:sync-parties
+      # 1b) Eurodéputés français (Parlement européen)
+      - run: npm run data:sync-meps
       # 2) Enrichissement Wikipédia/IA (budget, adhérents, fondation…) — mis en cache
       - run: npm run data:enrich-parties

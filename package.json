@@ -50,6 +50,7 @@
     "automation:explain-legal": "tsx src/scripts/explain-legal.ts",
     "data:sync-parties": "tsx src/scripts/sync-parties.ts",
     "data:enrich-parties": "tsx src/scripts/enrich-parties.ts",
+    "data:sync-meps": "tsx src/scripts/sync-meps.ts",
     "automation:weekly-stats": "tsx src/scripts/automation/generate-weekly-stats.ts",
     "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws; npm run automation:browseract; npm run automation:legal; npm run automation:weekly-stats"
   },
