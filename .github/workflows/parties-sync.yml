@@ -1,0 +1,25 @@
+name: Fiches partis (datan + enrichissement)
+on:
+  schedule:
+    - cron: '25 4 * * *'   # chaque jour ~06h25 Paris (datan est quotidien)
+  workflow_dispatch:
+concurrency:
+  group: parties-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  parties:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # 1) Fiches + statistiques datan (quotidien)
+      - run: npm run data:sync-parties
+      # 2) Enrichissement Wikipédia/IA (budget, adhérents, fondation…) — mis en cache
+      - run: npm run data:enrich-parties
