@@ -47,6 +47,7 @@
     "automation:presidential": "tsx src/scripts/automation/presidential-candidates.ts",
     "automation:presidential-news": "tsx src/scripts/automation/presidential-news.ts",
     "automation:legal": "tsx src/scripts/import-legal.ts",
+    "automation:explain-legal": "tsx src/scripts/explain-legal.ts",
     "automation:weekly-stats": "tsx src/scripts/automation/generate-weekly-stats.ts",
     "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws; npm run automation:browseract; npm run automation:legal; npm run automation:weekly-stats"
   },
