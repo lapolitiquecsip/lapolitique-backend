@@ -75,7 +75,11 @@ async function main() {
     let positions: Record<string, { stance: string; summary: string }> = {};
     try { positions = await extractPositions(c.full_name, extract); } catch (e: any) { console.error(`  ${c.full_name}: ${e.message}`); continue; }
 
-    const rows = ISSUES.map(issue => {
+    // Ne pas écraser les sources plus fiables (votes réels, programmes officiels).
+    const { data: existing } = await supabase.from("candidate_positions").select("issue_slug, source_type").eq("candidate_slug", c.slug);
+    const locked = new Set((existing || []).filter((r: any) => r.source_type === "vote" || r.source_type === "programme").map((r: any) => r.issue_slug));
+
+    const rows = ISSUES.filter(issue => !locked.has(issue.slug)).map(issue => {
       const p = positions[issue.slug] || { stance: "inconnu", summary: "" };
       const stance = valid.has(p.stance) ? p.stance : "inconnu";
       return {
