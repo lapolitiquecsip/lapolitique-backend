@@ -6,7 +6,7 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 const parser = new Parser({ timeout: 15000 });
 
 // Version du schéma de bio : incrémenter force la régénération des fiches existantes.
-const BIO_VERSION = 6;
+const BIO_VERSION = 7;
 
 // Flux d'actualité politique pour détecter les déclarations de candidature.
 const NEWS_FEEDS = [
@@ -172,7 +172,7 @@ Réponds en JSON strict :
   "parents": ["profession et parcours du père", "profession et parcours de la mère", "fratrie..."],
   "etudes": ["diplômes, écoles, années"],
   "parcours": ["TOUTES les fonctions politiques exercées depuis le début de la carrière politique, une par point, avec l'intitulé EXACT de la fonction et les dates (début–fin). Ex: \"1986-1988 : sénateur de l'Essonne\". Liste-les dans l'ordre chronologique, sois exhaustif."],
-  "jobs": ["UNIQUEMENT les expériences professionnelles HORS politique (métiers, emplois réels), avec dates. AUCUNE fonction élective ou politique ici."],
+  "jobs": ["UNIQUEMENT les expériences professionnelles HORS politique (métiers, emplois réels), avec dates, classées dans l'ORDRE CHRONOLOGIQUE (du plus ancien au plus récent). AUCUNE fonction élective ou politique ici."],
   "publications": ["livres, essais, articles, tribunes ou journaux ÉCRITS/PUBLIÉS par la personne, avec titre et année si connus. Si aucun, renvoie []"],
   "passions": ["hobbies et centres d'intérêt PERSONNELS NON politiques : sports, arts, musique, loisirs, etc. Pas d'engagements politiques. Si aucun, []"],
   "faits_marquants": ["événements marquants avec dates/chiffres, factuels"],
