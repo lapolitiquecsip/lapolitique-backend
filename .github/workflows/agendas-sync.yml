@@ -1,7 +1,7 @@
 name: Institutional agendas
 on:
   schedule:
-    - cron: '23 */3 * * *'
+    - cron: '23 17,20,23 * * *'   # toutes les 3h, en heures creuses DeepSeek (16h30-00h30 UTC)
   workflow_dispatch:
     inputs:
       mode:

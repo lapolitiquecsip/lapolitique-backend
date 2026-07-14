@@ -1,7 +1,7 @@
 name: Weekly stats (fun facts)
 on:
   schedule:
-    - cron: '0 6 * * 1'
+    - cron: '0 22 * * 1'   # lundi ~00h00 Paris (heures creuses DeepSeek)
   workflow_dispatch:
 concurrency:
   group: weekly-stats

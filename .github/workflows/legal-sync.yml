@@ -1,7 +1,7 @@
 name: Situation juridique (casier-politique)
 on:
   schedule:
-    - cron: '15 4 * * *'   # chaque jour ~06h15 Paris
+    - cron: '15 22 * * *'   # chaque jour ~00h15 Paris (heures creuses DeepSeek)
   workflow_dispatch:
 concurrency:
   group: legal-sync

@@ -1,7 +1,7 @@
 name: Fiches partis (datan + enrichissement)
 on:
   schedule:
-    - cron: '25 4 * * *'   # chaque jour ~06h25 Paris (datan est quotidien)
+    - cron: '25 22 * * *'   # chaque jour ~00h25 Paris (heures creuses DeepSeek)
   workflow_dispatch:
 concurrency:
   group: parties-sync
@@ -25,3 +25,5 @@ jobs:
       - run: npm run data:sync-meps
       # 2) Enrichissement Wikipédia/IA (budget, adhérents, fondation…) — mis en cache
       - run: npm run data:enrich-parties
+      # 3) Historique (adhérents Wikidata + résultats électoraux) — évolue avec la source
+      - run: npm run data:party-history

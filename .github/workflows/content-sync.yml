@@ -1,7 +1,7 @@
 name: Content feed (média)
 on:
   schedule:
-    - cron: '23 */2 * * *'
+    - cron: '23 17,19,21,23 * * *'   # toutes les 2h, en heures creuses DeepSeek (16h30-00h30 UTC)
   workflow_dispatch:
 concurrency:
   group: content-sync

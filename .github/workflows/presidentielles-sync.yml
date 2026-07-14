@@ -1,7 +1,7 @@
 name: Présidentielles 2027
 on:
   schedule:
-    - cron: '35 5 * * *'   # chaque jour ~07h35 Paris
+    - cron: '35 23 * * *'   # chaque jour ~01h35 Paris (heures creuses DeepSeek)
   workflow_dispatch:
 concurrency:
   group: presidentielles-sync
