@@ -8,9 +8,22 @@ import os, json, asyncio, httpx
 from openai import OpenAI
 from crawl4ai import AsyncWebCrawler
 
-SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
-SRK = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-ds = OpenAI(api_key=os.environ["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
+
+def clean_env(key: str, required: bool = True) -> str:
+    """Lit une variable d'env en retirant espaces et caractères non imprimables
+    (les secrets GitHub sont souvent collés avec un retour à la ligne parasite)."""
+    raw = os.getenv(key, "")
+    cleaned = "".join(ch for ch in raw if ch.isprintable()).strip()
+    if required and not cleaned:
+        raise RuntimeError(f"Variable d'environnement {key} manquante")
+    if raw != cleaned and raw:
+        print(f"WARNING: {key} contenait des espaces/retours à la ligne — nettoyé automatiquement.")
+    return cleaned
+
+
+SUPABASE_URL = clean_env("SUPABASE_URL").rstrip("/")
+SRK = clean_env("SUPABASE_SERVICE_ROLE_KEY")
+ds = OpenAI(api_key=clean_env("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com")
 
 PROPOSITIONS = {
     "immigration": "Durcir les règles de l'immigration",
