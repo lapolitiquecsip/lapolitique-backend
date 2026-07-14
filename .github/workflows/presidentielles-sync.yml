@@ -23,5 +23,7 @@ jobs:
       - run: npm run automation:presidential
       # 2) Met à jour le fil d'actualité de chaque candidat
       - run: npm run automation:presidential-news
-      # 3) Positions sourcées des candidats sur les grands enjeux
+      # 3) Positions sourcées (Wikipédia) des candidats sur les grands enjeux
       - run: npm run automation:candidate-positions
+      # 4) Positions via votes réels au Parlement (prioritaires sur Wikipédia)
+      - run: npm run automation:candidate-positions-votes
