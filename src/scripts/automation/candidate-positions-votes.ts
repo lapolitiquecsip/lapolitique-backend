@@ -68,6 +68,9 @@ async function main() {
 
   let total = 0;
   for (const cand of deputyByCand) {
+    // Repart d'une base propre : retire les anciennes positions "vote" du candidat
+    // (les positions Wikipédia auront été réécrites juste avant par l'autre script).
+    await supabase.from("candidate_positions").delete().eq("candidate_slug", cand.slug).eq("source_type", "vote");
     // Votes du candidat.
     const votes: any[] = [];
     for (let from = 0; ; from += 1000) {
@@ -96,8 +99,14 @@ async function main() {
         max_tokens: 400,
         responseFormat: "json_object",
         system: `On te donne les VOTES RÉELS d'un·e parlementaire sur des lois, avec ce que fait chaque loi, et une PROPOSITION. Déduis sa position sur la proposition à partir de ces votes.
-RÈGLES : fondé UNIQUEMENT sur les votes fournis. stance = "pour" (favorable à la proposition), "contre" (opposé), "nuance" (votes divergents), ou "inconnu" si les votes ne permettent pas de trancher. "summary" : 1 phrase factuelle citant le sens des votes.
-Réponds en JSON : { "stance": "...", "summary": "...", "law_index": <numéro de la loi la plus représentative> }`,
+
+RÈGLES DE FIABILITÉ (très strictes) :
+- N'attribue une position (pour/contre/nuance) QUE si AU MOINS UN vote porte sur une loi dont le SUJET CENTRAL EST DIRECTEMENT la proposition (ex: la réforme des retraites pour la proposition sur les retraites ; une loi immigration pour la proposition immigration).
+- Si les votes ne sont que TANGENTIELS, indirects ou sur un aspect secondaire (ex: un accord commercial spécifique ne dit rien sur « approfondir l'intégration européenne ») → "inconnu". Dans le doute → "inconnu".
+- Ne SURINTERPRÈTE jamais un vote isolé sur une loi technique.
+- "summary" : 1 phrase factuelle citant précisément le vote qui fonde la position.
+
+Réponds en JSON : { "stance": "pour|contre|nuance|inconnu", "summary": "...", "law_index": <numéro de la loi la plus représentative> }`,
         messages: [{ role: "user", content: `PROPOSITION : « ${PROPOSITIONS[slug]} »\n\nVOTES :\n${lawsText}` }],
       }, { timeoutMs: 60000 });
       let out: any = {};
