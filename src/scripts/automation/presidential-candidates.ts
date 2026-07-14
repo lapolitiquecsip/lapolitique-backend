@@ -6,7 +6,7 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 const parser = new Parser({ timeout: 15000 });
 
 // Version du schéma de bio : incrémenter force la régénération des fiches existantes.
-const BIO_VERSION = 5;
+const BIO_VERSION = 6;
 
 // Flux d'actualité politique pour détecter les déclarations de candidature.
 const NEWS_FEEDS = [
@@ -151,14 +151,19 @@ async function structureBio(name: string, reference: string) {
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN qui ne soit dans le texte.
 
+NEUTRALITÉ ABSOLUE (impératif) :
+- Aucun jugement de valeur, ni positif ni négatif. Décris uniquement des FAITS.
+- N'emploie AUCUN qualificatif idéologique ou étiquette d'auto-description (ex: NE PAS écrire « gaulliste », « figure de la gauche radicale », « souverainiste convaincu », « héritier de… »). Reste neutre et descriptif.
+- Pas d'adjectifs évaluatifs (« brillant », « controversé », « emblématique »…). Faits, dates, fonctions, chiffres.
+
 EXIGENCES :
 - Sois EXHAUSTIF et PRÉCIS : dates exactes, chiffres, pourcentages, noms propres, lieux, intitulés de fonctions.
-- Chaque rubrique est un TABLEAU de points (bullet points). Mets PLUSIEURS points par rubrique dès que l'information existe (vise 3 à 8 points quand c'est possible).
+- Chaque rubrique est un TABLEAU de points. Mets PLUSIEURS points dès que l'information existe (vise 3 à 8 points).
 - Si une rubrique est réellement absente du texte, renvoie un tableau vide [].
 
 Réponds en JSON strict :
 {
-  "summary": "accroche 1-2 phrases",
+  "summary": "accroche 1-2 phrases, strictement factuelle et neutre",
   "naissance": { "date": "AAAA-MM-JJ (ou AAAA si jour inconnu)", "ville": "ville de naissance", "pays": "pays de naissance", "pays_code": "code ISO 3166-1 alpha-2 en minuscules, ex: fr, sn, dz" },
   "profession": "métier d'origine avant/hors politique, 2-4 mots (ex: Avocate, Médecin). Sinon \"\"",
   "formation": "école ou diplôme le plus notable, 1-4 mots (ex: ENA, Sciences Po, HEC). Sinon \"\"",
@@ -166,14 +171,14 @@ Réponds en JSON strict :
   "famille": ["..."],
   "parents": ["profession et parcours du père", "profession et parcours de la mère", "fratrie..."],
   "etudes": ["diplômes, écoles, années"],
-  "parcours": ["étapes de carrière politique, avec dates et fonctions"],
-  "jobs": ["métiers exercés hors politique, avec dates"],
-  "passions": ["hobbies et centres d'intérêt PERSONNELS et NON politiques uniquement : sports, arts, musique, lectures, loisirs, cuisine, animaux, voyages, etc. NE PAS mettre d'engagements ou de combats politiques ici. Si le texte n'en mentionne aucun, renvoie []"],
-  "faits_marquants": ["événements marquants avec dates/chiffres"],
-  "sorties_mediatiques": ["apparitions médiatiques notables, livres, émissions"],
-  "realisations": ["actions/lois/réformes concrètes portées, avec dates"],
-  "positions": ["principales idées, combats et positions politiques"],
-  "controverses": ["affaires, polémiques, condamnations éventuelles, avec dates"],
+  "parcours": ["TOUTES les fonctions politiques exercées depuis le début de la carrière politique, une par point, avec l'intitulé EXACT de la fonction et les dates (début–fin). Ex: \"1986-1988 : sénateur de l'Essonne\". Liste-les dans l'ordre chronologique, sois exhaustif."],
+  "jobs": ["UNIQUEMENT les expériences professionnelles HORS politique (métiers, emplois réels), avec dates. AUCUNE fonction élective ou politique ici."],
+  "publications": ["livres, essais, articles, tribunes ou journaux ÉCRITS/PUBLIÉS par la personne, avec titre et année si connus. Si aucun, renvoie []"],
+  "passions": ["hobbies et centres d'intérêt PERSONNELS NON politiques : sports, arts, musique, loisirs, etc. Pas d'engagements politiques. Si aucun, []"],
+  "faits_marquants": ["événements marquants avec dates/chiffres, factuels"],
+  "realisations": ["Pour chaque fonction politique exercée, les actions CONCRÈTES menées (lois, réformes, décisions, créations, budgets, mesures) — en précisant SOUS QUELLE FONCTION et à QUELLE DATE. Ex: \"Ministre X (2012-2014) : a créé/porté/voté …\". Strictement factuel, sans jugement de valeur."],
+  "positions": ["principales propositions et positions programmatiques, formulées de façon neutre et factuelle (ce que la personne propose), sans les valoriser ni les critiquer"],
+  "controverses": ["affaires, mises en cause ou condamnations, avec dates et faits précis, sans jugement de valeur"],
   "chronologie": ["AAAA : événement clé", "AAAA : événement clé"]
 }`,
     messages: [{ role: "user", content: `Personne : ${name}\n\nTexte de référence :\n${reference.slice(0, 45000)}` }],
