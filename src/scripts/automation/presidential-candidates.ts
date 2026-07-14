@@ -40,6 +40,31 @@ type Detected = {
   source_url?: string;
 };
 
+// Socle vérifié des candidat·e·s OFFICIELLEMENT déclaré·e·s à la PRÉSIDENTIELLE 2027
+// (source : Wikipédia « Élection présidentielle française de 2027 »). Ce socle garantit
+// une base exacte ; la détection presse ajoute automatiquement les nouveaux déclarés.
+const CANDIDATE_SEED: Detected[] = [
+  { full_name: "Marine Le Pen", party: "Rassemblement National", political_side: "extreme-droite", declared_at: "2023-09-18", confidence: 1 },
+  { full_name: "Jean-Luc Mélenchon", party: "La France Insoumise", political_side: "gauche", declared_at: "2026-05-03", confidence: 1 },
+  { full_name: "Édouard Philippe", party: "Horizons", political_side: "centre", declared_at: "2024-09-03", confidence: 1 },
+  { full_name: "Gabriel Attal", party: "Renaissance", political_side: "centre", declared_at: "2026-05-22", confidence: 1 },
+  { full_name: "Bruno Retailleau", party: "Les Républicains", political_side: "droite", declared_at: "2026-04-19", confidence: 1 },
+  { full_name: "Xavier Bertrand", party: "Les Républicains", political_side: "droite", declared_at: "2024-02-03", confidence: 1 },
+  { full_name: "Nicolas Dupont-Aignan", party: "Debout la France", political_side: "droite", declared_at: "2025-03-08", confidence: 1 },
+  { full_name: "Florian Philippot", party: "Les Patriotes", political_side: "extreme-droite", declared_at: "2026-05-09", confidence: 1 },
+  { full_name: "François Asselineau", party: "Union populaire républicaine", political_side: "autre", declared_at: "2023-08-31", confidence: 1 },
+  { full_name: "Delphine Batho", party: "Génération écologie", political_side: "gauche", declared_at: "2025-11-25", confidence: 1 },
+  { full_name: "Jérôme Guedj", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-02-05", confidence: 1 },
+  { full_name: "Karim Bouamrane", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-06-09", confidence: 1 },
+  { full_name: "Nathalie Arthaud", party: "Lutte ouvrière", political_side: "extreme-gauche", declared_at: "2025-12-08", confidence: 1 },
+  { full_name: "Anasse Kazib", party: "Révolution permanente", political_side: "extreme-gauche", declared_at: "2026-06-01", confidence: 1 },
+  { full_name: "Selma Labib", party: "NPA – Révolutionnaires", political_side: "extreme-gauche", declared_at: "2026-06-17", confidence: 1 },
+];
+
+// Personnes à EXCLURE : candidates à une PRIMAIRE (pas à la présidentielle) ou faux positifs.
+// Supprimées de la base si elles y figurent à tort.
+const EXCLUDED_NAMES = new Set(["segolene royal"]);
+
 // ---- 1. Rassembler les extraits d'actualité récents -----------------------
 async function gatherHeadlines(): Promise<string> {
   const lines: string[] = [];
@@ -66,8 +91,9 @@ async function detectCandidates(headlines: string): Promise<Detected[]> {
     system: `Tu analyses des extraits d'actualité politique française pour identifier les personnes ayant OFFICIELLEMENT DÉCLARÉ leur candidature à l'élection présidentielle française de 2027.
 
 RÈGLES STRICTES :
-- N'inclus une personne QUE si les extraits indiquent explicitement qu'elle S'EST DÉCLARÉE candidate (a annoncé/officialisé sa candidature).
-- EXCLIS toute personne seulement « pressentie », « probable », « qui pourrait », « envisagerait », « tentée » : ce ne sont PAS des candidats déclarés.
+- N'inclus une personne QUE si les extraits indiquent explicitement qu'elle S'EST DÉCLARÉE candidate à l'élection PRÉSIDENTIELLE elle-même (a annoncé/officialisé sa candidature à la présidentielle).
+- EXCLIS ABSOLUMENT les candidats à une PRIMAIRE (primaire socialiste, primaire écologiste, primaire d'un parti…) : être candidat à une primaire n'est PAS être candidat à la présidentielle. Ex. « X est candidat à la primaire socialiste » → NE PAS inclure.
+- EXCLIS toute personne seulement « pressentie », « probable », « qui pourrait », « envisagerait », « tentée », « conditionnelle » : ce ne sont PAS des candidats déclarés.
 - N'invente aucun nom qui n'apparaît pas dans les extraits.
 - confidence : 0.9-1 si déclaration explicite claire, 0.6-0.8 si probable mais formulé comme une déclaration, <0.6 sinon (à exclure).
 
@@ -186,12 +212,28 @@ export async function syncPresidentialCandidates() {
     }
   }
 
+  // Nettoyage : retire les faux positifs (candidats à une primaire, etc.).
+  for (const row of allExisting ?? []) {
+    if (EXCLUDED_NAMES.has(row.normalized_name)) {
+      await supabase.from("presidential_candidates").delete().eq("id", row.id);
+      console.log(`[Presidential] ✗ Retiré (pas candidat à la présidentielle) : ${row.full_name}`);
+    }
+  }
+
   console.log("[Presidential] Détection des candidats 2027...");
   const headlines = await gatherHeadlines();
-  const detected = await detectCandidates(headlines);
-  console.log(`[Presidential] ${detected.length} candidat(s) déclaré(s) détecté(s).`);
+  const detectedRaw = await detectCandidates(headlines);
+  // Socle vérifié + détection presse, en excluant les noms bannis.
+  const bySlug = new Map<string, Detected>();
+  for (const c of [...CANDIDATE_SEED, ...detectedRaw]) {
+    const n = normalizeName(c.full_name);
+    if (!n || EXCLUDED_NAMES.has(n) || bySlug.has(n)) continue;
+    bySlug.set(n, c);
+  }
+  const detected = [...bySlug.values()];
+  console.log(`[Presidential] ${detected.length} candidat(s) déclaré(s) (socle + presse).`);
 
-  const known = new Set((allExisting ?? []).map(row => row.normalized_name));
+  const known = new Set((allExisting ?? []).filter(row => !EXCLUDED_NAMES.has(row.normalized_name)).map(row => row.normalized_name));
 
   let added = 0;
   for (const candidate of detected) {
