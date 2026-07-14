@@ -39,11 +39,26 @@ PROPOSITIONS = {
     "institutions": "Instaurer la proportionnelle / une VIe République",
 }
 
-# Sources officielles/fiables par candidat (extensible). Prototype : commencer petit.
+# Sources par candidat (extensible). Page programme du comparateur ÉlyséeScope
+# (positions par enjeu, sourcées) + programme officiel quand connu.
+def _es(slug):
+    return f"https://www.elyseescope.com/candidat/{slug}/programme"
+
 CANDIDATE_SOURCES = {
-    "jean-luc-melenchon": ["https://aec2027.fr/"],
-    "marine-le-pen": ["https://www.elyseescope.com/candidat/marine-le-pen/programme"],
-    "bruno-retailleau": ["https://www.elyseescope.com/candidat/bruno-retailleau/programme"],
+    "jean-luc-melenchon": [_es("jean-luc-melenchon"), "https://aec2027.fr/"],
+    "marine-le-pen": [_es("marine-le-pen")],
+    "bruno-retailleau": [_es("bruno-retailleau")],
+    "edouard-philippe": [_es("edouard-philippe")],
+    "gabriel-attal": [_es("gabriel-attal")],
+    "xavier-bertrand": [_es("xavier-bertrand")],
+    "nicolas-dupont-aignan": [_es("nicolas-dupont-aignan")],
+    "florian-philippot": [_es("florian-philippot")],
+    "francois-asselineau": [_es("francois-asselineau")],
+    "delphine-batho": [_es("delphine-batho")],
+    "jerome-guedj": [_es("jerome-guedj")],
+    "karim-bouamrane": [_es("karim-bouamrane")],
+    "nathalie-arthaud": [_es("nathalie-arthaud")],
+    "anasse-kazib": [_es("anasse-kazib")],
 }
 
 HEADERS = {"apikey": SRK, "Authorization": f"Bearer {SRK}", "Content-Type": "application/json"}
