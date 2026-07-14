@@ -23,3 +23,5 @@ jobs:
       - run: npm run automation:presidential
       # 2) Met à jour le fil d'actualité de chaque candidat
       - run: npm run automation:presidential-news
+      # 3) Positions sourcées des candidats sur les grands enjeux
+      - run: npm run automation:candidate-positions
