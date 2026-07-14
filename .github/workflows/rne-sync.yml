@@ -21,6 +21,8 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       INGESTION_MODE: ${{ inputs.mode || 'incremental' }}
+      # Les CSV du RNE (conseillers municipaux ≈ 500k lignes) saturent le tas Node par défaut.
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job

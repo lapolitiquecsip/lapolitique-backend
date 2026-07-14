@@ -10,12 +10,27 @@ const parser = new XMLParser({ ignoreAttributes: false, trimValues: true });
 const array = <T>(value: T | T[] | null | undefined): T[] => value == null ? [] : Array.isArray(value) ? value : [value];
 const normalized = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\W+/g, " ").trim();
 
+// senat.fr est parfois lent \u2192 retries avec backoff pour \u00e9viter les \u00e9checs intermittents.
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+async function fetchRetry(url: string, attempts = 3): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fetch(url, { signal: AbortSignal.timeout(45_000) });
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await sleep(2000 * attempt);
+    }
+  }
+  throw lastError;
+}
+
 export async function syncSenate() {
   const { data: run, error: runError } = await supabase.from("legislative_sync_runs").insert({ pipeline: "senate", status: "running" }).select("id").single();
   if (runError) throw runError;
   try {
     const indexBodies = await Promise.all(INDEXES.map(async url => {
-      const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+      const response = await fetchRetry(url);
       if (!response.ok) throw new Error(`Senate index HTTP ${response.status}`);
       return response.text();
     }));
@@ -30,9 +45,11 @@ export async function syncSenate() {
     for (let index = 0; index < entries.length; index += 12) {
       const batch = entries.slice(index, index + 12);
       const values = await Promise.all(batch.map(async ([url, modified]) => {
-        const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-        if (!response.ok) return null;
-        return parseSenateText(await response.text(), new Date(`${modified}Z`).toISOString());
+        try {
+          const response = await fetchRetry(url);
+          if (!response.ok) return null;
+          return parseSenateText(await response.text(), new Date(`${modified}Z`).toISOString());
+        } catch { return null; }
       }));
       parsed.push(...values.filter((value): value is NonNullable<typeof value> => value !== null));
     }
