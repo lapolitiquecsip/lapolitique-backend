@@ -3,18 +3,15 @@ import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 
 // Mots-clés par enjeu → repérer les scrutins pertinents (titre + résumé + objet).
+// NB : uniquement les enjeux où un vote mappe SANS AMBIGUÏTÉ à la proposition.
+// Europe/institutions/laïcité/fiscalité/santé sont exclus (votes trop indirects → restent sourcés Wikipédia).
 const ISSUE_KEYWORDS: Record<string, string[]> = {
-  immigration: ["immigration", "étranger", "asile", "séjour", "oqtf", "frontière", "naturalisation", "migrant", "regroupement familial"],
-  "securite-justice": ["sécurité", "pénal", "peine", "prison", "délinquance", "récidive", "police", "gendarmerie", "justice"],
-  laicite: ["laïcité", "laïque", "voile", "signes religieux", "séparatisme", "religion", "islam"],
-  retraites: ["retraite", "âge légal", "pension", "64 ans", "annuités"],
-  fiscalite: ["impôt", "fiscal", "isf", "taxe", "fortune", "patrimoine", "fiscalité", "csg"],
-  sante: ["santé", "hôpital", "sécurité sociale", "soin", "médical", "médecin", "assurance maladie"],
-  climat: ["climat", "écologi", "environnement", "carbone", "émissions", "pesticide", "artificialisation", "renouvelable"],
-  nucleaire: ["nucléaire", "epr", "réacteur", "atome"],
-  "ukraine-russie": ["ukraine", "russie", "russe", "otan", "kiev", "moscou"],
-  "europe-ue": ["européen", "union européenne", "traité européen", "zone euro", "bruxelles"],
-  institutions: ["proportionnelle", "référendum", "constitution", "vie république", "institution", "mandat"],
+  immigration: ["immigration", "étranger", "asile", "séjour", "oqtf", "naturalisation", "regroupement familial", "aide médicale d'état"],
+  "securite-justice": ["pénal", "peine", "prison", "délinquance", "récidive", "justice criminelle", "sécurité intérieure"],
+  retraites: ["retraite", "âge légal", "64 ans", "abrogation de la réforme des retraites"],
+  climat: ["climat", "énergie-climat", "programmation énergie", "émissions de gaz", "artificialisation", "pesticide"],
+  nucleaire: ["nucléaire", "epr", "réacteur"],
+  "ukraine-russie": ["ukraine", "soutien à l'ukraine", "aide à l'ukraine"],
 };
 
 const PROPOSITIONS: Record<string, string> = {
@@ -106,7 +103,7 @@ RÈGLES DE FIABILITÉ (très strictes) :
 - Ne SURINTERPRÈTE jamais un vote isolé sur une loi technique.
 - "summary" : 1 phrase factuelle citant précisément le vote qui fonde la position.
 
-Réponds en JSON : { "stance": "pour|contre|nuance|inconnu", "summary": "...", "law_index": <numéro de la loi la plus représentative> }`,
+Réponds en français, en JSON : { "stance": "pour|contre|nuance|inconnu", "summary": "...", "law_index": <numéro de la loi la plus représentative> }`,
         messages: [{ role: "user", content: `PROPOSITION : « ${PROPOSITIONS[slug]} »\n\nVOTES :\n${lawsText}` }],
       }, { timeoutMs: 60000 });
       let out: any = {};
