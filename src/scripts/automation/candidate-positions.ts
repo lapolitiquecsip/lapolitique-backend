@@ -42,13 +42,15 @@ async function extractPositions(name: string, extract: string): Promise<Record<s
     system: `On te donne le TEXTE de référence (Wikipédia) sur une personnalité politique française, et une liste de PROPOSITIONS. Pour CHAQUE proposition, détermine la position de la personne UNIQUEMENT d'après le texte.
 
 RÈGLES STRICTES (fiabilité) :
-- N'utilise QUE le texte fourni. Ne devine pas, n'utilise pas de connaissances externes.
-- stance = "pour" (favorable à la proposition), "contre" (opposé), "nuance" (position mitigée/conditionnelle explicite), ou "inconnu" si le texte ne permet pas de trancher.
-- Si le texte n'aborde pas clairement le sujet → "inconnu" (ne remplis pas au hasard).
-- "summary" : 1 phrase factuelle et neutre décrivant sa position telle qu'écrite dans le texte (vide si inconnu).
+- N'utilise QUE le texte fourni. N'utilise PAS de connaissances externes, n'invente rien.
+- Tu peux déduire la position à partir de FAITS EXPLICITES du texte : votes rapportés, propositions/mesures portées, déclarations citées, actions menées, engagements. Pas seulement des phrases « est pour/contre ».
+  Ex. si le texte dit qu'elle a voté contre la réforme des retraites → stance "pour" (favorable à l'abrogation). Si le texte dit qu'il défend le nucléaire → "pour" sur la proposition nucléaire.
+- stance = "pour" (favorable à la proposition), "contre" (opposé), "nuance" (position mitigée/conditionnelle explicite), ou "inconnu" si le texte ne dit vraiment rien d'exploitable sur le sujet.
+- En cas de doute réel → "inconnu" (ne remplis jamais au hasard).
+- "summary" : 1 phrase factuelle et neutre citant l'élément du texte qui fonde la position (vide si inconnu).
 
 Réponds en JSON strict : { "positions": { "<slug>": { "stance": "...", "summary": "..." }, ... } } pour tous les slugs.`,
-    messages: [{ role: "user", content: `Personne : ${name}\n\nPROPOSITIONS :\n${issuesText}\n\nTEXTE :\n${extract.slice(0, 30000)}` }],
+    messages: [{ role: "user", content: `Personne : ${name}\n\nPROPOSITIONS :\n${issuesText}\n\nTEXTE :\n${extract.slice(0, 55000)}` }],
   }, { timeoutMs: 90000 });
   const raw = resp.content?.[0]?.text?.trim() || "";
   try {
