@@ -106,6 +106,7 @@ async function main() {
     await updateTable('deputies', recordsByName);
     await updateTable('senators', recordsByName);
     await updateCandidates(recordsByName);
+    await updateMinisters(recordsByName);
 
     console.log('\n--- TERMINE ---');
     await logSuccess('importLegal', 1, hcId, 'Legal records updated successfully.');
@@ -179,6 +180,31 @@ async function updateCandidates(recordsByName: Record<string, LegalRecord[]>) {
     }
   }
   console.log(`> ${updatedCount} candidate profiles updated.`);
+}
+
+async function updateMinisters(recordsByName: Record<string, LegalRecord[]>) {
+  console.log(`\n> Updating minister_profiles...`);
+  const { data: ministers, error } = await supabase
+    .from('minister_profiles')
+    .select('slug, full_name, legal_issues');
+
+  if (error) { console.log(`> (table minister_profiles indisponible: ${error.message})`); return; }
+
+  let updatedCount = 0;
+  for (const m of ministers || []) {
+    const fullName = (m.full_name || '').trim();
+    const records = recordsByName[fullName] || findPartialMatch(fullName, recordsByName);
+
+    let legalStatus = "Aucune affaire judiciaire connue ou signalée à ce jour.";
+    if (records && records.length > 0) {
+      legalStatus = records.sort((a, b) => b.year - a.year).map(r => r.summary).join('\n\n\n');
+    }
+    if (m.legal_issues !== legalStatus) {
+      await supabase.from('minister_profiles').update({ legal_issues: legalStatus }).eq('slug', m.slug);
+      updatedCount++;
+    }
+  }
+  console.log(`> ${updatedCount} minister profiles updated.`);
 }
 
 function findPartialMatch(fullName: string, recordsByName: Record<string, LegalRecord[]>): LegalRecord[] | null {
