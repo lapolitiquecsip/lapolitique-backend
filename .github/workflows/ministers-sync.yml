@@ -1,0 +1,23 @@
+name: Fiches ministres (Wikipédia + IA)
+on:
+  schedule:
+    - cron: '45 22 * * *'   # chaque jour ~00h45 Paris (heures creuses DeepSeek)
+  workflow_dispatch:
+concurrency:
+  group: ministers-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  ministers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # Bios (Wikipédia + IA neutre) + photos Wikimedia des membres du gouvernement
+      - run: npm run data:sync-ministers
