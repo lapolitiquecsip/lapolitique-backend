@@ -15,7 +15,11 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
+      # 1) Récupère les décrets du JO (gratuit, sans IA)
       - run: npm run data:sync-decrees
+      # 2) Résumés : règles pour nominations/distinctions ; IA (coût infime) pour les réglementaires
+      - run: npm run data:summarize-decrees
