@@ -11,6 +11,7 @@
     "test:legislative": "tsx --test tests/legislative/*.test.ts",
     "automation:petitions": "tsx src/scripts/automation/fetch-petitions.ts",
     "automation:votes": "tsx src/scripts/legislative/sync-scrutins.ts",
+    "automation:fetch-votes": "tsx src/scripts/automation/fetch-votes.ts",
     "automation:summarize": "tsx src/scripts/automation/scrutin-summarizer.ts",
     "automation:senat-summary": "tsx src/scripts/automation/summarize-daily-senat.ts",
     "automation:agenda": "tsx src/scripts/automation/fetch-an-agenda.ts && tsx src/scripts/automation/fetch-senat-agenda.ts && tsx src/scripts/automation/fetch-elysee-agenda.ts && npm run automation:senat-summary",

@@ -1,0 +1,25 @@
+name: Votes des élus (scrutins AN → front)
+on:
+  schedule:
+    - cron: '20 22 * * *'   # chaque jour ~00h20 Paris (heures creuses DeepSeek pour les résumés)
+  workflow_dispatch:
+concurrency:
+  group: votes-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  votes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # 1) Importe les scrutins + votes individuels (open data AN) → tables du front (gratuit)
+      - run: npm run automation:fetch-votes
+      # 2) Résume/explique les nouveaux scrutins (IA, heures creuses)
+      - run: npm run automation:summarize
