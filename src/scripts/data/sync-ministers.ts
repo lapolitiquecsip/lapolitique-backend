@@ -11,6 +11,12 @@ const properCase = (v: string) =>
 
 const normalizeName = (v: string) =>
   v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+// Titre Wikipédia exact pour lever les homonymies (le nom du gouvernement peut matcher
+// la mauvaise personne). Clé = nom normalisé.
+const WIKI_OVERRIDES: Record<string, string> = {
+  "laurent nunez": "Laurent Nuñez",
+};
 const slugify = (v: string) =>
   v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
@@ -82,7 +88,7 @@ async function main() {
     const slug = slugify(fullName);
     if ((known.get(slug) as any)?._v === BIO_VERSION) continue; // déjà à jour
 
-    const wiki = await wikipedia(fullName);
+    const wiki = await wikipedia(WIKI_OVERRIDES[normalizeName(fullName)] || fullName);
     if (!wiki.extract) { console.log(`  (pas de Wikipédia pour ${fullName})`); continue; }
     const bio = await structureBio(fullName, wiki.extract);
 
