@@ -44,7 +44,14 @@ export async function syncAssemblee() {
         status_label: dossier.statusLabel,
         current_chamber: dossier.currentChamber,
         deposited_at: dossier.depositedAt,
-        latest_step_at: batch.find(item => item.dossier.officialId === dossier.officialId)?.steps.filter(step => step.occurredAt).at(-1)?.occurredAt ?? null,
+        // Dernière étape RÉELLEMENT survenue (≤ maintenant) — on ignore les réunions
+        // futures programmées qui feraient remonter à tort le dossier dans la navette.
+        latest_step_at: (() => {
+          const nowIso = new Date().toISOString();
+          const dates = (batch.find(item => item.dossier.officialId === dossier.officialId)?.steps ?? [])
+            .map(s => s.occurredAt).filter((d): d is string => !!d && d <= nowIso).sort();
+          return dates.at(-1) ?? null;
+        })(),
         source_urls: dossier.sourceUrls,
         source_updated_at: dossier.sourceUpdatedAt,
         source_hash: dossier.sourceHash,
