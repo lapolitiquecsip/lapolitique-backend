@@ -5,6 +5,10 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 const BIO_VERSION = 1;
 const H = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitique.fr)" };
 
+// Les noms du gouvernement sont en MAJUSCULES → casse correcte pour Wikipédia et l'affichage.
+const properCase = (v: string) =>
+  v.toLowerCase().replace(/(^|[\s'’-])([a-zà-ÿ])/g, (_, sep, c) => sep + c.toUpperCase());
+
 const normalizeName = (v: string) =>
   v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const slugify = (v: string) =>
@@ -73,7 +77,7 @@ async function main() {
 
   let done = 0;
   for (const mb of members) {
-    const fullName = `${mb.first_name || ""} ${mb.last_name || ""}`.replace(/\s+/g, " ").trim();
+    const fullName = properCase(`${mb.first_name || ""} ${mb.last_name || ""}`.replace(/\s+/g, " ").trim());
     if (!fullName) continue;
     const slug = slugify(fullName);
     if ((known.get(slug) as any)?._v === BIO_VERSION) continue; // déjà à jour
