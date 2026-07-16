@@ -25,3 +25,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:sync-state-budget
+      # Détail par programme (répartition des dépenses par ministère)
+      - run: npm run data:sync-budget-programmes

@@ -29,6 +29,7 @@
     "data:sync-territories": "tsx src/scripts/data/sync-territories.ts",
     "data:sync-rne": "tsx src/scripts/data/sync-rne.ts",
     "data:sync-state-budget": "tsx src/scripts/data/sync-state-budget.ts",
+    "data:sync-budget-programmes": "tsx src/scripts/data/sync-budget-programmes.ts",
     "data:sync-government": "tsx src/scripts/data/sync-government.ts",
     "data:sync-ministers": "tsx src/scripts/data/sync-ministers.ts",
     "data:sync-elections": "tsx src/scripts/data/sync-elections.ts",
