@@ -71,12 +71,22 @@ Réponds en JSON strict :
   try { return JSON.parse(m[0]); } catch { return null; }
 }
 
+// Premiers ministres depuis 2017 (fiches détaillées façon ministre).
+const PM_EXTRA = [
+  { first_name: "Édouard", last_name: "Philippe", title: "Premier ministre (2017-2020)", ministry_name: "Premier ministre" },
+  { first_name: "Jean", last_name: "Castex", title: "Premier ministre (2020-2022)", ministry_name: "Premier ministre" },
+  { first_name: "Élisabeth", last_name: "Borne", title: "Première ministre (2022-2024)", ministry_name: "Premier ministre" },
+  { first_name: "Gabriel", last_name: "Attal", title: "Premier ministre (2024)", ministry_name: "Premier ministre" },
+  { first_name: "Michel", last_name: "Barnier", title: "Premier ministre (2024)", ministry_name: "Premier ministre" },
+  { first_name: "François", last_name: "Bayrou", title: "Premier ministre (2024-2025)", ministry_name: "Premier ministre" },
+];
+
 async function main() {
   console.log("--- SYNC FICHES MINISTRES (Wikipédia + IA) ---");
   const { data: gov, error } = await supabase.rpc("public_government", { p_date: new Date().toISOString().slice(0, 10) });
   if (error) throw error;
-  const members = Array.isArray(gov) ? gov : (gov?.members || []);
-  console.log(`> ${members.length} membre(s) du gouvernement.`);
+  const members = [...(Array.isArray(gov) ? gov : (gov?.members || [])), ...PM_EXTRA];
+  console.log(`> ${members.length} fiche(s) (gouvernement + anciens PM).`);
 
   const { data: existing } = await supabase.from("minister_profiles").select("slug, bio");
   const known = new Map((existing || []).map((r: any) => [r.slug, r.bio]));
