@@ -26,6 +26,8 @@ faire fait sera seront nous allons pourra pourront afin ainsi entre chaque leurs
 sans sous vers dont lorsque quand comme deja encore plusieurs tres bien
 france francais francaise francaises nouveau nouvelle mettre place mise`.split(/\s+/));
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 const norm = (s: string) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -116,6 +118,80 @@ function buildScorer(corpus: Ev[]) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Couche web : Wikipédia FR (API libre, sans clé, sans mur anti-bot).
+//
+// Indispensable, car une grande partie des engagements ne passe PAS par une loi
+// (tiers-lieux, accès à l'école, pass Culture…) : la base de l'Assemblée est alors
+// structurellement muette. C'est aussi cette couche qui rattrape les faits récents
+// que le modèle ignore — ex. la réduction du pass Culture en 2025, qu'il présentait
+// à tort comme un engagement « tenu ».
+const WIKI = "https://fr.wikipedia.org/w/api.php";
+
+async function wikiJson(params: Record<string, string>): Promise<any> {
+  const qs = new URLSearchParams({ format: "json", ...params }).toString();
+  const res = await fetch(`${WIKI}?${qs}`, { headers: { "User-Agent": "LaPolitiqueBot/1.0" }, signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`Wikipedia HTTP ${res.status}`);
+  return res.json();
+}
+
+// Extrait les passages d'un article qui parlent réellement de l'engagement, plutôt que
+// de balancer 12 000 caractères d'article au modèle.
+function relevantPassages(text: string, q: string[], max = 3): string[] {
+  const out: Array<{ s: string; score: number }> = [];
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    if (sentence.length < 40 || sentence.length > 400) continue;
+    const st = new Set(terms(sentence));
+    const hits = q.filter(w => st.has(w)).length;
+    if (hits >= 2) out.push({ s: sentence.trim(), score: hits });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, max).map(o => o.s);
+}
+
+// Le sac de mots-clés donnait des résultats absurdes : pour « extension du pass Culture »,
+// Wikipédia renvoyait « Liste des présidents des États-Unis ». On demande donc au modèle le
+// SUJET de l'engagement (le nom de la chose, pas la phrase), ce que le moteur sait chercher.
+async function wikiQuery(engagement: string): Promise<string | null> {
+  const resp = await resilientDeepSeek.createMessage({
+    model: "deepseek-v4-flash",
+    max_tokens: 1200,
+    system: `On te donne un engagement politique. Réponds UNIQUEMENT par le titre d'article Wikipédia français le plus susceptible d'en traiter — 1 à 4 mots, le nom du dispositif, de la réforme ou de l'institution concernée. Pas de phrase, pas d'explication. Si aucun sujet identifiable, réponds : AUCUN`,
+    messages: [{ role: "user", content: engagement }],
+  }, { timeoutMs: 60000 }).catch(() => null);
+  const t = (resp?.content?.[0]?.text ?? "").trim().split("\n")[0].replace(/^["'«»\s]+|["'«»\s.]+$/g, "");
+  if (!t || /^aucun$/i.test(t) || t.length > 60) return null;
+  return t;
+}
+
+async function wikiEvidence(engagement: string): Promise<Ev[]> {
+  const q = [...new Set(terms(engagement))];
+  if (q.length < 2) return [];
+  const query = await wikiQuery(engagement);
+  if (!query) return [];
+  try {
+    const search = await wikiJson({ action: "query", list: "search", srsearch: query, srlimit: "2" });
+    const hits = search?.query?.search ?? [];
+    const out: Ev[] = [];
+    for (const h of hits) {
+      const page = await wikiJson({ action: "query", prop: "extracts", explaintext: "1", titles: h.title });
+      const pages = page?.query?.pages ?? {};
+      const extract: string = (Object.values(pages)[0] as any)?.extract ?? "";
+      if (!extract) continue;
+      const passages = relevantPassages(extract, q);
+      if (passages.length === 0) continue;
+      out.push({
+        type: "wikipedia",
+        title: `Wikipédia — ${h.title}`,
+        date: null,
+        url: `https://fr.wikipedia.org/wiki/${encodeURIComponent(h.title.replace(/ /g, "_"))}`,
+        detail: passages.join(" […] ").slice(0, 900),
+      });
+      await sleep(120);
+    }
+    return out;
+  } catch { return []; }
+}
+
 async function assessWithEvidence(engagement: string, theme: string | null, ev: Ev[]) {
   const list = ev.map((e, i) =>
     `${i + 1}. [${e.type}] ${e.title}${e.date ? ` (${e.date})` : ""}${e.detail ? ` — ${e.detail}` : ""}`
@@ -128,11 +204,20 @@ async function assessWithEvidence(engagement: string, theme: string | null, ev: 
     max_tokens: 3000,
     system: `Tu évalues l'avancement d'un engagement du programme présidentiel 2022 d'Emmanuel Macron.
 
-RÈGLE FONDAMENTALE : tu ne dois te fonder QUE sur les FAITS fournis ci-dessous (scrutins de
-l'Assemblée nationale et dossiers législatifs réels, postérieurs à mai 2022). N'utilise PAS
-tes souvenirs : ta connaissance est incomplète et périmée. Si les faits fournis ne permettent
-pas de conclure, réponds "non_evaluable". C'est une réponse parfaitement acceptable et
-préférable à une affirmation non étayée.
+RÈGLE FONDAMENTALE : tu ne dois te fonder QUE sur les FAITS fournis ci-dessous. N'utilise PAS
+tes souvenirs : ta connaissance est incomplète et périmée (elle ignore 2025-2026).
+
+Les faits sont de deux natures, à ne pas confondre :
+- [scrutin] / [dossier] : actes parlementaires officiels. Preuve forte.
+- [wikipedia] : synthèse encyclopédique, utile notamment pour les mesures qui ne passent pas
+  par une loi et pour les évolutions récentes. Preuve indicative, à manier avec prudence.
+
+ATTENTION AUX RETOURS EN ARRIÈRE : un engagement appliqué puis réduit, gelé ou supprimé
+n'est PAS "tenu". Regarde toujours le fait le PLUS RÉCENT. Un fait antérieur à 2022 ne peut
+jamais prouver qu'une promesse de 2022 a été tenue.
+
+Si les faits ne permettent pas de conclure, réponds "non_evaluable" : c'est préférable à une
+affirmation non étayée.
 
 Statuts autorisés :
 - "tenu"          : les faits montrent que l'engagement est réalisé (texte adopté/promulgué).
@@ -217,11 +302,15 @@ async function main() {
   let done = 0, withEv = 0, fallback = 0;
   const counts: Record<string, number> = {};
   for (const e of engagements as any[]) {
-    const candidates = findEvidence(e.engagement).map(c => c.ev);
+    // Preuves officielles (scrutins/dossiers) + couche web (Wikipédia). Beaucoup
+    // d'engagements ne passent pas par une loi : sans le web, ils resteraient à jamais
+    // « non vérifié ».
+    const legal = findEvidence(e.engagement).map(c => c.ev);
+    const web = await wikiEvidence(e.engagement);
+    const candidates = [...legal, ...web];
     let res = await assessWithEvidence(e.engagement, e.theme, candidates).catch(() => null);
     let evidence = res?.evidence ?? [];
 
-    // Aucune preuve exploitable en base → repli sur la connaissance du modèle, signalé.
     if (evidence.length === 0) {
       const k = await assessFromKnowledge(e.engagement, e.theme).catch(() => null);
       if (k) { res = { ...k, evidence: [] }; fallback++; }
