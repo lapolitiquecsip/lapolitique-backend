@@ -29,6 +29,13 @@ const UNIQUE_COLLECTIVITIES: Array<{ regCode: string; deps: string[]; note: stri
   { regCode: "03", deps: ["973"], note: "Collectivité territoriale de Guyane" },
 ];
 
+// Départements dont le périmètre budgétaire est amputé d'une métropole exerçant les
+// compétences départementales sur une partie du territoire. Sans cette mention, les
+// montants du Rhône (hors Métropole de Lyon, ~1,4 M d'habitants) induiraient en erreur.
+const NOTES: Record<string, string> = {
+  "69": "collectivité départementale du Rhône, hors Métropole de Lyon",
+};
+
 const INDICATORS: Array<{ code: string; agregat: string }> = [
   { code: "recettes_fonctionnement", agregat: "Recettes de fonctionnement" },
   { code: "depenses_fonctionnement", agregat: "Dépenses de fonctionnement" },
@@ -110,7 +117,7 @@ export async function syncDepartmentFinances() {
   for (const ind of INDICATORS) {
     // 1) Départements « classiques » (base départements).
     const map = await fetchIndicator(year, ind.agregat);
-    for (const [code, v] of map) push(code, ind.code, v, null, SOURCE_URL);
+    for (const [code, v] of map) push(code, ind.code, v, NOTES[code] ?? null, SOURCE_URL);
 
     // 2) Alias (Alsace : 67A → 67 et 68).
     for (const a of ALIASES) {
