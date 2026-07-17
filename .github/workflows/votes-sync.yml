@@ -23,3 +23,5 @@ jobs:
       - run: npm run automation:fetch-votes
       # 2) Résume/explique les nouveaux scrutins (IA, heures creuses)
       - run: npm run automation:summarize
+      # 3) Notifie les abonnés dont un élu suivi a voté sur un scrutin solennel
+      - run: npm run automation:notifications
