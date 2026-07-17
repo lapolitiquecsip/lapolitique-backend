@@ -42,6 +42,7 @@
     "data:sync-atmo": "tsx src/scripts/data/sync-atmo.ts",
     "data:sync-region-finances": "tsx src/scripts/data/sync-region-finances.ts",
     "data:sync-commune-finances": "tsx src/scripts/data/sync-commune-finances.ts",
+    "data:sync-department-finances": "tsx src/scripts/data/sync-department-finances.ts",
     "data:sync-itdd": "tsx src/scripts/data/sync-itdd.ts",
     "data:sync-territorial-sources": "npm run data:sync-drees-apl && npm run data:sync-ssmsi && npm run data:sync-dvf && npm run data:sync-rpls && npm run data:sync-depp-bac && npm run data:sync-georisques && npm run data:sync-atmo",
     "data:reconcile": "tsx src/scripts/data/reconcile.ts",

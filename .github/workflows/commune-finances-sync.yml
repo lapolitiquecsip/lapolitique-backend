@@ -1,4 +1,4 @@
-name: Commune finances
+name: Local finances (communes & départements)
 on:
   schedule:
     - cron: '40 3 * * 3'   # hebdo, hors heures de pointe (mer. 03h40 UTC)
@@ -19,3 +19,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:sync-commune-finances
+      - run: npm run data:sync-department-finances
