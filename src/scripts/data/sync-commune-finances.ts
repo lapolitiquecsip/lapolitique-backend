@@ -5,7 +5,7 @@ import { supabase } from "../../config/supabase.js";
 // publique Locales). Agrégats déjà retraités (dépenses/recettes réelles, épargne, dette),
 // bien plus précis que le grand livre brut des balances comptables.
 const DATASET = "ofgl-base-communes";
-const RECORDS = `https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/${DATASET}/records`;
+const EXPORT = `https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/${DATASET}/exports/json`;
 const SOURCE_URL = `https://data.ofgl.fr/explore/dataset/${DATASET}/`;
 
 // Indicateur interne ↔ agrégat OFGL (budget principal).
@@ -42,20 +42,15 @@ async function latestYear(): Promise<string> {
 }
 
 async function fetchIndicator(year: string, agregat: string): Promise<Map<string, { montant: number; eph: number }>> {
+  // Endpoint /exports/json : renvoie toutes les lignes d'un coup (pas de limite d'offset à 10 000).
   const where = `annee_join="${year}" and type_de_budget="Budget principal" and agregat="${agregat}"`;
+  const url = `${EXPORT}?where=${encodeURIComponent(where)}&select=${encodeURIComponent("com_code,montant,euros_par_habitant")}`;
+  const rows = await fetchJson(url);
   const out = new Map<string, { montant: number; eph: number }>();
-  for (let offset = 0; ; offset += 100) {
-    const url = `${RECORDS}?where=${encodeURIComponent(where)}` +
-      `&select=${encodeURIComponent("com_code,montant,euros_par_habitant")}&limit=100&offset=${offset}`;
-    const data = await fetchJson(url);
-    const rows = data.results ?? [];
-    for (const r of rows) {
-      const code = String(r.com_code ?? "").trim();
-      if (!code) continue;
-      out.set(code, { montant: Number(r.montant) || 0, eph: Number(r.euros_par_habitant) || 0 });
-    }
-    if (rows.length < 100) break;
-    await sleep(60);
+  for (const r of (Array.isArray(rows) ? rows : [])) {
+    const code = String(r.com_code ?? "").trim();
+    if (!code) continue;
+    out.set(code, { montant: Number(r.montant) || 0, eph: Number(r.euros_par_habitant) || 0 });
   }
   return out;
 }
