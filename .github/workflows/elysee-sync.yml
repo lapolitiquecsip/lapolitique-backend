@@ -19,3 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:sync-elysee
+      # Reevaluation periodique de l'avancement du programme (engagements figes, statuts IA)
+      - run: npm run data:sync-president-program
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
