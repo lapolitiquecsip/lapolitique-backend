@@ -8,9 +8,15 @@ const OFGL = "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-r
 const INDICATORS: Array<{ code: string; agregat: string }> = [
   { code: "epargne_brute", agregat: "Epargne brute" },
   { code: "encours_dette", agregat: "Encours de dette" },
+  { code: "recettes_fonctionnement", agregat: "Recettes de fonctionnement" },
   { code: "depenses_fonctionnement", agregat: "Dépenses de fonctionnement" },
   { code: "depenses_investissement", agregat: "Dépenses d'investissement" },
   { code: "depenses_totales", agregat: "Dépenses totales" },
+  // Collectivités uniques (Corse, Martinique, Guyane) : elles exercent aussi les
+  // compétences sociales départementales. Absent pour les autres régions → non affiché.
+  { code: "allocations_rsa", agregat: "Allocations RSA" },
+  { code: "allocations_apa", agregat: "Allocations APA" },
+  { code: "allocations_pch", agregat: "Allocations PCH" },
 ];
 
 async function fetchIndicator(agregat: string) {
