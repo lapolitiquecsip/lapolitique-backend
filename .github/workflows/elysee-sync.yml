@@ -19,6 +19,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:sync-elysee
+      # Fil video (chaine YouTube officielle de l Elysee)
+      - run: npm run data:sync-elysee-videos
       # Resumes IA des comptes rendus du Conseil des ministres
       - run: npm run data:summarize-elysee
         env:

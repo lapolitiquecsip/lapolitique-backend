@@ -61,6 +61,7 @@
     "data:assess-program": "tsx src/scripts/data/assess-program-grounded.ts",
     "data:sync-president-program": "tsx src/scripts/data/sync-president-program.ts",
     "data:summarize-elysee": "tsx src/scripts/data/summarize-elysee.ts",
+    "data:sync-elysee-videos": "tsx src/scripts/data/sync-elysee-videos.ts",
     "data:sync-elysee": "tsx src/scripts/data/sync-elysee.ts",
     "data:sync-decrees": "tsx src/scripts/data/sync-decrees.ts",
     "data:summarize-decrees": "tsx src/scripts/data/summarize-decrees.ts",
