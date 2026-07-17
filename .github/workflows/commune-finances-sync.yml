@@ -1,0 +1,21 @@
+name: Commune finances
+on:
+  schedule:
+    - cron: '40 3 * * 3'   # hebdo, hors heures de pointe (mer. 03h40 UTC)
+  workflow_dispatch:
+concurrency:
+  group: commune-finances-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:sync-commune-finances
