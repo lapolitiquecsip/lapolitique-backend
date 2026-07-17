@@ -73,6 +73,9 @@ Réponds en JSON strict :
 
 // Premiers ministres depuis 2017 (fiches détaillées façon ministre).
 const PM_EXTRA = [
+  // Le président n'est pas membre du gouvernement, mais il est le chef de l'exécutif :
+  // sa fiche est nécessaire à la page Exécutif (photo + bio + bilan).
+  { first_name: "Emmanuel", last_name: "Macron", title: "Président de la République (depuis 2017)", ministry_name: "Présidence de la République" },
   { first_name: "Édouard", last_name: "Philippe", title: "Premier ministre (2017-2020)", ministry_name: "Premier ministre" },
   { first_name: "Jean", last_name: "Castex", title: "Premier ministre (2020-2022)", ministry_name: "Premier ministre" },
   { first_name: "Élisabeth", last_name: "Borne", title: "Première ministre (2022-2024)", ministry_name: "Premier ministre" },
