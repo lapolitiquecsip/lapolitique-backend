@@ -1,12 +1,13 @@
--- Balances comptables des communes (source : data.economie.gouv / DGFiP).
--- Agrégats du budget principal par commune et par exercice.
+-- Finances réelles des communes (source : OFGL — Observatoire des Finances et de la Gestion
+-- publique Locales, via data.ofgl.fr). Agrégats retraités du budget principal, par commune/an.
 CREATE TABLE IF NOT EXISTS public.commune_finances (
-  insee_code   TEXT    NOT NULL,
-  year         INTEGER NOT NULL,
-  indicator    TEXT    NOT NULL,   -- produits_fonctionnement | charges_fonctionnement | encours_dette
-  montant      NUMERIC,            -- en euros
-  updated_at   TIMESTAMPTZ DEFAULT now(),
-  source_url   TEXT,
+  insee_code          TEXT    NOT NULL,
+  year                INTEGER NOT NULL,
+  indicator           TEXT    NOT NULL,   -- recettes_fonctionnement | depenses_fonctionnement | epargne_brute | depenses_investissement | encours_dette
+  montant             NUMERIC,            -- en euros
+  euros_par_habitant  NUMERIC,            -- €/hab officiel OFGL
+  updated_at          TIMESTAMPTZ DEFAULT now(),
+  source_url          TEXT,
   PRIMARY KEY (insee_code, year, indicator)
 );
 
