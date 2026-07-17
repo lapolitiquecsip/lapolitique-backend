@@ -20,3 +20,4 @@ jobs:
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:sync-commune-finances
       - run: npm run data:sync-department-finances
+      - run: npm run data:sync-commune-fiscalite
