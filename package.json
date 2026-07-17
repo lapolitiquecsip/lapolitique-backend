@@ -57,6 +57,7 @@
     "automation:legal": "tsx src/scripts/import-legal.ts",
     "automation:explain-legal": "tsx src/scripts/explain-legal.ts",
     "data:sync-parties": "tsx src/scripts/sync-parties.ts",
+    "data:assess-program": "tsx src/scripts/data/assess-program-grounded.ts",
     "data:sync-president-program": "tsx src/scripts/data/sync-president-program.ts",
     "data:sync-elysee": "tsx src/scripts/data/sync-elysee.ts",
     "data:sync-decrees": "tsx src/scripts/data/sync-decrees.ts",

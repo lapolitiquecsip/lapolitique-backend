@@ -6,7 +6,9 @@ import { supabase } from "../../config/supabase.js";
 import { parseAssembleeDossier } from "../../lib/legislative/assemblee-adapter.js";
 import { downloadAndUnzip } from "../automation/utils.js";
 
-const ZIP_URL = "https://data.assemblee-nationale.fr/static/openData/repository/17/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip";
+// Legislature parametrable (voir fetch-votes.ts) : 17 par defaut, 16 pour le backfill 2022-2024.
+const LEGISLATURE = process.env.AN_LEGISLATURE || "17";
+const ZIP_URL = `https://data.assemblee-nationale.fr/static/openData/repository/${LEGISLATURE}/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip`;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const dataDirectory = path.join(root, "data", "laws_an");
 

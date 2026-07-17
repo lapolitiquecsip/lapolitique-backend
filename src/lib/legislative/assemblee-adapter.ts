@@ -67,7 +67,11 @@ function flattenActs(value: any, sourceUrl: string, output: Omit<NormalizedStep,
 
 export function parseAssembleeDossier(raw: any, actorNames: Map<string, string>): { dossier: NormalizedDossier; steps: NormalizedStep[] } | null {
   const value = raw?.dossierParlementaire;
-  if (!value || String(value.legislature) !== "17" || !String(value.uid ?? "").startsWith("DLR5L17")) return null;
+  // La legislature etait figee sur "17" : tout dossier anterieur (notamment la 16,
+  // 2022-2024) etait rejete en silence, ce qui privait la base de la periode ou le
+  // programme 2022 s'est applique. AN_LEGISLATURE permet le backfill.
+  const wantedLegislature = process.env.AN_LEGISLATURE || "17";
+  if (!value || String(value.legislature) !== wantedLegislature || !String(value.uid ?? "").startsWith(`DLR5L${wantedLegislature}`)) return null;
 
   const chemin = value.titreDossier?.titreChemin;
   const sourceUrl = chemin

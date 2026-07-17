@@ -22,7 +22,10 @@ function outcome(value: string): "adopted" | "rejected" | "withdrawn" | "not_def
 
 export function parseAssembleeScrutin(raw: any, dossiers: DossierCandidate[], actorNames: Map<string, string>) {
   const value = raw?.scrutin;
-  if (!value || String(value.legislature) !== "17" || !value.uid || !value.dateScrutin) return null;
+  // Legislature parametrable (voir normalization.ts) : figee, elle rejetait
+  // silencieusement tous les scrutins anterieurs a la legislature en cours.
+  const wantedLegislature = process.env.AN_LEGISLATURE || "17";
+  if (!value || String(value.legislature) !== wantedLegislature || !value.uid || !value.dateScrutin) return null;
   const title = String(value.titre ?? value.objet?.libelle ?? "Scrutin public");
   const dossier = findDossier(title, dossiers);
   if (!dossier) return null;

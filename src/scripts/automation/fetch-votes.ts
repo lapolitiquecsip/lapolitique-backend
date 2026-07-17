@@ -11,7 +11,10 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-const SCRUTINS_ZIP_URL = 'https://data.assemblee-nationale.fr/static/openData/repository/17/loi/scrutins/Scrutins.json.zip';
+// Legislature parametrable : la 17 (2024+) par defaut, la 16 (2022-2024) pour le backfill.
+// Sans la 16, la base ne couvre pas la periode ou le programme 2022 s'est applique.
+const LEGISLATURE = process.env.AN_LEGISLATURE || '17';
+const SCRUTINS_ZIP_URL = `https://data.assemblee-nationale.fr/static/openData/repository/${LEGISLATURE}/loi/scrutins/Scrutins.json.zip`;
 const TEMP_ZIP_PATH = path.join(process.cwd(), 'scrutins_temp.zip');
 
 export async function fetchAndParseVotes() {
@@ -64,7 +67,8 @@ export async function fetchAndParseVotes() {
     });
 
     // Safety limit: process max 200 files per run to avoid DB choke
-    const entriesToProcess = newEntries.slice(0, 200);
+    const maxPerRun = parseInt(process.env.AN_MAX_PER_RUN || '200', 10);
+    const entriesToProcess = newEntries.slice(0, maxPerRun);
     console.log(`> Processing up to ${entriesToProcess.length} new entries for performance.`);
 
     // Fetch active deputies
@@ -81,8 +85,11 @@ export async function fetchAndParseVotes() {
       const content = JSON.parse(entry.getData().toString('utf8'));
       const s = content.scrutin;
       
-      // Skip very old scrutins to speed up sync (only 2026 onwards)
-      if (!s.dateScrutin || !s.dateScrutin.startsWith('2026')) {
+      // Filtre de millesime. Etait fige sur '2026', ce qui expliquait que la base ne
+      // contienne aucun scrutin anterieur : tout l'historique etait silencieusement jete.
+      // AN_MIN_DATE permet le backfill (ex. 2022-05-14 pour couvrir le mandat 2022).
+      const minDate = process.env.AN_MIN_DATE || '2026-01-01';
+      if (!s.dateScrutin || s.dateScrutin < minDate) {
         continue;
       }
 

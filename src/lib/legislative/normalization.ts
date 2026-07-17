@@ -76,7 +76,13 @@ export function normalizeDossier(input: RawOfficialDossier): NormalizedDossier {
   const sourceUpdatedAt = input.sourceUpdatedAt ?? new Date().toISOString();
   const normalized = {
     officialId: input.uid.trim(),
-    legislature: 17,
+    // Etait fige a 17 : les dossiers de la legislature 16 etaient donc enregistres
+    // sous l'etiquette 17, corrompant tout filtrage par legislature. On la deduit
+    // desormais de l'identifiant officiel (ex. DLR5L16N50072 -> 16).
+    legislature: (() => {
+      const m = input.uid.trim().match(/DLR5L(\d+)/i);
+      return m ? parseInt(m[1], 10) : parseInt(process.env.AN_LEGISLATURE || "17", 10);
+    })(),
     title: input.title.trim(),
     textType: isGovernment ? "bill" as const : "proposal" as const,
     authorKind: isGovernment ? "government" as const : "parliamentarian" as const,
