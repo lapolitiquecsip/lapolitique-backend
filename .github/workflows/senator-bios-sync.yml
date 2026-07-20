@@ -1,0 +1,28 @@
+name: Bios sénateurs (Wikipédia + IA)
+on:
+  schedule:
+    - cron: '30 2 5 * *'   # mensuel (le 5, 02h30 UTC, heures creuses)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Retraiter toutes les bios (sinon seulement les génériques)"
+        type: boolean
+        default: false
+concurrency:
+  group: senator-bios-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  bios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # Par défaut : n'enrichit que les bios encore génériques (nouveaux sénateurs) → peu d'appels IA.
+      - run: npm run data:sync-senator-bios ${{ inputs.force && '-- --force' || '' }}
