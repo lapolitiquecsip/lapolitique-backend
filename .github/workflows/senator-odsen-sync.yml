@@ -1,0 +1,21 @@
+name: Données officielles sénateurs (ODSEN)
+on:
+  schedule:
+    - cron: '10 2 6 * *'   # mensuel (le 6, 02h10 UTC)
+  workflow_dispatch:
+concurrency:
+  group: senator-odsen-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  odsen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:sync-senator-odsen
