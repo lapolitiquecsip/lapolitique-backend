@@ -99,27 +99,11 @@ async function scrapeWithCheerio(url: string, source: typeof SOURCES[0]) {
   }
 }
 
-// Le statut de cycle de vie « avancé » (transmise/examinée/classée) n'apparaît que sur la
-// page de détail, dans l'élément .initiative-status. Absent → la pétition en est au stade de
-// recueil, on retombe sur le statut de la carte (« Enregistrée »).
-async function fetchDetailStatus(url: string, cardStatus: string): Promise<string> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9',
-      },
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) return cardStatus;
-    const $ = cheerio.load(await res.text());
-    const adv = $('.initiative-status').first().text().replace(/\s+/g, ' ').trim();
-    return adv || cardStatus;
-  } catch {
-    return cardStatus;
-  }
-}
+// NB : on N'extrait PAS le statut « avancé » de la page de détail. Cette page mélange le
+// statut de la pétition avec celui de textes liés (ex. une PPL « examinée puis classée »),
+// et rien ne les distingue de façon fiable — on risquerait d'attribuer à la pétition le
+// statut d'un élément voisin. On se contente du statut PROPRE de la carte (« Enregistrée »,
+// « Clôturée »…) ; le front déduit le reste des seuils réglementaires (100 000 signatures).
 
 export async function main() {
   const hcId = process.env.HEALTHCHECK_ID_PETITIONS;
@@ -135,15 +119,13 @@ export async function main() {
         console.log(`    Found ${petitions.length} petitions.`);
         
         for (const p of petitions) {
-          // cardStatus ne doit pas partir tel quel en base (colonne inexistante) :
-          // on le retire du spread et on résout le vrai statut via la page de détail.
+          // cardStatus = état PROPRE de la pétition sur la plateforme (« Enregistrée »…).
           const { cardStatus, ...petitionRow } = p as any;
-          const status = await fetchDetailStatus(p.url, cardStatus);
           const { error } = await supabase
             .from('petitions')
             .upsert({
               ...petitionRow,
-              status,
+              status: cardStatus || null,
               status_checked_at: new Date().toISOString(),
               institution: source.name,
               updated_at: new Date().toISOString()
