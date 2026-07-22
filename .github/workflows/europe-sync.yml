@@ -1,0 +1,28 @@
+name: Eurodéputés (Parlement européen)
+on:
+  schedule:
+    - cron: '25 3 * * 4'   # hebdo (jeudi 03h25 UTC) : votes + liste
+    - cron: '45 2 7 * *'   # mensuel (le 7) : bios des nouveaux
+  workflow_dispatch:
+concurrency:
+  group: europe-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  europe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # 1) Liste officielle (noms, groupes, photos)
+      - run: npm run data:sync-meps
+      # 2) Historique de votes (HowTheyVote)
+      - run: npm run data:sync-mep-votes
+      # 3) Bios des eurodéputés encore sans portrait (peu d'appels IA)
+      - run: npm run data:sync-mep-bios
