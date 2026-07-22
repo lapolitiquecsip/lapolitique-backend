@@ -84,8 +84,11 @@ async function scrapeWithCheerio(url: string, source: typeof SOURCES[0]) {
       const descEl = cardEl.find('.card__text--paragraph span:not(.card__text--status)');
       const description = descEl.text().trim() || '';
 
+      // Statut affiché sur la carte (ex. « Enregistrée ») — état de base.
+      const cardStatus = cardEl.find('.card__text--status').first().text().trim() || '';
+
       if (title && fullUrl.includes('/initiatives/')) {
-        results.push({ title, description, signatures, threshold, category, url: fullUrl });
+        results.push({ title, description, signatures, threshold, category, url: fullUrl, cardStatus });
       }
     });
 
@@ -93,6 +96,28 @@ async function scrapeWithCheerio(url: string, source: typeof SOURCES[0]) {
   } catch (error: any) {
     console.error(`    ❌ Cheerio Error: ${error.message}`);
     throw error; // Re-throw so main() can log failure to monitoring
+  }
+}
+
+// Le statut de cycle de vie « avancé » (transmise/examinée/classée) n'apparaît que sur la
+// page de détail, dans l'élément .initiative-status. Absent → la pétition en est au stade de
+// recueil, on retombe sur le statut de la carte (« Enregistrée »).
+async function fetchDetailStatus(url: string, cardStatus: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+        'Accept-Language': 'fr-FR,fr;q=0.9',
+      },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return cardStatus;
+    const $ = cheerio.load(await res.text());
+    const adv = $('.initiative-status').first().text().replace(/\s+/g, ' ').trim();
+    return adv || cardStatus;
+  } catch {
+    return cardStatus;
   }
 }
 
@@ -110,10 +135,16 @@ export async function main() {
         console.log(`    Found ${petitions.length} petitions.`);
         
         for (const p of petitions) {
+          // cardStatus ne doit pas partir tel quel en base (colonne inexistante) :
+          // on le retire du spread et on résout le vrai statut via la page de détail.
+          const { cardStatus, ...petitionRow } = p as any;
+          const status = await fetchDetailStatus(p.url, cardStatus);
           const { error } = await supabase
             .from('petitions')
-            .upsert({ 
-              ...p, 
+            .upsert({
+              ...petitionRow,
+              status,
+              status_checked_at: new Date().toISOString(),
               institution: source.name,
               updated_at: new Date().toISOString()
             }, { onConflict: 'url' });
