@@ -26,3 +26,5 @@ jobs:
       - run: npm run data:sync-mep-votes
       # 3) Bios des eurodéputés encore sans portrait (peu d'appels IA)
       - run: npm run data:sync-mep-bios
+      # Bio structuree (panneaux) des nouveaux eurodeputes
+      - run: npm run data:sync-mep-bios-structured

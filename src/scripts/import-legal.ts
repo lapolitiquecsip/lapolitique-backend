@@ -105,6 +105,7 @@ async function main() {
 
     await updateTable('deputies', recordsByName);
     await updateTable('senators', recordsByName);
+    await updateTable('meps', recordsByName);   // eurodéputés (même matching par nom)
     await updateCandidates(recordsByName);
     await updateMinisters(recordsByName);
 
