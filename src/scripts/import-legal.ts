@@ -106,6 +106,7 @@ async function main() {
     await updateTable('deputies', recordsByName);
     await updateTable('senators', recordsByName);
     await updateTable('meps', recordsByName);   // eurodéputés (même matching par nom)
+    await updateTable('department_presidents', recordsByName, 'dep_code');   // présidents de département (clé dep_code)
     await updateCandidates(recordsByName);
     await updateMinisters(recordsByName);
 
@@ -118,13 +119,13 @@ async function main() {
   }
 }
 
-async function updateTable(tableName: string, recordsByName: Record<string, LegalRecord[]>) {
+async function updateTable(tableName: string, recordsByName: Record<string, LegalRecord[]>, keyCol: string = 'id') {
   console.log(`\n> Updating ${tableName}...`);
   const { data: people, error } = await supabase
     .from(tableName)
-    .select('id, first_name, last_name, legal_issues');
+    .select(`${keyCol}, first_name, last_name, legal_issues`);
 
-  if (error) return;
+  if (error) { console.log(`> (table ${tableName} indisponible: ${error.message})`); return; }
 
   let updatedCount = 0;
   for (const person of people || []) {
@@ -143,7 +144,7 @@ async function updateTable(tableName: string, recordsByName: Record<string, Lega
     }
 
     if (person.legal_issues !== legalStatus) {
-        await supabase.from(tableName).update({ legal_issues: legalStatus }).eq('id', person.id);
+        await supabase.from(tableName).update({ legal_issues: legalStatus }).eq(keyCol, (person as any)[keyCol]);
         updatedCount++;
     }
   }

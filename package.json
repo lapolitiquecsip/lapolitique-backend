@@ -32,6 +32,8 @@
     "data:sync-state-budget": "tsx src/scripts/data/sync-state-budget.ts",
     "data:sync-budget-programmes": "tsx src/scripts/data/sync-budget-programmes.ts",
     "data:sync-government": "tsx src/scripts/data/sync-government.ts",
+    "data:sync-department-president-bios": "tsx src/scripts/data/sync-department-president-bios.ts",
+    "data:sync-department-presidents": "tsx src/scripts/data/sync-department-presidents.ts",
     "data:sync-senator-odsen": "tsx src/scripts/data/sync-senator-odsen.ts",
     "data:sync-senator-bios": "tsx src/scripts/data/sync-senator-bios.ts",
     "data:sync-ministers": "tsx src/scripts/data/sync-ministers.ts",
