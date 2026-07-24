@@ -1,16 +1,16 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 
-// Historique de votes des eurodéputés français — source HowTheyVote.eu (votes nominaux du
-// Parlement européen, open data). Chaque scrutin détaille la position de chaque député par
-// son id officiel du PE : liaison directe, aucun rapprochement flou.
+// Votes + assiduité des eurodéputés français — HowTheyVote.eu.
+// Approche PAR MEMBRE : l'endpoint /members/{id}/votes renvoie TOUS les scrutins nominaux
+// de la mandature avec la position du député (y compris DID_NOT_VOTE). Cela permet à la fois
+// d'enregistrer l'historique complet ET de calculer un taux de participation réel.
 //
-// On ne retient que les votes PRINCIPAUX (is_main : vote final sur un texte), pour éviter de
-// noyer l'utilisateur sous les votes d'amendements — même logique que pour les scrutins AN.
+// Précision honnête : ce taux mesure la PARTICIPATION AUX VOTES NOMINAUX, pas la présence
+// physique en séance ou en commission (le vote peut être exprimé pour le groupe). C'est la
+// métrique fiable et vérifiable dont on dispose ; le front l'affiche avec ce libellé exact.
 const API = "https://howtheyvote.eu/api";
 const HT = "https://howtheyvote.eu";
-// Fenêtre : les N votes principaux les plus récents (garde-fou volume au premier passage).
-const MAX_VOTES = Number(process.env.MEP_VOTES_MAX || 250);
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -23,66 +23,63 @@ async function getJson(url: string, tries = 4): Promise<any> {
       return await r.json();
     } catch (e) {
       if (i === tries - 1) throw e;
-      await sleep(1500 * (i + 1));
+      await sleep(1200 * (i + 1));
     }
   }
 }
 
 export async function syncMepVotes() {
-  console.log("--- SYNC VOTES EURODÉPUTÉS (HowTheyVote) ---");
-
-  // On restreint aux id EP de nos eurodéputés français (81).
-  const { data: meps, error } = await supabase.from("meps").select("id");
+  console.log("--- SYNC VOTES + ASSIDUITÉ EURODÉPUTÉS (HowTheyVote) ---");
+  const { data: meps, error } = await supabase.from("meps").select("id, full_name");
   if (error) throw error;
-  const frenchIds = new Set((meps ?? []).map((m: any) => String(m.id)));
-  console.log(`> ${frenchIds.size} eurodéputés français en base.`);
+  console.log(`> ${meps?.length ?? 0} eurodéputés.`);
 
-  // 1) Liste des votes principaux récents.
-  const mainVotes: any[] = [];
-  for (let page = 1; mainVotes.length < MAX_VOTES && page <= 60; page++) {
-    const data = await getJson(`${API}/votes?page=${page}&page_size=50`);
-    const results = data?.results ?? [];
-    for (const v of results) if (v.is_main) mainVotes.push(v);
-    if (!data?.has_next) break;
-    await sleep(200);
-  }
-  const votes = mainVotes.slice(0, MAX_VOTES);
-  console.log(`> ${votes.length} votes principaux à traiter.`);
-
-  // 2) Pour chaque vote, positions des députés français.
-  const rows: any[] = [];
-  let done = 0;
-  for (const v of votes) {
-    const detail = await getJson(`${API}/votes/${v.id}`).catch(() => null);
-    const mv = detail?.member_votes ?? [];
-    const result = detail?.result || v.result || null;
-    for (const m of mv) {
-      const id = String(m?.member?.id ?? "");
-      if (!frenchIds.has(id)) continue;
-      rows.push({
-        mep_id: id,
-        vote_id: String(v.id),
-        title: (v.display_title || detail?.display_title || "").slice(0, 400),
-        reference: v.reference || null,
-        voted_at: v.timestamp || null,
-        position: m.position || null,           // FOR | AGAINST | ABSTENTION | DID_NOT_VOTE
-        result,
-        url: `${HT}/votes/${v.id}`,
-        updated_at: new Date().toISOString(),
-      });
+  let totalRows = 0;
+  for (const m of meps || []) {
+    const votes: any[] = [];
+    for (let page = 1; ; page++) {
+      const data = await getJson(`${API}/members/${m.id}/votes?page=${page}&page_size=100`).catch(() => null);
+      const results = data?.results ?? [];
+      votes.push(...results);
+      if (!data?.has_next || page > 60) break;
+      await sleep(80);
     }
-    done++;
-    if (done % 25 === 0) console.log(`  ${done}/${votes.length} votes…`);
-    await sleep(150);
-  }
-  console.log(`> ${rows.length} positions (français) à enregistrer.`);
+    if (votes.length === 0) { console.warn(`  ! ${m.full_name} : aucun vote.`); continue; }
 
-  for (let i = 0; i < rows.length; i += 500) {
-    const { error: upErr } = await supabase.from("mep_votes").upsert(rows.slice(i, i + 500), { onConflict: "mep_id,vote_id" });
-    if (upErr) { console.error("[MepVotes] upsert:", upErr.message); throw upErr; }
+    // Assiduité : proportion de scrutins où une position a été exprimée.
+    const participated = votes.filter(v => v.position && v.position !== "DID_NOT_VOTE").length;
+    const rate = Math.round((participated / votes.length) * 1000) / 10;
+
+    // On stocke TOUS les scrutins (avec le drapeau is_main pour le tri côté fiche).
+    const rows = votes.map(v => ({
+      mep_id: String(m.id),
+      vote_id: String(v.id),
+      title: (v.display_title || "").slice(0, 400),
+      reference: v.reference || null,
+      voted_at: v.timestamp || null,
+      position: v.position || null,
+      result: v.result || null,
+      is_main: !!v.is_main,
+      url: `${HT}/votes/${v.id}`,
+      updated_at: new Date().toISOString(),
+    }));
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error: upErr } = await supabase.from("mep_votes").upsert(rows.slice(i, i + 500), { onConflict: "mep_id,vote_id" });
+      if (upErr) { console.error(`  ! ${m.full_name} upsert:`, upErr.message); break; }
+    }
+    await supabase.from("meps").update({
+      votes_total: votes.length,
+      votes_participated: participated,
+      attendance_rate: rate,
+      votes_synced_at: new Date().toISOString(),
+    }).eq("id", m.id);
+
+    totalRows += rows.length;
+    console.log(`  ✓ ${m.full_name} : ${votes.length} votes, participation ${rate}%`);
+    await sleep(120);
   }
-  console.log(`--- TERMINE. ${rows.length} positions enregistrées. ---`);
-  return rows.length;
+  console.log(`--- TERMINE. ${totalRows} lignes de votes. ---`);
+  return totalRows;
 }
 
 if (process.argv[1] && process.argv[1].endsWith("sync-mep-votes.ts")) {
