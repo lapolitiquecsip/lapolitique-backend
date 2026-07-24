@@ -121,14 +121,14 @@ async function main() {
 
 async function updateTable(tableName: string, recordsByName: Record<string, LegalRecord[]>, keyCol: string = 'id') {
   console.log(`\n> Updating ${tableName}...`);
-  const { data: people, error } = await supabase
-    .from(tableName)
+  const { data: people, error } = await (supabase.from(tableName) as any)
     .select(`${keyCol}, first_name, last_name, legal_issues`);
 
   if (error) { console.log(`> (table ${tableName} indisponible: ${error.message})`); return; }
+  const rows: any[] = people || [];
 
   let updatedCount = 0;
-  for (const person of people || []) {
+  for (const person of rows) {
     const fullName = `${person.first_name} ${person.last_name}`.trim();
     const reverseName = `${person.last_name} ${person.first_name}`.trim();
 

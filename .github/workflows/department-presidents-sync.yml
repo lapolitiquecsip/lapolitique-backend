@@ -1,0 +1,32 @@
+name: Présidents de département (RNE + bios)
+on:
+  schedule:
+    # Mensuel, le 6 à 02h50 UTC (heures creuses) — après la synchro RNE hebdomadaire.
+    - cron: '50 2 6 * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Retraiter toutes les bios (sinon seulement celles encore manquantes)"
+        type: boolean
+        default: false
+concurrency:
+  group: department-presidents-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # 1) Qui préside quel département — source officielle RNE (data.gouv).
+      - run: npm run data:sync-department-presidents
+      # 2) Photos + bios (Wikipédia + IA, repli Wikidata factuel). Par défaut, seules
+      #    les fiches encore sans bio sont enrichies → peu d'appels IA.
+      - run: npm run data:sync-department-president-bios ${{ inputs.force && '-- --force' || '' }}

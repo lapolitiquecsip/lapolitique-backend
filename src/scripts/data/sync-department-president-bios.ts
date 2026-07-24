@@ -69,10 +69,77 @@ Réponds en JSON strict :
   try { return JSON.parse(m[0]); } catch { return null; }
 }
 
+// --- Repli Wikidata : quand Wikipédia n'a pas d'article, on récupère des FAITS
+// structurés et sourcés (parti, fonctions avec dates, profession, formation, image).
+// Aucune prose inventée. Garde-fou anti-homonyme : la date de naissance RNE doit
+// correspondre à celle de Wikidata ; à défaut, une fonction départementale doit figurer.
+const wdTime = (claim: any): string | null => {
+  const t = claim?.mainsnak?.datavalue?.value?.time as string | undefined;
+  const m = t?.match(/^\+(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+};
+const wdYear = (d: string | null) => (d ? d.slice(0, 4) : "");
+
+async function wikidata(name: string, rneBirth: string | null, depName: string | null): Promise<any | null> {
+  const search: any = await (await fetch(
+    `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(name)}&language=fr&format=json&limit=5`,
+    { headers: UA, signal: AbortSignal.timeout(15000) })).json();
+  for (const cand of search.search || []) {
+    const ent: any = await (await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${cand.id}.json`,
+      { headers: UA, signal: AbortSignal.timeout(15000) })).json();
+    const d = ent.entities?.[cand.id]; if (!d) continue;
+    const c = d.claims || {};
+    if (c.P31?.[0]?.mainsnak?.datavalue?.value?.id !== "Q5") continue; // doit être un humain
+    const birth = c.P569 ? wdTime(c.P569[0]) : null;
+    const positions = (c.P39 || []).map((cl: any) => ({
+      id: cl.mainsnak?.datavalue?.value?.id as string,
+      start: cl.qualifiers?.P580 ? wdTime({ mainsnak: cl.qualifiers.P580[0] }) : null,
+      end: cl.qualifiers?.P582 ? wdTime({ mainsnak: cl.qualifiers.P582[0] }) : null,
+    })).filter((x: any) => x.id);
+    // Collecte des QID à libeller (fonctions, parti, profession, formation).
+    const partyId = c.P102?.[0]?.mainsnak?.datavalue?.value?.id;
+    const occIds = (c.P106 || []).map((x: any) => x.mainsnak?.datavalue?.value?.id).filter(Boolean);
+    const eduIds = (c.P69 || []).map((x: any) => x.mainsnak?.datavalue?.value?.id).filter(Boolean);
+    const ids = [...positions.map((p: any) => p.id), partyId, ...occIds, ...eduIds].filter(Boolean);
+    const labels: Record<string, string> = {};
+    for (let i = 0; i < ids.length; i += 45) {
+      const j: any = await (await fetch(
+        `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${ids.slice(i, i + 45).join("|")}&props=labels&languages=fr&format=json`,
+        { headers: UA, signal: AbortSignal.timeout(15000) })).json();
+      for (const [id, e] of Object.entries<any>(j.entities || {})) labels[id] = e.labels?.fr?.value || "";
+    }
+    const posLabels = positions.map((p: any) => ({ ...p, label: labels[p.id] || "" }));
+    const hasDept = posLabels.some((p: any) => /d[ée]partement/i.test(p.label));
+    // Garde-fou : soit la date de naissance colle, soit une fonction départementale existe.
+    const birthOk = rneBirth && birth && birth === rneBirth;
+    if (!birthOk && !hasDept) continue;
+
+    const parcours = posLabels
+      .filter((p: any) => p.label)
+      .sort((a: any, b: any) => (a.start || "").localeCompare(b.start || ""))
+      .map((p: any) => {
+        const per = p.start || p.end ? ` (${wdYear(p.start)}${p.end ? "–" + wdYear(p.end) : p.start ? "–…" : ""})` : "";
+        return `${p.label}${per}`;
+      });
+    const profession = occIds.map((id: string) => labels[id]).filter((l: string) => l && !/(femme|homme) politique|personnalité politique/i.test(l))[0] || "";
+    const etudes = eduIds.map((id: string) => labels[id]).filter(Boolean);
+    const party = partyId ? labels[partyId] : "";
+    const image = c.P18?.[0]?.mainsnak?.datavalue?.value as string | undefined;
+    const photo = image ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(image.replace(/ /g, "_"))}?width=600` : undefined;
+
+    const bornStr = birth ? `né·e le ${birth}` : "";
+    const summary = `${name}${party ? `, ${party}` : ""}, préside le conseil départemental${depName ? ` (${depName})` : ""}.`;
+    const bio: any = { summary, profession, parcours, etudes, _v: BIO_VERSION, _src: "wikidata" };
+    if (party) bio.positions = [`Rattachement politique : ${party}`];
+    return { bio, photo, party, birth };
+  }
+  return null;
+}
+
 async function main() {
   const force = process.argv.includes("--force");
   console.log("--- PHOTOS + BIOS PRÉSIDENTS DE DÉPARTEMENT ---");
-  const { data: pres, error } = await supabase.from("department_presidents").select("dep_code, dep_name, full_name, first_name, last_name, bio, photo_url");
+  const { data: pres, error } = await supabase.from("department_presidents").select("dep_code, dep_name, full_name, first_name, last_name, birth_date, bio, photo_url");
   if (error) throw error;
   const todo = (pres ?? []).filter(p => force || !p.bio || (p.bio as any)?._v !== BIO_VERSION);
   console.log(`> ${todo.length}/${pres?.length ?? 0} à traiter.`);
@@ -85,7 +152,18 @@ async function main() {
       const ref = wiki?.extract || "";
       const okDep = p.dep_name && norm(ref).includes(norm(p.dep_name));
       const okFn = /conseil d[ée]partemental|pr[ée]sident du conseil|d[ée]partement/i.test(ref);
-      if (ref.length < 250 || (!okDep && !okFn)) { skip++; console.log(`  · ${name} (${p.dep_name}) : pas d'article fiable.`); await sleep(300); continue; }
+      if (ref.length < 250 || (!okDep && !okFn)) {
+        // Repli Wikidata (faits sourcés, sans invention).
+        const wd = await wikidata(name, p.birth_date || null, p.dep_name || null);
+        if (wd) {
+          const update: any = { bio: wd.bio, biography: wd.bio.summary || null };
+          if (wd.photo) update.photo_url = wd.photo;
+          if (wd.party) update.party = wd.party;
+          await supabase.from("department_presidents").update(update).eq("dep_code", p.dep_code);
+          ok++; console.log(`  ✓ ${name} (${p.dep_name}) [Wikidata]${wd.photo ? " +photo" : ""}`);
+        } else { skip++; console.log(`  · ${name} (${p.dep_name}) : pas de source fiable.`); }
+        await sleep(400); continue;
+      }
       const bio = await structureBio(name, p.dep_name || "", ref);
       const update: any = {};
       if (wiki?.photo) update.photo_url = wiki.photo;
