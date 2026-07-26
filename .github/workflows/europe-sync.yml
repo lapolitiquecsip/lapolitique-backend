@@ -12,7 +12,7 @@ permissions:
 jobs:
   europe:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 300
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -28,3 +28,5 @@ jobs:
       - run: npm run data:sync-mep-bios
       # Bio structuree (panneaux) des nouveaux eurodeputes
       - run: npm run data:sync-mep-bios-structured
+      # 4) Explications IA des votes principaux (ne (re)génère que les manquants)
+      - run: npm run data:sync-vote-explanations

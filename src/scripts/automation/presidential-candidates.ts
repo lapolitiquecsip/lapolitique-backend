@@ -40,6 +40,9 @@ type Detected = {
   source_url?: string;
   // Résumé factuel de repli quand la personne n'a pas d'article Wikipédia (aucune bio inventée).
   fallback_summary?: string;
+  // Photo de repli (URL Wikimedia Commons sous licence libre) quand pas d'article Wikipédia.
+  fallback_photo?: string;
+  fallback_photo_credit?: string;
 };
 
 // Socle vérifié des candidat·e·s OFFICIELLEMENT déclaré·e·s à la PRÉSIDENTIELLE 2027
@@ -61,7 +64,8 @@ const CANDIDATE_SEED: Detected[] = [
   { full_name: "Nathalie Arthaud", party: "Lutte ouvrière", political_side: "extreme-gauche", declared_at: "2025-12-08", confidence: 1 },
   { full_name: "Anasse Kazib", party: "Révolution permanente", political_side: "extreme-gauche", declared_at: "2026-06-01", confidence: 1 },
   { full_name: "Selma Labib", party: "NPA – Révolutionnaires", political_side: "extreme-gauche", declared_at: "2026-06-17", confidence: 1,
-    fallback_summary: "Selma Labib, porte-parole du NPA-Révolutionnaires et conductrice de bus en région parisienne, est la candidate de son parti à l'élection présidentielle de 2027 (en binôme avec Gaël Quirante). Il s'agit de la troisième candidature d'extrême gauche déclarée, après Nathalie Arthaud et Anasse Kazib." },
+    fallback_summary: "Selma Labib, porte-parole du NPA-Révolutionnaires et conductrice de bus en région parisienne, est la candidate de son parti à l'élection présidentielle de 2027 (en binôme avec Gaël Quirante). Il s'agit de la troisième candidature d'extrême gauche déclarée, après Nathalie Arthaud et Anasse Kazib.",
+    fallback_photo: "https://commons.wikimedia.org/wiki/Special:FilePath/Presidentielles-2027-Selma-LABIB.png?width=600", fallback_photo_credit: "Wikimedia Commons · CC BY 3.0" },
 ];
 
 // Candidat·e·s de PRIMAIRE — déclaré·e·s à une primaire (gauche unitaire, socialiste, droite),
@@ -292,8 +296,8 @@ export async function syncPresidentialCandidates() {
       category: candidate.category ?? "Chef de file",
       status: "declared",
       declared_at: candidate.declared_at || null,
-      photo_url: wiki.photo ?? null,
-      photo_credit: wiki.photo ? "Wikimedia Commons" : null,
+      photo_url: wiki.photo ?? candidate.fallback_photo ?? null,
+      photo_credit: wiki.photo ? "Wikimedia Commons" : (candidate.fallback_photo ? (candidate.fallback_photo_credit ?? "Wikimedia Commons") : null),
       summary: bio?.summary ?? candidate.fallback_summary ?? null,
       bio: bio ? { ...bio, _v: BIO_VERSION } : null,
       source_urls: [candidate.source_url, wiki.url].filter(Boolean),

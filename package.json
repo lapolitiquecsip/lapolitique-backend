@@ -74,6 +74,7 @@
     "data:summarize-decrees": "tsx src/scripts/data/summarize-decrees.ts",
     "data:enrich-parties": "tsx src/scripts/enrich-parties.ts",
     "data:sync-mep-votes": "tsx src/scripts/data/sync-mep-votes.ts",
+    "data:sync-vote-explanations": "tsx src/scripts/data/sync-vote-explanations.ts",
     "data:sync-mep-bios-structured": "tsx src/scripts/data/sync-mep-bios-structured.ts",
     "data:sync-mep-bios": "tsx src/scripts/data/sync-mep-bios.ts",
     "data:sync-meps": "tsx src/scripts/sync-meps.ts",
