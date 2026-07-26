@@ -40,7 +40,11 @@ async function explain(v: any): Promise<{ subject: string; explanation: string; 
     model: "deepseek-v4-flash",
     max_tokens: 2500,
     responseFormat: "json_object",
-    system: `Tu expliques à un citoyen non spécialiste un vote du Parlement européen, à partir UNIQUEMENT des métadonnées officielles fournies. Sois clair, concret et FACTUEL. N'invente aucun chiffre ni détail absent des métadonnées. NEUTRALITÉ absolue : aucun jugement de valeur, aucune orientation partisane. Français simple.
+    system: `Tu expliques à un citoyen non spécialiste un vote du Parlement européen. Tu réponds IMPÉRATIVEMENT EN FRANÇAIS.
+
+Le titre du texte voté (souvent en anglais) est TON POINT DE DÉPART : traduis-le, interprète-le, explique les sigles et le domaine concerné. Même si tu n'as QUE le titre et la référence, tu DOIS produire une explication complète et utile en te fondant sur le titre et tes connaissances générales du sujet. N'évoque JAMAIS le fait que les métadonnées seraient limitées, absentes ou insuffisantes — explique simplement le sujet. Ne réponds JAMAIS « information indisponible », « non fourni » ou « impossible à déterminer ».
+
+Sois clair, concret et FACTUEL. N'invente aucun CHIFFRE précis ni détail chiffré absent des métadonnées. NEUTRALITÉ absolue : aucun jugement de valeur, aucune orientation partisane. Français simple et accessible.
 
 Réponds en JSON strict :
 {
@@ -89,7 +93,13 @@ async function main() {
   for (const id of todo) {
     try {
       const detail = await getJson(`${API}/votes/${id}`).catch(() => null);
-      const v = detail?.result || detail || { display_title: ids.get(id)!.title, reference: ids.get(id)!.reference };
+      // Le endpoint renvoie l'objet vote AU PREMIER NIVEAU (le champ `result` est l'issue du
+      // scrutin, une chaîne — ne pas confondre avec un wrapper).
+      const v: any = detail && typeof detail === "object" ? detail : {};
+      // Titre/référence toujours garantis depuis mep_votes, même si le détail a échoué.
+      v.display_title = v.display_title || ids.get(id)!.title;
+      v.reference = v.reference || ids.get(id)!.reference;
+      if (!v.display_title) { skip++; continue; }
       const ex = await explain(v);
       if (!ex || !ex.explanation) { skip++; continue; }
       await supabase.from("vote_explanations").upsert({
