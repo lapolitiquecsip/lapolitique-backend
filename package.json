@@ -34,6 +34,8 @@
     "data:sync-government": "tsx src/scripts/data/sync-government.ts",
     "data:sync-department-president-bios": "tsx src/scripts/data/sync-department-president-bios.ts",
     "data:sync-department-presidents": "tsx src/scripts/data/sync-department-presidents.ts",
+    "data:sync-mayors": "tsx src/scripts/data/sync-mayors.ts",
+    "data:sync-mayor-bios": "tsx src/scripts/data/sync-mayor-bios.ts",
     "data:sync-senator-odsen": "tsx src/scripts/data/sync-senator-odsen.ts",
     "data:sync-senator-bios": "tsx src/scripts/data/sync-senator-bios.ts",
     "data:sync-ministers": "tsx src/scripts/data/sync-ministers.ts",

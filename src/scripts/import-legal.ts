@@ -107,6 +107,7 @@ async function main() {
     await updateTable('senators', recordsByName);
     await updateTable('meps', recordsByName);   // eurodéputés (même matching par nom)
     await updateTable('department_presidents', recordsByName, 'dep_code');   // présidents de département (clé dep_code)
+    await updateTable('mayors', recordsByName, 'insee_code');   // maires (clé insee_code)
     await updateCandidates(recordsByName);
     await updateMinisters(recordsByName);
 

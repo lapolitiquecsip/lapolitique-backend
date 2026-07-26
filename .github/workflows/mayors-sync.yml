@@ -1,0 +1,35 @@
+name: Maires (RNE + bios ≥ 5000 hab)
+on:
+  schedule:
+    # Mensuel, le 7 à 03h10 UTC — après la synchro RNE hebdomadaire (elected_officials).
+    - cron: '10 3 7 * *'
+  workflow_dispatch:
+    inputs:
+      min_pop:
+        description: "Population minimale des communes à enrichir (bios IA)"
+        default: "5000"
+      force:
+        description: "Retraiter toutes les bios du périmètre"
+        type: boolean
+        default: false
+concurrency:
+  group: mayors-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      MAYOR_MIN_POP: ${{ inputs.min_pop || '5000' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # 1) Table `mayors` depuis le RNE déjà ingéré (elected_officials/mandates) + population.
+      - run: npm run data:sync-mayors
+      # 2) Photos + bios (Wikidata/Wikipédia/IA) pour les communes ≥ MAYOR_MIN_POP.
+      - run: npm run data:sync-mayor-bios ${{ inputs.force && '-- --force' || '' }}
