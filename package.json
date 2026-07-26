@@ -79,6 +79,7 @@
     "data:sync-vote-group-results": "tsx src/scripts/data/sync-vote-group-results.ts",
     "data:sync-senator-participation": "tsx src/scripts/data/sync-senator-participation.ts",
     "data:sync-initiative-counts": "tsx src/scripts/data/sync-initiative-counts.ts",
+    "data:sync-law-citizen-impact": "tsx src/scripts/data/sync-law-citizen-impact.ts",
     "data:sync-mep-bios-structured": "tsx src/scripts/data/sync-mep-bios-structured.ts",
     "data:sync-mep-bios": "tsx src/scripts/data/sync-mep-bios.ts",
     "data:sync-meps": "tsx src/scripts/sync-meps.ts",
