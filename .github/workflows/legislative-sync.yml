@@ -50,6 +50,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       # Résumé « impact citoyen » des lois promulguées (pour le livre du Journal Officiel).
+      - run: npm run data:sync-dossier-titles
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       - run: npm run data:sync-law-citizen-impact
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
