@@ -28,5 +28,7 @@ jobs:
       - run: npm run data:sync-mep-bios
       # Bio structuree (panneaux) des nouveaux eurodeputes
       - run: npm run data:sync-mep-bios-structured
-      # 4) Explications IA des votes principaux (ne (re)génère que les manquants)
+      # 4) Catégorisation par domaine des votes (classification officielle, déterministe)
+      - run: npm run data:sync-vote-categories
+      # 5) Explications IA des votes principaux (ne (re)génère que les manquants)
       - run: npm run data:sync-vote-explanations

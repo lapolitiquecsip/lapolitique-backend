@@ -75,6 +75,7 @@
     "data:enrich-parties": "tsx src/scripts/enrich-parties.ts",
     "data:sync-mep-votes": "tsx src/scripts/data/sync-mep-votes.ts",
     "data:sync-vote-explanations": "tsx src/scripts/data/sync-vote-explanations.ts",
+    "data:sync-vote-categories": "tsx src/scripts/data/sync-vote-categories.ts",
     "data:sync-senator-participation": "tsx src/scripts/data/sync-senator-participation.ts",
     "data:sync-mep-bios-structured": "tsx src/scripts/data/sync-mep-bios-structured.ts",
     "data:sync-mep-bios": "tsx src/scripts/data/sync-mep-bios.ts",
