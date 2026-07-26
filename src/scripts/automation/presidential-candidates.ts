@@ -38,6 +38,8 @@ type Detected = {
   declared_at?: string | null;
   confidence: number;
   source_url?: string;
+  // Résumé factuel de repli quand la personne n'a pas d'article Wikipédia (aucune bio inventée).
+  fallback_summary?: string;
 };
 
 // Socle vérifié des candidat·e·s OFFICIELLEMENT déclaré·e·s à la PRÉSIDENTIELLE 2027
@@ -58,12 +60,26 @@ const CANDIDATE_SEED: Detected[] = [
   { full_name: "Karim Bouamrane", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-06-09", confidence: 1 },
   { full_name: "Nathalie Arthaud", party: "Lutte ouvrière", political_side: "extreme-gauche", declared_at: "2025-12-08", confidence: 1 },
   { full_name: "Anasse Kazib", party: "Révolution permanente", political_side: "extreme-gauche", declared_at: "2026-06-01", confidence: 1 },
-  { full_name: "Selma Labib", party: "NPA – Révolutionnaires", political_side: "extreme-gauche", declared_at: "2026-06-17", confidence: 1 },
+  { full_name: "Selma Labib", party: "NPA – Révolutionnaires", political_side: "extreme-gauche", declared_at: "2026-06-17", confidence: 1,
+    fallback_summary: "Selma Labib, porte-parole du NPA-Révolutionnaires et conductrice de bus en région parisienne, est la candidate de son parti à l'élection présidentielle de 2027 (en binôme avec Gaël Quirante). Il s'agit de la troisième candidature d'extrême gauche déclarée, après Nathalie Arthaud et Anasse Kazib." },
 ];
 
-// Personnes à EXCLURE : candidates à une PRIMAIRE (pas à la présidentielle) ou faux positifs.
-// Supprimées de la base si elles y figurent à tort.
-const EXCLUDED_NAMES = new Set(["segolene royal"]);
+// Candidat·e·s de PRIMAIRE — déclaré·e·s à une primaire (gauche unitaire, socialiste, droite),
+// pas directement à la présidentielle. Inclus·e·s à la demande de l'éditeur, mais SIGNALÉ·E·S
+// comme tel·le·s via `category` (« Primaire … ») pour rester honnête. Un seul·e ira au scrutin.
+const PRIMARY_SEED: Detected[] = [
+  { full_name: "Marine Tondelier", party: "Les Écologistes", political_side: "gauche", category: "Primaire de la gauche unitaire", declared_at: null, confidence: 1 },
+  { full_name: "François Ruffin", party: "Debout !", political_side: "gauche", category: "Primaire de la gauche unitaire", declared_at: null, confidence: 1 },
+  { full_name: "Lydie Massard", party: "Union démocratique bretonne", political_side: "gauche", category: "Primaire de la gauche unitaire", declared_at: null, confidence: 1,
+    fallback_summary: "Lydie Massard, responsable de l'Union démocratique bretonne (UDB), est candidate à la primaire de la gauche unitaire en vue de l'élection présidentielle de 2027." },
+  { full_name: "Ségolène Royal", party: "Parti socialiste", political_side: "gauche", category: "Primaire socialiste", declared_at: null, confidence: 1 },
+  { full_name: "Philippe Brun", party: "Parti socialiste", political_side: "gauche", category: "Primaire socialiste", declared_at: null, confidence: 1 },
+  { full_name: "David Lisnard", party: "Nouvelle Énergie", political_side: "droite", category: "Primaire de la droite", declared_at: null, confidence: 1 },
+];
+
+// Personnes à EXCLURE : faux positifs de la détection presse. (Les candidat·e·s de primaire ne
+// sont plus exclu·e·s : ils/elles sont désormais intégré·e·s via PRIMARY_SEED avec un label.)
+const EXCLUDED_NAMES = new Set<string>([]);
 
 // ---- 1. Rassembler les extraits d'actualité récents -----------------------
 async function gatherHeadlines(): Promise<string> {
@@ -230,13 +246,26 @@ export async function syncPresidentialCandidates() {
   const detectedRaw = await detectCandidates(headlines);
   // Socle vérifié + détection presse, en excluant les noms bannis.
   const bySlug = new Map<string, Detected>();
-  for (const c of [...CANDIDATE_SEED, ...detectedRaw]) {
+  for (const c of [...CANDIDATE_SEED, ...PRIMARY_SEED, ...detectedRaw]) {
     const n = normalizeName(c.full_name);
     if (!n || EXCLUDED_NAMES.has(n) || bySlug.has(n)) continue;
     bySlug.set(n, c);
   }
   const detected = [...bySlug.values()];
   console.log(`[Presidential] ${detected.length} candidat(s) déclaré(s) (socle + presse).`);
+
+  // Corrige la `category` (label « Primaire … ») des candidat·e·s déjà en base.
+  {
+    const desiredCat = new Map(detected.filter(c => c.category).map(c => [normalizeName(c.full_name), c.category!]));
+    const { data: existingCat } = await supabase.from("presidential_candidates").select("id, normalized_name, category");
+    for (const row of existingCat ?? []) {
+      const want = desiredCat.get(row.normalized_name);
+      if (want && row.category !== want) {
+        await supabase.from("presidential_candidates").update({ category: want }).eq("id", row.id);
+        console.log(`[Presidential] ⟳ Label primaire : ${row.normalized_name} → ${want}`);
+      }
+    }
+  }
 
   const known = new Set((allExisting ?? []).filter(row => !EXCLUDED_NAMES.has(row.normalized_name)).map(row => row.normalized_name));
 
@@ -246,11 +275,13 @@ export async function syncPresidentialCandidates() {
     if (!normalized || known.has(normalized)) continue;
 
     const wiki = await wikipediaData(candidate.full_name);
-    if (!wiki.extract) {
-      console.warn(`[Presidential] Pas de fiche Wikipédia fiable pour ${candidate.full_name}, ignoré.`);
+    // Sans article Wikipédia : on insère quand même à partir des faits vérifiés du socle
+    // (parti, camp, résumé de repli sourcé), sans bio structurée inventée.
+    if (!wiki.extract && !candidate.fallback_summary) {
+      console.warn(`[Presidential] Pas de fiche Wikipédia ni de résumé de repli pour ${candidate.full_name}, ignoré.`);
       continue;
     }
-    const bio = await structureBio(candidate.full_name, wiki.extract);
+    const bio = wiki.extract ? await structureBio(candidate.full_name, wiki.extract) : null;
 
     const { error } = await supabase.from("presidential_candidates").insert({
       slug: slugify(candidate.full_name),
@@ -263,7 +294,7 @@ export async function syncPresidentialCandidates() {
       declared_at: candidate.declared_at || null,
       photo_url: wiki.photo ?? null,
       photo_credit: wiki.photo ? "Wikimedia Commons" : null,
-      summary: bio?.summary ?? null,
+      summary: bio?.summary ?? candidate.fallback_summary ?? null,
       bio: bio ? { ...bio, _v: BIO_VERSION } : null,
       source_urls: [candidate.source_url, wiki.url].filter(Boolean),
       confidence: candidate.confidence,
