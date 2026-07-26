@@ -5,6 +5,12 @@ import { supabase } from "../../config/supabase.js";
 // Pour chaque sénateur (matricule = voter_official_id) : participation = positions
 // exprimées (for/against/abstain) sur le nombre de scrutins où il/elle figure.
 // non_voting = « n'a pas pris part au vote » (compté comme non-participation).
+// Exceptions institutionnelles : le·la Président·e du Sénat préside les séances et ne prend
+// pas part aux votes par convention — son « taux de présence aux votes » n'a pas de sens et
+// l'épingler serait trompeur. On laisse sa participation à NULL (pas de bloc comparatif).
+// Gérard Larcher (matricule 86034E), Président du Sénat.
+const EXCLUDED_MATRICULES = new Set(["86034E"]);
+
 async function main() {
   console.log("--- PRÉSENCE AUX VOTES DES SÉNATEURS ---");
 
@@ -37,6 +43,10 @@ async function main() {
   let updated = 0, missing = 0;
   const now = new Date().toISOString();
   for (const sen of senators || []) {
+    if (sen.senate_matricule && EXCLUDED_MATRICULES.has(sen.senate_matricule)) {
+      await supabase.from("senators").update({ participation_rate: null, votes_participated: null, votes_total: null, activity_updated_at: now }).eq("id", sen.id);
+      continue;
+    }
     const s = sen.senate_matricule ? stats.get(sen.senate_matricule) : null;
     if (!s || s.total === 0) { missing++; continue; }
     const rate = Math.round((s.part / s.total) * 1000) / 10;
