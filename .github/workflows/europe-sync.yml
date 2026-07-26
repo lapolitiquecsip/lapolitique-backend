@@ -30,5 +30,7 @@ jobs:
       - run: npm run data:sync-mep-bios-structured
       # 4) Catégorisation par domaine des votes (classification officielle, déterministe)
       - run: npm run data:sync-vote-categories
+      # 5) Résultats de vote par groupe (officiel HowTheyVote)
+      - run: npm run data:sync-vote-group-results
       # 5) Explications IA des votes principaux (ne (re)génère que les manquants)
       - run: npm run data:sync-vote-explanations
