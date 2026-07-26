@@ -36,6 +36,11 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Recalcule le taux de présence des sénateurs après mise à jour des scrutins.
+      - run: npm run data:sync-senator-participation
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - run: npm run automation:votes
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
