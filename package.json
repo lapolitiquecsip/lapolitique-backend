@@ -77,6 +77,7 @@
     "data:sync-vote-explanations": "tsx src/scripts/data/sync-vote-explanations.ts",
     "data:sync-vote-categories": "tsx src/scripts/data/sync-vote-categories.ts",
     "data:sync-senator-participation": "tsx src/scripts/data/sync-senator-participation.ts",
+    "data:sync-initiative-counts": "tsx src/scripts/data/sync-initiative-counts.ts",
     "data:sync-mep-bios-structured": "tsx src/scripts/data/sync-mep-bios-structured.ts",
     "data:sync-mep-bios": "tsx src/scripts/data/sync-mep-bios.ts",
     "data:sync-meps": "tsx src/scripts/sync-meps.ts",
