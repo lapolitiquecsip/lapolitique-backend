@@ -23,6 +23,8 @@ jobs:
       - run: npm run data:sync-elysee-videos
       # Fil video de l'Assemblee nationale (chaine officielle LCP)
       - run: npm run data:sync-an-videos
+      # Fil video du Senat (chaine officielle Public Senat)
+      - run: npm run data:sync-senat-videos
       # Resumes IA des comptes rendus du Conseil des ministres
       - run: npm run data:summarize-elysee
         env:
