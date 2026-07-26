@@ -21,6 +21,8 @@ jobs:
       - run: npm run data:sync-elysee
       # Fil video (chaine YouTube officielle de l Elysee)
       - run: npm run data:sync-elysee-videos
+      # Fil video de l'Assemblee nationale (chaine officielle LCP)
+      - run: npm run data:sync-an-videos
       # Resumes IA des comptes rendus du Conseil des ministres
       - run: npm run data:summarize-elysee
         env:
