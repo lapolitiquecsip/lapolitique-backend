@@ -2,97 +2,144 @@ import "dotenv/config";
 import * as cheerio from "cheerio";
 import { supabase } from "../../config/supabase.js";
 
-// Fil « Décisions de l'UE concernant la France » — flux RSS OFFICIEL du press corner de la
-// Commission européenne. On récupère les communiqués (type IP = décisions/annonces), on lit le
-// détail de chacun, et on NE GARDE que ce qui concerne réellement la France (détection sur
-// titre + résumé). Aucune invention : la source officielle est liée sur chaque carte.
-// Le flux n'expose que les ~10 derniers communiqués : on interroge plusieurs vues (FR/EN,
-// communiqués IP) et le fil s'ACCUMULE dans la table au fil des jours (upsert idempotent).
-const RSS = (lang: string, type: string) =>
-  `https://ec.europa.eu/commission/presscorner/api/rss?language=${lang}${type ? `&type=${type}` : ""}&size=25`;
+// Fil « Décisions de l'UE concernant la France ». Deux sources OFFICIELLES, complémentaires :
+//  1) SPARQL Cellar (publications.europa.eu) : les actes juridiques ADRESSÉS À LA FRANCE
+//     (décisions aides d'État, Conseil, avis BCE…) — profondeur historique, lien EUR-Lex. Sans clé.
+//  2) Flux RSS du press corner de la Commission : la pointe la plus fraîche des communiqués
+//     concernant la France. Les deux alimentent la même table (upsert idempotent). Rien d'inventé.
+const SPARQL = "https://publications.europa.eu/webapi/rdf/sparql";
+const FRA = "http://publications.europa.eu/resource/authority/country/FRA";
 
-const FR_TITLE = /\bfrance\b|\bfran[çc]ais/i;             // France dans le titre = signal fort
-const FR_ANY = /\bfrance\b|\bfran[çc]ais/i;
-
-// Classification par mots-clés (titre + résumé).
-function classify(text: string): string {
-  const t = text.toLowerCase();
-  if (/aides? d.?[ée]tat|state aid/.test(t)) return "Aides d'État";
-  if (/infraction|mise en demeure|manquement|avis motiv|saisit la cour|proc[ée]dure/.test(t)) return "Infractions";
-  if (/million|milliard|paiement|fonds|financ|subvention|d[ée]bours|facilit[ée]/.test(t)) return "Financement";
-  if (/num[ée]rique|dsa|dma|donn[ée]es|intelligence artificielle|plateforme/.test(t)) return "Numérique";
-  if (/agricult|p[êe]che|alimentaire|pac\b/.test(t)) return "Agriculture & pêche";
-  if (/climat|[ée]nergie|environnement|[ée]missions|renouvelable/.test(t)) return "Climat & énergie";
-  if (/commerce|sanction|douan|import|export|international/.test(t)) return "Commerce & international";
-  if (/transport|infrastructure|rail|a[ée]rien|maritime/.test(t)) return "Transports";
-  if (/sant[ée]|m[ée]dicament|vaccin|pharmac/.test(t)) return "Santé";
-  return "Autres décisions";
+async function sparql(query: string): Promise<any[]> {
+  const res = await fetch(SPARQL, {
+    method: "POST",
+    headers: { "Accept": "application/sparql-results+json", "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Mozilla/5.0 LaPolitiqueBot" },
+    body: new URLSearchParams({ query }).toString(),
+    signal: AbortSignal.timeout(90000),
+  });
+  if (!res.ok) throw new Error(`SPARQL HTTP ${res.status}`);
+  const json = await res.json();
+  return json?.results?.bindings || [];
 }
 
-const decode = (s: string) => cheerio.load(`<x>${s}</x>`, { xmlMode: false })("x").text().trim();
+const decode = (s: string) => cheerio.load(`<x>${s}</x>`)("x").text().trim();
 
-async function fetchDetail(url: string): Promise<{ summary: string; frCount: number } | null> {
-  try {
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 LaPolitiqueBot" }, signal: AbortSignal.timeout(25000) });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const $ = cheerio.load(html);
-    const summary = ($('meta[name="description"]').attr("content") || "").trim();
-    const bodyText = $("body").text();
-    const frCount = (bodyText.match(/\bfrance\b|\bfran[çc]ais/gi) || []).length;
-    return { summary, frCount };
-  } catch { return null; }
+// Institution qui a PRIS l'acte, détectée en tête de titre (pas dans une citation interne
+// comme « règlement (CE) n° 139/2004 du Conseil » qui piégeait la détection).
+function institutionOf(title: string): string {
+  const t = title.trim().toLowerCase();
+  if (/^(arrêt|ordonnance) du tribunal/.test(t)) return "Tribunal de l'Union européenne";
+  if (/^(arrêt|ordonnance|conclusions)/.test(t)) return "Cour de justice de l'UE";
+  if (/^avis de la banque centrale|^décision.*banque centrale/.test(t)) return "Banque centrale européenne";
+  if (/^(décision|règlement|directive|recommandation)[^.]*\bdu conseil\b/.test(t) || /^décision \(ue\)[^.]*\bdu conseil\b/.test(t)) return "Conseil de l'Union européenne";
+  if (/^résolution du parlement|^parlement europ/.test(t)) return "Parlement européen";
+  return "Commission européenne";
+}
+
+function categoryOf(title: string, celex: string): string {
+  const t = title.toLowerCase();
+  if (/^(arrêt|ordonnance|conclusions)/.test(t)) return "Justice (CJUE)";
+  if (/^3\d{4}m/i.test(celex) || /concentration/.test(t)) return "Concentrations";
+  if (/aide d.?[ée]tat|compatibilit[ée] avec le march/.test(t)) return "Aides d'État";
+  if (/déficit excessif|budg[ée]taire|ressources propres|finance/.test(t)) return "Budget & finances";
+  if (/manquement|infraction|recours en/.test(t)) return "Infractions";
+  if (/pêche|agricole|agricult/.test(t)) return "Agriculture & pêche";
+  if (/aviation|transport|maritime|ferroviaire/.test(t)) return "Transports";
+  if (/environnement|climat|émissions|énergie/.test(t)) return "Climat & énergie";
+  if (/numérique|données|télécommunications/.test(t)) return "Numérique";
+  return "Décision UE";
+}
+
+// « Arrêt de la Cour (…) du 4 juin 2026.#MH et Costa Crociere SpA contre X » → lisible.
+function cleanTitle(t: string): string {
+  return t.replace(/\s*#\s*/g, " — ").replace(/\s+/g, " ").replace(/\.\s*—/g, " —").trim();
+}
+
+// --- Source 1 : SPARQL Cellar (relation ?rel entre l'acte et la France) -------------------
+async function fromSparql(relation: string, label: string, limit: number): Promise<any[]> {
+  const query = `PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
+SELECT DISTINCT ?celex ?date ?title WHERE {
+  ?work cdm:${relation} <${FRA}> .
+  ?work cdm:resource_legal_id_celex ?celex .
+  ?work cdm:work_date_document ?date .
+  ?expr cdm:expression_belongs_to_work ?work .
+  ?expr cdm:expression_uses_language <http://publications.europa.eu/resource/authority/language/FRA> .
+  ?expr cdm:expression_title ?title .
+} ORDER BY DESC(?date) LIMIT ${limit}`;
+  let rows: any[] = [];
+  try { rows = await sparql(query); } catch (e) { console.warn(`[sparql ${label}]`, (e as Error).message); return []; }
+  const out: any[] = [];
+  const seen = new Set<string>();
+  for (const b of rows) {
+    const celex = b.celex?.value; const title = cleanTitle(b.title?.value || "");
+    if (!celex || !title || seen.has(celex)) continue;
+    seen.add(celex);
+    const date = b.date?.value;
+    out.push({
+      id: `celex:${celex}`,
+      title,
+      summary: null,
+      url: `https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:${celex}`,
+      published_at: date ? new Date(date).toISOString() : null,
+      category: categoryOf(title, celex),
+      institution: institutionOf(title),
+      updated_at: new Date().toISOString(),
+    });
+  }
+  console.log(`> SPARQL ${label} : ${out.length} actes.`);
+  return out;
+}
+
+// --- Source 2 : RSS press corner (pointe fraîche, filtrée France) -------------------------
+async function fromPressCorner(): Promise<any[]> {
+  const FR = /\bfrance\b|fran[çc]ais/i;
+  const seen = new Map<string, any>();
+  for (const lang of ["fr", "en"]) {
+    try {
+      const res = await fetch(`https://ec.europa.eu/commission/presscorner/api/rss?language=${lang}&size=25`,
+        { headers: { "User-Agent": "Mozilla/5.0 LaPolitiqueBot" }, signal: AbortSignal.timeout(30000) });
+      if (!res.ok) continue;
+      const $ = cheerio.load(await res.text(), { xmlMode: true });
+      $("item").each((_, el) => {
+        const e = $(el); const link = (e.find("link").first().text() || "").trim();
+        const m = link.match(/detail\/[a-z]{2}\/([a-z]+_\d+_\d+)/i);
+        if (!m) return;
+        const id = m[1].toLowerCase(); if (id.startsWith("mex_")) return;
+        if (!seen.has(id)) seen.set(id, { id, title: decode(e.find("title").first().text() || ""), url: link, pub: (e.find("pubDate").first().text() || "").trim() });
+      });
+    } catch { /* réseau : on ignore cette vue */ }
+  }
+  const out: any[] = [];
+  for (const it of seen.values()) {
+    let summary = "", body = "";
+    try {
+      const r = await fetch(it.url, { headers: { "User-Agent": "Mozilla/5.0 LaPolitiqueBot" }, signal: AbortSignal.timeout(25000) });
+      if (r.ok) { const h = await r.text(); const $ = cheerio.load(h); summary = ($('meta[name="description"]').attr("content") || "").trim(); body = $("body").text(); }
+    } catch { /* détail inaccessible */ }
+    const concerns = FR.test(it.title) || FR.test(summary) || (body.match(/\bfrance\b|fran[çc]ais/gi) || []).length >= 3;
+    if (!concerns) continue;
+    out.push({
+      id: it.id, title: it.title, summary: summary || null, url: it.url,
+      published_at: it.pub ? new Date(it.pub).toISOString() : null,
+      category: categoryOf(`${it.title} ${summary}`, ""), institution: "Commission européenne",
+      updated_at: new Date().toISOString(),
+    });
+  }
+  console.log(`> Press corner : ${out.length} communiqués concernant la France.`);
+  return out;
 }
 
 export async function syncEuFranceDecisions() {
   console.log("--- SYNC DÉCISIONS UE CONCERNANT LA FRANCE ---");
-  const seen = new Map<string, any>();
-  const views: Array<[string, string]> = [["fr", ""], ["en", ""], ["fr", "IP"], ["en", "IP"]];
-  for (const [lang, type] of views) {
-    let xml: string;
-    try {
-      const res = await fetch(RSS(lang, type), { headers: { "User-Agent": "Mozilla/5.0 LaPolitiqueBot" }, signal: AbortSignal.timeout(30000) });
-      if (!res.ok) { console.warn(`RSS ${lang}/${type} HTTP ${res.status}`); continue; }
-      xml = await res.text();
-    } catch { continue; }
-    const $ = cheerio.load(xml, { xmlMode: true });
-    $("item").each((_, el) => {
-      const e = $(el);
-      const link = (e.find("link").first().text() || "").trim();
-      const m = link.match(/detail\/[a-z]{2}\/([a-z]+_\d+_\d+)/i);
-      if (!m) return;
-      const id = m[1].toLowerCase();
-      if (id.startsWith("mex_")) return;                     // exclut les « Nouvelles quotidiennes »
-      const title = decode(e.find("title").first().text() || "");
-      const pub = (e.find("pubDate").first().text() || "").trim();
-      if (!seen.has(id)) seen.set(id, { id, title, url: link, published_at: pub ? new Date(pub).toISOString() : null });
-    });
-  }
-  console.log(`> ${seen.size} communiqués candidats.`);
-
-  const rows: any[] = [];
-  for (const item of seen.values()) {
-    const titleFr = FR_TITLE.test(item.title);
-    const detail = await fetchDetail(item.url);
-    const summary = detail?.summary || "";
-    // Concerne la France si : France dans le titre, OU dans le résumé, OU mentionnée
-    // plusieurs fois dans le corps (signal substantiel, pas une mention de passage).
-    const concernsFrance = titleFr || FR_ANY.test(summary) || (detail?.frCount ?? 0) >= 3;
-    if (!concernsFrance) continue;
-    console.log(`  ✔ [${classify(`${item.title} ${summary}`)}] ${item.title.slice(0, 80)}`);
-    rows.push({
-      id: item.id,
-      title: item.title,
-      summary: summary || null,
-      url: item.url,
-      published_at: item.published_at,
-      category: classify(`${item.title} ${summary}`),
-      institution: "Commission européenne",
-      updated_at: new Date().toISOString(),
-    });
-  }
-
-  console.log(`> ${rows.length} décisions concernant la France retenues.`);
+  const [caselaw, acts, press] = await Promise.all([
+    fromSparql("case-law_originates_in_country", "CJUE (arrêts France)", 90),   // frais, très pertinent
+    fromSparql("resource_legal_addresses_country", "actes adressés à la France", 120),
+    fromPressCorner(),
+  ]);
+  const byId = new Map<string, any>();
+  for (const r of [...caselaw, ...acts, ...press]) byId.set(r.id, r);
+  const rows = [...byId.values()];
+  console.log(`> ${rows.length} décisions au total.`);
   if (rows.length) {
     const { error } = await supabase.from("eu_france_decisions").upsert(rows, { onConflict: "id" });
     if (error) { console.error("[eu-france] upsert:", error.message); throw error; }
