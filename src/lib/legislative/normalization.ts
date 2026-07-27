@@ -110,20 +110,38 @@ function canonicalLegislativeTitle(value: string): string {
     .replace(/^(?:visant|tendant) a /, "")
     .replace(/^relati(?:f|ve) a /, "")
     .replace(/^(?:portant|autorisant|facilitant) /, "")
-    .replace(/ [0-9]+$/, "")
     .trim();
 }
+
+// Années (millésimes) présentes dans un titre — décisives pour les textes budgétaires
+// (« pour 2025 » vs « pour 2026 ») et les ratifications datées.
+function titleYears(canonical: string): Set<string> {
+  return new Set((canonical.match(/\b(?:19|20)\d{2}\b/g) || []));
+}
+
+// Un texte qui ABROGE une loi contient forcément l'intitulé de cette loi ; il ne doit
+// jamais être confondu avec la loi elle-même lors du rattachement JORF → dossier.
+const ABROGATION_RE = /\b(abroger|abrogation|abrogeant|supprimer la loi|revenir sur la loi)\b/;
 
 export function legislativeTitleMatchScore(left: string, right: string): number {
   const a = canonicalLegislativeTitle(left);
   const b = canonicalLegislativeTitle(right);
-  if (a === b || a.includes(b) || b.includes(a)) return 1;
+  // Années incompatibles (budget/ratification) : ce n'est pas le même texte.
+  const ya = titleYears(a), yb = titleYears(b);
+  if (ya.size && yb.size && ![...ya].some(y => yb.has(y))) return 0;
+  // Seule l'égalité stricte vaut 1 : l'inclusion (« ... abroger la loi visant à ... »)
+  // reste forte mais NE DOIT PAS égaler un titre identique, sinon le texte adverse gagne.
+  if (a === b) return 1;
   const ignored = new Set(["a", "au", "aux", "de", "des", "du", "d", "et", "en", "la", "le", "les", "l", "pour", "par", "sur", "un", "une"]);
   const tokensA = new Set(a.split(" ").filter(token => token.length > 1 && !ignored.has(token)));
   const tokensB = new Set(b.split(" ").filter(token => token.length > 1 && !ignored.has(token)));
   if (!tokensA.size || !tokensB.size) return 0;
   const common = [...tokensA].filter(token => tokensB.has(token)).length;
-  return (2 * common) / (tokensA.size + tokensB.size);
+  const dice = (2 * common) / (tokensA.size + tokensB.size);
+  // Un côté abroge/vise l'autre ? Signal fort d'un texte adverse : on ne remonte pas à 1.
+  const opposing = (ABROGATION_RE.test(a) && !ABROGATION_RE.test(b)) || (ABROGATION_RE.test(b) && !ABROGATION_RE.test(a));
+  if ((a.includes(b) || b.includes(a)) && !opposing) return Math.max(dice, 0.85);
+  return dice;
 }
 
 export function promoteFromJorf(dossier: NormalizedDossier, record: JorfRecord) {
