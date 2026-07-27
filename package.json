@@ -71,6 +71,7 @@
     "data:sync-elysee-videos": "tsx src/scripts/data/sync-elysee-videos.ts",
     "data:sync-an-videos": "tsx src/scripts/data/sync-an-videos.ts",
     "data:sync-scrutins-navette": "tsx src/scripts/data/sync-scrutins-navette.ts",
+    "data:sync-eu-france-decisions": "tsx src/scripts/data/sync-eu-france-decisions.ts",
     "data:sync-senat-videos": "tsx src/scripts/data/sync-senat-videos.ts",
     "data:sync-elysee": "tsx src/scripts/data/sync-elysee.ts",
     "data:sync-decrees": "tsx src/scripts/data/sync-decrees.ts",

@@ -34,3 +34,5 @@ jobs:
       - run: npm run data:sync-vote-group-results
       # 5) Explications IA des votes principaux (ne (re)génère que les manquants)
       - run: npm run data:sync-vote-explanations
+      # 6) Fil des décisions de la Commission concernant la France (s'accumule chaque jour)
+      - run: npm run data:sync-eu-france-decisions
