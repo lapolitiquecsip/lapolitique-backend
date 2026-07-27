@@ -2,14 +2,13 @@ import "dotenv/config";
 import * as cheerio from "cheerio";
 import { supabase } from "../../config/supabase.js";
 
-// Fil vidéo de l'Assemblée nationale — flux RSS de la chaîne YouTube officielle (LCP ·
-// Assemblée nationale) : séances, questions au Gouvernement, auditions. Libre, sans clé API.
-// On peut cibler une chaîne précise via AN_YT_CHANNEL (id UC…) ; sinon on utilise LCP (nom
-// hérité « lcp »), le diffuseur officiel des travaux de l'Assemblée.
-const CHANNEL_ID = process.env.AN_YT_CHANNEL || "";
-const FEED = CHANNEL_ID
-  ? `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`
-  : `https://www.youtube.com/feeds/videos.xml?user=lcp`;
+// Fil vidéo de l'Assemblée nationale — flux RSS de la chaîne YouTube OFFICIELLE de
+// l'Assemblée (@Assemblee-nationale) : séances publiques, questions au Gouvernement,
+// auditions, présentations de projets de loi. Libre, sans clé API. On peut surcharger la
+// chaîne via AN_YT_CHANNEL (id UC…) ; par défaut la chaîne officielle de l'Assemblée.
+const AN_OFFICIAL = "UCnflyRN1KOXDp6VM-_EZJgw"; // youtube.com/@Assemblee-nationale
+const CHANNEL_ID = process.env.AN_YT_CHANNEL || AN_OFFICIAL;
+const FEED = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
 
 export async function syncAnVideos() {
   console.log("--- SYNC FIL VIDÉO ASSEMBLÉE (YouTube LCP) ---");
