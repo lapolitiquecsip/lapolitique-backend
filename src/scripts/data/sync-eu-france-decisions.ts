@@ -31,6 +31,7 @@ function institutionOf(title: string): string {
   if (/^(arrêt|ordonnance) du tribunal/.test(t)) return "Tribunal de l'Union européenne";
   if (/^(arrêt|ordonnance|conclusions)/.test(t)) return "Cour de justice de l'UE";
   if (/^avis de la banque centrale|^décision.*banque centrale/.test(t)) return "Banque centrale européenne";
+  if (/\bdu parlement européen et du conseil\b/.test(t)) return "Parlement européen & Conseil";
   if (/^(décision|règlement|directive|recommandation)[^.]*\bdu conseil\b/.test(t) || /^décision \(ue\)[^.]*\bdu conseil\b/.test(t)) return "Conseil de l'Union européenne";
   if (/^résolution du parlement|^parlement europ/.test(t)) return "Parlement européen";
   return "Commission européenne";
@@ -90,7 +91,41 @@ SELECT DISTINCT ?celex ?date ?title WHERE {
   return out;
 }
 
-// --- Source 2 : RSS press corner (pointe fraîche, filtrée France) -------------------------
+// --- Source 2 : législation UE (directives / règlements) qui s'applique en France ---------
+// Ces actes sont valables dans TOUS les États membres, France comprise. On les libelle
+// clairement (« s'applique en France ») et on écarte les rectificatifs (corrigenda = bruit).
+async function fromLegislation(resourceType: string, category: string, label: string, limit: number): Promise<any[]> {
+  const query = `PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
+SELECT DISTINCT ?celex ?date ?title WHERE {
+  ?work cdm:work_has_resource-type <http://publications.europa.eu/resource/authority/resource-type/${resourceType}> .
+  ?work cdm:resource_legal_id_celex ?celex .
+  ?work cdm:work_date_document ?date .
+  ?expr cdm:expression_belongs_to_work ?work .
+  ?expr cdm:expression_uses_language <http://publications.europa.eu/resource/authority/language/FRA> .
+  ?expr cdm:expression_title ?title .
+} ORDER BY DESC(?date) LIMIT ${limit}`;
+  let rows: any[] = [];
+  try { rows = await sparql(query); } catch (e) { console.warn(`[sparql ${label}]`, (e as Error).message); return []; }
+  const out: any[] = [];
+  const seen = new Set<string>();
+  for (const b of rows) {
+    const celex = b.celex?.value; const title = cleanTitle(b.title?.value || "");
+    if (!celex || !title || seen.has(celex)) continue;
+    if (/R\(\d+\)$/.test(celex) || /^rectificatif/i.test(title)) continue;   // corrigenda = bruit
+    seen.add(celex);
+    const date = b.date?.value;
+    out.push({
+      id: `celex:${celex}`, title, summary: null,
+      url: `https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:${celex}`,
+      published_at: date ? new Date(date).toISOString() : null,
+      category, institution: institutionOf(title), updated_at: new Date().toISOString(),
+    });
+  }
+  console.log(`> SPARQL ${label} : ${out.length} actes.`);
+  return out;
+}
+
+// --- Source 3 : RSS press corner (pointe fraîche, filtrée France) -------------------------
 async function fromPressCorner(): Promise<any[]> {
   const FR = /\bfrance\b|fran[çc]ais/i;
   const seen = new Map<string, any>();
@@ -131,13 +166,15 @@ async function fromPressCorner(): Promise<any[]> {
 
 export async function syncEuFranceDecisions() {
   console.log("--- SYNC DÉCISIONS UE CONCERNANT LA FRANCE ---");
-  const [caselaw, acts, press] = await Promise.all([
+  const [caselaw, acts, directives, reglements, press] = await Promise.all([
     fromSparql("case-law_originates_in_country", "CJUE (arrêts France)", 90),   // frais, très pertinent
     fromSparql("resource_legal_addresses_country", "actes adressés à la France", 120),
+    fromLegislation("DIR", "Directive (UE)", "directives", 50),                 // législation UE
+    fromLegislation("REG", "Règlement (UE)", "règlements", 50),                 // s'applique en France
     fromPressCorner(),
   ]);
   const byId = new Map<string, any>();
-  for (const r of [...caselaw, ...acts, ...press]) byId.set(r.id, r);
+  for (const r of [...caselaw, ...acts, ...directives, ...reglements, ...press]) byId.set(r.id, r);
   const rows = [...byId.values()];
   console.log(`> ${rows.length} décisions au total.`);
   if (rows.length) {
