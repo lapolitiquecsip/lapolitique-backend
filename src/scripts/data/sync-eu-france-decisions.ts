@@ -51,9 +51,20 @@ function categoryOf(title: string, celex: string): string {
   return "Décision UE";
 }
 
-// « Arrêt de la Cour (…) du 4 juin 2026.#MH et Costa Crociere SpA contre X » → lisible.
-function cleanTitle(t: string): string {
-  return t.replace(/\s*#\s*/g, " — ").replace(/\s+/g, " ").replace(/\.\s*—/g, " —").trim();
+// Titres EUR-Lex souvent fleuves (surtout la jurisprudence, qui liste tous les articles visés).
+// On les raccourcit : pour un arrêt, on garde JURIDICTION+DATE — PARTIES — N° D'AFFAIRE et on
+// jette le résumé juridique ; pour le reste, on aplatit et on coupe proprement si > 180 car.
+function cleanTitle(raw: string): string {
+  const parts = raw.split("#").map(s => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const first = (parts[0] || raw).replace(/\.$/, "").trim();
+  if (/^(arrêt|ordonnance|conclusions|avis)\b/i.test(first) && parts.length > 1) {
+    const parties = parts[1] && !/^(demande|renvoi|pourvoi|recours|affaire|article)/i.test(parts[1]) ? parts[1] : "";
+    const affaire = (raw.match(/Affaires?\s+[CTF]-\d+\/\d+(?:\s*(?:et|,)\s*[CTF]-\d+\/\d+)*/i) || [])[0] || "";
+    return [first, parties, affaire].filter(Boolean).join(" — ").replace(/\s+/g, " ").trim();
+  }
+  let t = parts.join(" — ").replace(/\s+/g, " ").replace(/\.\s*—/g, " —").trim();
+  if (t.length > 180) t = t.slice(0, 177).replace(/[\s—,–-]+\S*$/, "") + "…";
+  return t;
 }
 
 // --- Source 1 : SPARQL Cellar (relation ?rel entre l'acte et la France) -------------------
