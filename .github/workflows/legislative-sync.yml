@@ -64,3 +64,9 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Étape navette des scrutins AN (transmis au Sénat / adopté définitivement),
+      # dérivée de l'état réel des dossiers : à faire après titres/dossiers.
+      - run: npm run data:sync-scrutins-navette
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
