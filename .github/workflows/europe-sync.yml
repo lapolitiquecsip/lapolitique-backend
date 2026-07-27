@@ -36,3 +36,5 @@ jobs:
       - run: npm run data:sync-vote-explanations
       # 6) Fil des décisions de la Commission concernant la France (s'accumule chaque jour)
       - run: npm run data:sync-eu-france-decisions
+      # 7) Projets concrets cofinancés par l'UE en France (base Kohesio)
+      - run: npm run data:sync-eu-france-projects
