@@ -23,3 +23,5 @@ jobs:
       - run: npm run data:sync-decrees
       # 2) Résumés : règles pour nominations/distinctions ; IA (coût infime) pour les réglementaires
       - run: npm run data:summarize-decrees
+      # 3) Titres synthétisés (le sujet, sans « Décret n°… portant … ») pour l'affichage
+      - run: npm run data:sync-decree-titles
