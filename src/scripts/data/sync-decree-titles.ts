@@ -18,7 +18,7 @@ function stripPrefix(t: string): string {
 async function aiTitle(title: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
-    max_tokens: 40,
+    max_tokens: 300, // le modèle RAISONNE : trop bas → réponse vide. Le titre final reste court.
     system: `On te donne le TITRE OFFICIEL d'un décret publié au Journal officiel. Renvoie UNIQUEMENT son SUJET, en 3 à 8 mots, en français clair. Interdits : « Décret », le numéro, la date, « portant/relatif à/fixant ». Commence par une majuscule, sans point final. Exemple : « Décret n° 2026-697 du 28 juillet 2026 relatif à la dématérialisation des certificats de décès » → « Dématérialisation des certificats de décès ».`,
     messages: [{ role: "user", content: `TITRE : ${title}` }],
   }, { timeoutMs: 45000 });
