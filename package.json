@@ -37,7 +37,7 @@
     "data:sync-mayors": "tsx src/scripts/data/sync-mayors.ts",
     "data:sync-mayor-bios": "tsx src/scripts/data/sync-mayor-bios.ts",
     "data:sync-senator-odsen": "tsx src/scripts/data/sync-senator-odsen.ts",
-    "data:sync-senator-bios": "tsx src/scripts/data/sync-senator-bios.ts",
+    "data:sync-senator-bios-text": "tsx src/scripts/data/sync-senator-bios.ts",
     "data:sync-ministers": "tsx src/scripts/data/sync-ministers.ts",
     "data:sync-elections": "tsx src/scripts/data/sync-elections.ts",
     "data:sync-drees-apl": "tsx src/scripts/data/sync-drees-apl.ts",
