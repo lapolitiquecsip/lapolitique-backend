@@ -19,12 +19,12 @@ async function aiTitle(title: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
     max_tokens: 300, // le modèle RAISONNE : trop bas → réponse vide. Le titre final reste court.
-    system: `On te donne le TITRE OFFICIEL d'un décret publié au Journal officiel. Renvoie UNIQUEMENT son SUJET, en 3 à 8 mots, en français clair. Interdits : « Décret », le numéro, la date, « portant/relatif à/fixant ». Commence par une majuscule, sans point final. Exemple : « Décret n° 2026-697 du 28 juillet 2026 relatif à la dématérialisation des certificats de décès » → « Dématérialisation des certificats de décès ».`,
+    system: `On te donne le TITRE OFFICIEL d'un décret publié au Journal officiel. Renvoie UNIQUEMENT son SUJET, en 3 à 10 mots (max ~90 caractères), en français clair. Interdits : « Décret », le numéro, la date, « portant/relatif à/fixant », et TOUTE référence d'article ou de code (ex. « mentionnés à l'article L. 813-8 du code rural », « pris en application de l'article 18 de la loi n° … ») — résume le fond à la place. Commence par une majuscule, sans point final. Exemples : « … relatif à la dématérialisation des certificats de décès » → « Dématérialisation des certificats de décès » ; « … portant diverses dispositions relatives aux personnels enseignants … du code rural et de la pêche maritime » → « Statut des enseignants de l'enseignement agricole ».`,
     messages: [{ role: "user", content: `TITRE : ${title}` }],
   }, { timeoutMs: 45000 });
   let t = resp.content?.[0]?.text?.trim() || "";
   t = t.replace(/^["'«»\s]+|["'«».\s]+$/g, "");
-  return t.length >= 3 && t.length <= 90 ? t : null;
+  return t.length >= 3 && t.length <= 120 ? t : null;
 }
 
 async function main() {
