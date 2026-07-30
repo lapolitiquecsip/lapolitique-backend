@@ -6,14 +6,24 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 // la dématérialisation des certificats de décès », on affiche directement le SUJET
 // (« Dématérialisation des certificats de décès »). Règle rapide pour Nomination/Distinction ;
 // DeepSeek (heures creuses) pour le Réglementaire. Idempotent : ne traite que display_title vide.
+// Coupe la « légalese » : références d'articles/codes et compléments techniques qui alourdissent
+// le sujet (« … mentionnés à l'article L. 813-8 du code rural… », « … pris en application de… »).
+const LEGALESE = /\s+(?:mentionnés?|visés?|prévus?|défini(?:e?s)?|classés?|relevant|conformément)\b.*$|\s+pris\b.*$|\s+dans le cadre\b.*$|\s+en application\b.*$|\s+pour l['’]application\b.*$|\s+au sens\b.*$|\s+du code\b.*$/i;
+function cleanLegalese(s: string): string {
+  const cut = s.replace(LEGALESE, "").replace(/\s+/g, " ").trim().replace(/[,;:]$/, "");
+  return cut.length >= 12 ? cut : s;   // ne pas trop amputer
+}
 function stripPrefix(t: string): string {
   let s = (t || "")
     .replace(/^Décret(\s+n°?\s*[\d-]+)?\s+du\s+\d{1,2}\s+[A-Za-zà-ÿ]+\s+\d{4}\s+/iu, "")
     .replace(/^(portant\s+(sur\s+)?|relati(f|ve)s?\s+(à l'|à la|à|au|aux)\s+|fixant\s+|modifiant\s+|autorisant\s+|approuvant\s+|instituant\s+|créant\s+|abrogeant\s+)/i, "")
     .replace(/\s+/g, " ").trim();
   if (!s) return t;
+  s = cleanLegalese(s);
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+const hasLegalese = (s: string) => /\barticle\b|\bdu code\b|mentionn|pris en application/i.test(s);
 
 async function aiTitle(title: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
@@ -49,7 +59,7 @@ async function main() {
       title = stripPrefix(d.title);                       // règle gratuite
     } else {
       try { title = await aiTitle(d.title); ai++; } catch (e: any) { console.error(`  IA ${d.jorf_id}: ${e.message}`); }
-      if (!title) title = stripPrefix(d.title);           // repli si l'IA échoue
+      if (!title || hasLegalese(title)) title = stripPrefix(d.title);   // IA vide/légalese → repli nettoyé
     }
     if (!title) continue;
     const { error: upErr } = await supabase.from("decrees").update({ display_title: title }).eq("jorf_id", d.jorf_id);
