@@ -19,6 +19,12 @@ function stripPrefix(t: string): string {
     .replace(/^(portant\s+(sur\s+)?|relati(f|ve)s?\s+(à l'|à la|à|au|aux)\s+|fixant\s+|modifiant\s+|autorisant\s+|approuvant\s+|instituant\s+|créant\s+|abrogeant\s+)/i, "")
     .replace(/\s+/g, " ").trim();
   if (!s) return t;
+  // Titre = simple renvoi à un article (« pris pour l'application de l'article X de la loi …
+  // relative à Z ») ? On récupère le SUJET du texte visé (Z), plus parlant que le n° d'article.
+  if (/^(pris\s+(pour|en)\s+l['’]?\s*application|application\s+d|prorogeant|proc[ée]dure|mesures?|les?\s+(modalit[ée]s|conditions))/i.test(s)) {
+    const ref = t.match(/relati(?:f|ve)s?\s+(?:à l['’]|à la|à|au|aux)\s+(.+)$/i);
+    if (ref && ref[1].length > 12) s = ref[1];
+  }
   s = cleanLegalese(s);
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
