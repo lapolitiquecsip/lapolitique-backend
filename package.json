@@ -73,6 +73,8 @@
     "data:sync-scrutins-navette": "tsx src/scripts/data/sync-scrutins-navette.ts",
     "data:sync-eu-france-decisions": "tsx src/scripts/data/sync-eu-france-decisions.ts",
     "data:sync-eu-france-projects": "tsx src/scripts/data/sync-eu-france-projects.ts",
+    "data:sync-deputy-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts deputies",
+    "data:sync-senator-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts senators",
     "push:send": "tsx src/scripts/push/send-push.ts",
     "data:sync-senat-videos": "tsx src/scripts/data/sync-senat-videos.ts",
     "data:sync-elysee": "tsx src/scripts/data/sync-elysee.ts",
