@@ -38,3 +38,4 @@ jobs:
       - run: npm run data:assess-program
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}   # optionnel : recherche web plein-texte

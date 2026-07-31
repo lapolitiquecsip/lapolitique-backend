@@ -9,7 +9,32 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 // et potentiellement périmés. Ici, on lui interdit de s'appuyer sur sa mémoire : il ne peut
 // trancher qu'à partir de FAITS tirés de nos tables (scrutins de l'AN, dossiers législatifs),
 // tous datés et sourcés. Sans preuve, le verdict est "non_evaluable".
+const TAVILY_KEY = process.env.TAVILY_API_KEY || "";   // recherche web plein-texte (optionnelle)
 const MANDATE_START = "2022-05-14";   // début du second quinquennat
+
+// Couche web GÉNÉRALISTE (Tavily) : de vraies preuves plein-web par engagement, au-delà de
+// Wikipédia. Activée seulement si TAVILY_API_KEY est présent ; sinon le pipeline reste inchangé.
+async function tavilyEvidence(engagement: string): Promise<{ type: string; title: string; date: string | null; url: string | null; detail?: string | null }[]> {
+  if (!TAVILY_KEY) return [];
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TAVILY_KEY}`, "Content-Type": "application/json" },
+      // Tavily ne gère pas bien les accents : on dé-accentue la requête (sinon 0 résultat).
+      body: JSON.stringify({
+        query: `Macron programme 2022 ${(engagement || "").normalize("NFD").replace(/[̀-ͯ]/g, "").slice(0, 150)} application loi reforme bilan 2022 2026`,
+        max_results: 5, search_depth: "advanced", include_answer: false,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return [];
+    const d: any = await res.json();
+    return (d.results || []).filter((r: any) => r.content).slice(0, 5).map((r: any) => ({
+      type: "web", title: `Web — ${r.title || r.url}`, date: r.published_date || null, url: r.url,
+      detail: String(r.content).replace(/\s+/g, " ").slice(0, 900),
+    }));
+  } catch { return []; }
+}
 const TOP_EVIDENCE = 8;               // preuves soumises au modèle par engagement
 
 // Seuls les scrutins qui tranchent réellement le sort d'un texte. Les votes d'amendements
@@ -211,6 +236,8 @@ Les faits sont de deux natures, à ne pas confondre :
 - [scrutin] / [dossier] : actes parlementaires officiels. Preuve forte.
 - [wikipedia] : synthèse encyclopédique, utile notamment pour les mesures qui ne passent pas
   par une loi et pour les évolutions récentes. Preuve indicative, à manier avec prudence.
+- [web] : article de presse ou source en ligne (recherche web). Preuve indicative et récente,
+  utile pour l'application concrète et les reculs ; à recouper, ne jamais surinterpréter.
 
 ATTENTION AUX RETOURS EN ARRIÈRE : un engagement appliqué puis réduit, gelé ou supprimé
 n'est PAS "tenu". Regarde toujours le fait le PLUS RÉCENT. Un fait antérieur à 2022 ne peut
@@ -311,8 +338,8 @@ async function main() {
     // d'engagements ne passent pas par une loi : sans le web, ils resteraient à jamais
     // « non vérifié ».
     const legal = findEvidence(e.engagement).map(c => c.ev);
-    const web = await wikiEvidence(e.engagement);
-    const candidates = [...legal, ...web];
+    const [web, webT] = await Promise.all([wikiEvidence(e.engagement), tavilyEvidence(e.engagement)]);
+    const candidates = [...legal, ...web, ...webT];
     let res = await assessWithEvidence(e.engagement, e.theme, candidates).catch(() => null);
     let evidence = res?.evidence ?? [];
 
