@@ -16,19 +16,29 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const UA = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitique.fr)" };
 const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-async function wikipedia(name: string): Promise<string> {
-  try {
-    const r = await fetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name.replace(/ /g, "_"))}`, { headers: UA, signal: AbortSignal.timeout(15000) });
-    if (!r.ok) return "";
-    const d: any = await r.json();
-    if (d.type === "disambiguation") return "";
-    let extract = d.extract || "";
+// Fetch résilient : réessaie sur throttling (429) et erreurs serveur (5xx) avec backoff.
+// Sans ça, une salve de requêtes fait renvoyer "" par Wikipédia → faux « pas d'article fiable ».
+async function wikiFetch(url: string, tries = 4): Promise<Response | null> {
+  for (let i = 0; i < tries; i++) {
     try {
-      const full = await fetch(`https://fr.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&titles=${encodeURIComponent(d.title || name)}`, { headers: UA, signal: AbortSignal.timeout(15000) });
-      if (full.ok) { const j: any = await full.json(); const p: any = Object.values(j?.query?.pages ?? {})[0]; if (p?.extract && p.extract.length > extract.length) extract = p.extract; }
-    } catch { /* résumé court */ }
-    return extract;
-  } catch { return ""; }
+      const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(15000) });
+      if (r.ok) return r;
+      if (r.status === 429 || r.status >= 500) { await sleep(1200 * (i + 1)); continue; } // throttling → on patiente
+      return null; // 404 etc. : inutile de réessayer
+    } catch { await sleep(800 * (i + 1)); } // timeout/réseau → réessai
+  }
+  return null;
+}
+
+async function wikipedia(name: string): Promise<string> {
+  const s = await wikiFetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name.replace(/ /g, "_"))}`);
+  if (!s) return "";
+  const d: any = await s.json();
+  if (d.type === "disambiguation") return "";
+  let extract = d.extract || "";
+  const full = await wikiFetch(`https://fr.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&titles=${encodeURIComponent(d.title || name)}`);
+  if (full) { try { const j: any = await full.json(); const p: any = Object.values(j?.query?.pages ?? {})[0]; if (p?.extract && p.extract.length > extract.length) extract = p.extract; } catch { /* résumé court */ } }
+  return extract;
 }
 
 async function structureBio(name: string, reference: string): Promise<any | null> {
