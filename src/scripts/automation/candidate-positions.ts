@@ -44,12 +44,14 @@ async function tavilyIssue(name: string, proposition: string): Promise<{ context
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { Authorization: `Bearer ${TAVILY_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query: deacc(`${name} position ${proposition} pour ou contre declaration`), max_results: 4, search_depth: "advanced", include_answer: false }),
+      body: JSON.stringify({ query: deacc(`${name} ${proposition} position declaration programme vote favorable oppose`), max_results: 6, search_depth: "advanced", include_answer: true }),
       signal: AbortSignal.timeout(25000),
     });
     if (!res.ok) return null;
     const d: any = await res.json();
-    const results = (d.results || []).filter((r: any) => r.content).slice(0, 4);
+    const results = (d.results || []).filter((r: any) => r.content).slice(0, 6);
+    // La réponse synthétique de Tavily (include_answer) est souvent la plus dense en signal.
+    if (d.answer) results.unshift({ title: "Synthèse", url: results[0]?.url || "", content: d.answer });
     if (!results.length) return null;
     return {
       context: results.map((r: any) => `[${r.title || r.url}] ${String(r.content).replace(/\s+/g, " ").slice(0, 600)}`).join("\n\n"),
@@ -66,11 +68,15 @@ async function extractPositionsWeb(name: string, issues: any[], blocks: Record<s
     model: "deepseek-v4-flash",
     max_tokens: 4000,
     responseFormat: "json_object",
-    system: `On te donne, pour un·e candidat·e à la présidentielle française, des EXTRAITS WEB (presse, déclarations, sources) regroupés par proposition. Pour CHAQUE proposition, détermine sa position UNIQUEMENT d'après ces extraits.
+    system: `On te donne, pour un·e candidat·e à la présidentielle française, des EXTRAITS WEB (presse, déclarations, programme, votes, synthèse) regroupés par proposition. Pour CHAQUE proposition, détermine sa position d'après ces extraits.
 
-- stance = "pour" (favorable à la proposition), "contre" (opposé·e), "nuance" (position explicitement mitigée/conditionnelle), ou "inconnu" si les extraits ne disent vraiment rien d'exploitable.
-- Déduis la position de FAITS EXPLICITES (votes, déclarations citées, mesures portées, programme). N'invente pas ; dans le doute réel → "inconnu".
-- "summary" : 1 phrase factuelle et neutre citant l'élément qui fonde la position (vide si inconnu).
+MÉTHODE — sois DÉCISIF, ne te réfugie pas dans "inconnu" :
+- Déduis la position de TOUT signal explicite : déclaration citée, mesure inscrite au programme, vote au Parlement, ligne de parti que la personne porte, tribune, prise de position publique rapportée. Une position claire mérite "pour" ou "contre", pas "nuance".
+- Raisonne par cohérence idéologique DOCUMENTÉE : si les extraits établissent une orientation nette de la personne sur le sujet (ex. écologiste qui combat le nucléaire → "contre" ; gauche sociale qui veut abroger la réforme des retraites → "pour" l'abrogation), tranche.
+- "nuance" UNIQUEMENT si les extraits montrent explicitement une position mitigée/conditionnelle (ni franchement pour, ni contre).
+- "inconnu" est un DERNIER RECOURS, réservé au cas où les extraits ne contiennent réellement aucun signal exploitable sur ce sujet précis. Ne l'utilise pas par excès de prudence.
+- Interdiction d'inventer un fait qui n'est pas dans les extraits ; mais tu PEUX conclure une stance à partir des faits présents.
+- "summary" : 1 phrase factuelle et neutre citant l'élément (déclaration/mesure/vote) qui fonde la position (vide seulement si "inconnu").
 
 Réponds en JSON strict : { "positions": { "<slug>": {"stance":"...","summary":"..."} } } pour tous les slugs.`,
     messages: [{ role: "user", content: `Candidat·e : ${name}\n\nPROPOSITIONS :\n${issuesText}\n\nEXTRAITS WEB :\n${ctx.slice(0, 50000)}` }],
