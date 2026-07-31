@@ -33,6 +33,52 @@ async function wikiExtract(title: string): Promise<{ extract: string; url?: stri
   } catch { return { extract: "" }; }
 }
 
+const TAVILY_KEY = process.env.TAVILY_API_KEY || "";
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const deacc = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "");   // Tavily ne gère pas les accents
+
+// Recherche web (Tavily) de la position d'un·e candidat·e sur UNE proposition précise.
+async function tavilyIssue(name: string, proposition: string): Promise<{ context: string; url: string } | null> {
+  if (!TAVILY_KEY) return null;
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TAVILY_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: deacc(`${name} position ${proposition} pour ou contre declaration`), max_results: 4, search_depth: "advanced", include_answer: false }),
+      signal: AbortSignal.timeout(25000),
+    });
+    if (!res.ok) return null;
+    const d: any = await res.json();
+    const results = (d.results || []).filter((r: any) => r.content).slice(0, 4);
+    if (!results.length) return null;
+    return {
+      context: results.map((r: any) => `[${r.title || r.url}] ${String(r.content).replace(/\s+/g, " ").slice(0, 600)}`).join("\n\n"),
+      url: results[0].url,
+    };
+  } catch { return null; }
+}
+
+// Détermine la position à partir des EXTRAITS WEB (par enjeu), de façon décisive.
+async function extractPositionsWeb(name: string, issues: any[], blocks: Record<string, string>): Promise<Record<string, { stance: string; summary: string }>> {
+  const issuesText = issues.map(i => `- ${i.slug} : « ${i.proposition} »`).join("\n");
+  const ctx = issues.map(i => `### ${i.slug}\n${blocks[i.slug] || "(pas de source)"}`).join("\n\n");
+  const resp = await resilientDeepSeek.createMessage({
+    model: "deepseek-v4-flash",
+    max_tokens: 4000,
+    responseFormat: "json_object",
+    system: `On te donne, pour un·e candidat·e à la présidentielle française, des EXTRAITS WEB (presse, déclarations, sources) regroupés par proposition. Pour CHAQUE proposition, détermine sa position UNIQUEMENT d'après ces extraits.
+
+- stance = "pour" (favorable à la proposition), "contre" (opposé·e), "nuance" (position explicitement mitigée/conditionnelle), ou "inconnu" si les extraits ne disent vraiment rien d'exploitable.
+- Déduis la position de FAITS EXPLICITES (votes, déclarations citées, mesures portées, programme). N'invente pas ; dans le doute réel → "inconnu".
+- "summary" : 1 phrase factuelle et neutre citant l'élément qui fonde la position (vide si inconnu).
+
+Réponds en JSON strict : { "positions": { "<slug>": {"stance":"...","summary":"..."} } } pour tous les slugs.`,
+    messages: [{ role: "user", content: `Candidat·e : ${name}\n\nPROPOSITIONS :\n${issuesText}\n\nEXTRAITS WEB :\n${ctx.slice(0, 50000)}` }],
+  }, { timeoutMs: 120000 });
+  const raw = (resp.content?.[0]?.text ?? "").trim();
+  try { const j = JSON.parse(raw.startsWith("{") ? raw : raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)); return j.positions || {}; } catch { return {}; }
+}
+
 async function extractPositions(name: string, extract: string): Promise<Record<string, { stance: string; summary: string }>> {
   const issuesText = ISSUES.map(i => `- ${i.slug} : « ${i.proposition} »`).join("\n");
   const resp = await resilientDeepSeek.createMessage({
@@ -79,7 +125,7 @@ async function main() {
     const { data: existing } = await supabase.from("candidate_positions").select("issue_slug, source_type").eq("candidate_slug", c.slug);
     const locked = new Set((existing || []).filter((r: any) => r.source_type === "vote" || r.source_type === "programme").map((r: any) => r.issue_slug));
 
-    const rows = ISSUES.filter(issue => !locked.has(issue.slug)).map(issue => {
+    const rows: any[] = ISSUES.filter(issue => !locked.has(issue.slug)).map(issue => {
       const p = positions[issue.slug] || { stance: "inconnu", summary: "" };
       const stance = valid.has(p.stance) ? p.stance : "inconnu";
       return {
@@ -88,6 +134,32 @@ async function main() {
         source_url: url || null, source_type: "wikipedia", updated_at: new Date().toISOString(),
       };
     });
+
+    // 2ᵉ passe WEB (Tavily) : pour chaque enjeu resté « inconnu », on cherche sur tout le web
+    // la position réelle du·de la candidat·e, puis on tranche à partir de ces sources.
+    if (TAVILY_KEY) {
+      const unknown = rows.filter(r => r.stance === "inconnu");
+      const blocks: Record<string, string> = {};
+      const webUrl: Record<string, string> = {};
+      for (const r of unknown) {
+        const issue = ISSUES.find(i => i.slug === r.issue_slug)!;
+        const t = await tavilyIssue(c.full_name, issue.proposition);
+        if (t) { blocks[r.issue_slug] = t.context; webUrl[r.issue_slug] = t.url; }
+        await sleep(120);
+      }
+      const webIssues = unknown.filter(r => blocks[r.issue_slug]).map(r => ISSUES.find(i => i.slug === r.issue_slug));
+      if (webIssues.length) {
+        const wp = await extractPositionsWeb(c.full_name, webIssues, blocks).catch(() => ({} as Record<string, any>));
+        for (const r of unknown) {
+          const p = wp[r.issue_slug];
+          if (p && valid.has(p.stance) && p.stance !== "inconnu") {
+            r.stance = p.stance; r.summary = p.summary || null;
+            r.source_url = webUrl[r.issue_slug] || r.source_url; r.source_type = "web";
+          }
+        }
+      }
+    }
+
     const { error } = await supabase.from("candidate_positions").upsert(rows, { onConflict: "candidate_slug,issue_slug" });
     if (error) { console.error(`  upsert ${c.full_name}: ${error.message}`); continue; }
     const known = rows.filter(r => r.stance !== "inconnu").length;
