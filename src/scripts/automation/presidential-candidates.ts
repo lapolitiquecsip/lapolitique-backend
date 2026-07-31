@@ -6,7 +6,7 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 const parser = new Parser({ timeout: 15000 });
 
 // Version du schéma de bio : incrémenter force la régénération des fiches existantes.
-const BIO_VERSION = 7;
+const BIO_VERSION = 8;
 
 // Flux d'actualité politique pour détecter les déclarations de candidature.
 const NEWS_FEEDS = [
@@ -214,13 +214,88 @@ Réponds en JSON strict :
   }
 }
 
+// ---- 4bis. Positions fortes tirées de TOUT le web (Tavily) ----------------
+// La rubrique "positions" de Wikipédia est souvent pauvre. On interroge le web
+// pour récupérer ce que le·la candidat·e a réellement DÉCLARÉ comme positions fortes,
+// puis DeepSeek les reformule de façon neutre et factuelle (aucune invention).
+const TAVILY_KEY = process.env.TAVILY_API_KEY || "";
+const deacc = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, ""); // Tavily gère mal les accents
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+async function tavilySearch(query: string): Promise<string> {
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TAVILY_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: deacc(query), max_results: 6, search_depth: "advanced", include_answer: true }),
+      signal: AbortSignal.timeout(25000),
+    });
+    if (!res.ok) return "";
+    const d: any = await res.json();
+    const parts: string[] = [];
+    if (d.answer) parts.push(`[Synthèse] ${d.answer}`);
+    for (const r of (d.results || [])) {
+      if (r.content) parts.push(`[${r.title || r.url}] ${String(r.content).replace(/\s+/g, " ").slice(0, 600)}`);
+    }
+    return parts.join("\n\n");
+  } catch { return ""; }
+}
+
+async function webStrongPositions(name: string, party?: string | null): Promise<string[]> {
+  if (!TAVILY_KEY) return [];
+  const p = party ? ` (${party})` : "";
+  const queries = [
+    `${name}${p} programme presidentielle 2027 propositions principales`,
+    `${name} positions declarations que defend il propose`,
+    `${name} mesures phares campagne prises de position`,
+  ];
+  const blocks: string[] = [];
+  for (const q of queries) { const t = await tavilySearch(q); if (t) blocks.push(t); await sleep(150); }
+  const context = blocks.join("\n\n---\n\n");
+  if (context.length < 200) return [];
+  const resp = await resilientDeepSeek.createMessage({
+    model: "deepseek-v4-flash",
+    max_tokens: 3000,
+    responseFormat: "json_object",
+    system: `On te donne des EXTRAITS WEB (presse, programme, déclarations) sur un·e candidat·e à la présidentielle française. Extrais ses POSITIONS FORTES : ce qu'il·elle défend/propose réellement.
+
+RÈGLES :
+- UNIQUEMENT à partir des extraits. N'invente RIEN. Si un point n'est pas étayé, ne le mets pas.
+- Chaque position = 1 phrase COURTE, factuelle et NEUTRE, décrivant ce que la personne propose ou défend (ex: « Propose d'abroger la réforme des retraites de 2023 », « Défend la sortie du nucléaire d'ici 2035 »).
+- AUCUN jugement de valeur, aucun qualificatif idéologique, aucun adjectif évaluatif.
+- Vise 6 à 12 positions marquantes et concrètes, couvrant des domaines variés (économie, social, régalien, écologie, international, institutions) selon ce que disent les extraits.
+- Formule au présent, verbe d'action (« Propose… », « Défend… », « Veut… », « S'oppose à… », « Souhaite… »).
+
+Réponds en JSON strict : { "positions": ["...", "..."] }`,
+    messages: [{ role: "user", content: `Candidat·e : ${name}${p}\n\nEXTRAITS WEB :\n${context.slice(0, 45000)}` }],
+  }, { timeoutMs: 120000 });
+  const text = resp.content[0]?.text ?? "";
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) return [];
+  try {
+    const arr = JSON.parse(m[0]).positions;
+    return Array.isArray(arr) ? arr.filter((s: any) => typeof s === "string" && s.trim().length > 5).slice(0, 12) : [];
+  } catch { return []; }
+}
+
+// Enrichit bio.positions avec les positions fortes du web (remplace si le web en trouve).
+async function enrichWebPositions(name: string, party: string | null | undefined, bio: any): Promise<void> {
+  if (!bio) return;
+  try {
+    const web = await webStrongPositions(name, party);
+    if (web.length) bio.positions = web;
+  } catch (err: any) {
+    console.warn(`[Presidential] positions web KO pour ${name}: ${err.message}`);
+  }
+}
+
 // ---- Pipeline principal ---------------------------------------------------
 export async function syncPresidentialCandidates() {
   // 0) Ré-enrichir les fiches existantes dont la bio n'a pas la structure détaillée
   //    (marqueur : présence de "chronologie"). Mise à jour en place, sans supprimer.
   const { data: allExisting } = await supabase
     .from("presidential_candidates")
-    .select("id, full_name, normalized_name, bio");
+    .select("id, full_name, normalized_name, party, bio");
   for (const row of allExisting ?? []) {
     if (row.bio && (row.bio as any)._v === BIO_VERSION) continue; // déjà à jour
     try {
@@ -228,6 +303,7 @@ export async function syncPresidentialCandidates() {
       if (!wiki.extract) continue;
       const bio = await structureBio(row.full_name, wiki.extract);
       if (!bio) continue;
+      await enrichWebPositions(row.full_name, (row as any).party, bio); // positions fortes tirées du web
       await supabase.from("presidential_candidates").update({
         bio: { ...bio, _v: BIO_VERSION }, summary: bio.summary ?? null, updated_at: new Date().toISOString(),
       }).eq("id", row.id);
@@ -286,6 +362,7 @@ export async function syncPresidentialCandidates() {
       continue;
     }
     const bio = wiki.extract ? await structureBio(candidate.full_name, wiki.extract) : null;
+    if (bio) await enrichWebPositions(candidate.full_name, candidate.party, bio); // positions fortes tirées du web
 
     const { error } = await supabase.from("presidential_candidates").insert({
       slug: slugify(candidate.full_name),
