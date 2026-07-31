@@ -167,7 +167,7 @@ async function wikipediaData(name: string): Promise<{ extract: string; photo?: s
 async function structureBio(name: string, reference: string) {
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
-    max_tokens: 8000,
+    max_tokens: 16000,   // modèle à raisonnement : les tokens de raisonnement consomment le budget → marge large pour éviter un JSON tronqué
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN qui ne soit dans le texte.
 
@@ -203,9 +203,9 @@ Réponds en JSON strict :
 }`,
     messages: [{ role: "user", content: `Personne : ${name}\n\nTexte de référence :\n${reference.slice(0, 45000)}` }],
   }, { timeoutMs: 150000 });
-  const text = response.content[0]?.text ?? "";
+  const text = (response.content[0]?.text ?? "").replace(/```json\s*|\s*```/g, "").trim();
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
+  if (!match) { console.warn(`[Presidential] Pas de JSON pour ${name} (réponse vide/tronquée, ignoré).`); return null; }
   try {
     return JSON.parse(match[0]);
   } catch (err: any) {
