@@ -169,7 +169,7 @@ async function wikiEvidence(engagement: string): Promise<Ev[]> {
   const query = await wikiQuery(engagement);
   if (!query) return [];
   try {
-    const search = await wikiJson({ action: "query", list: "search", srsearch: query, srlimit: "2" });
+    const search = await wikiJson({ action: "query", list: "search", srsearch: query, srlimit: "4" });
     const hits = search?.query?.search ?? [];
     const out: Ev[] = [];
     for (const h of hits) {
@@ -263,13 +263,18 @@ async function assessFromKnowledge(engagement: string, theme: string | null) {
   const resp = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
     max_tokens: 2500,
-    system: `Tu évalues l'avancement d'un engagement du programme présidentiel 2022 d'Emmanuel Macron.
+    system: `Tu évalues l'avancement d'un engagement du programme présidentiel 2022 d'Emmanuel Macron, à partir de ta CONNAISSANCE des faits publics du quinquennat 2022-2027 (lois votées, décrets, réformes, budgets, décisions, reculs).
 
-Aucun fait ne t'est fourni : appuie-toi sur ta connaissance (lois, décrets, réformes depuis 2022).
+Évalue AU MIEUX à partir de ce que tu sais réellement s'être passé depuis 2022 :
+- "tenu"        : mesure réalisée (loi/décret adopté, dispositif effectivement en place).
+- "en_cours"    : démarche engagée mais pas achevée (projet déposé, réforme lancée, concertation).
+- "partiel"     : réalisé en deçà de l'engagement, ou appliqué puis réduit/gelé.
+- "abandonne"   : promesse rejetée, retirée ou explicitement abandonnée.
+- "non_evaluable" : UNIQUEMENT si l'engagement est trop vague pour être vérifiable, ou si tu n'as réellement AUCUNE information sur son sort.
 
-Statuts : "tenu", "en_cours", "partiel", "abandonne", "non_evaluable".
-RÈGLE : dans le doute, réponds "non_evaluable". Ne devine jamais.
-Justification : 1 à 2 phrases factuelles citant la mesure (nom de la loi, année). Neutre.
+N'ABUSE PAS de "non_evaluable" : la quasi-totalité des engagements de 2022 a connu une suite documentée (retraites à 64 ans, France Travail, réforme de l'assurance chômage, lois immigration, plein emploi, énergie/nucléaire, école…). Fonde-toi sur le fait le PLUS RÉCENT (un dispositif réduit ou gelé n'est pas "tenu").
+
+Justification : 1 à 2 phrases factuelles citant la mesure (nom de la loi/réforme + année). Neutre, sans jugement.
 
 Réponds UNIQUEMENT en JSON : {"status":"...","justification":"..."}`,
     messages: [{ role: "user", content: `ENGAGEMENT (2022) : ${engagement}\nTHÈME : ${theme || "—"}` }],
