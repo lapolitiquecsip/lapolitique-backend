@@ -167,7 +167,7 @@ async function wikipediaData(name: string): Promise<{ extract: string; photo?: s
 async function structureBio(name: string, reference: string) {
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
-    max_tokens: 16000,   // modèle à raisonnement : les tokens de raisonnement consomment le budget → marge large pour éviter un JSON tronqué
+    max_tokens: 24000,   // modèle à raisonnement : les tokens de raisonnement consomment le budget → grande marge pour les bios les plus longues (Mélenchon, Philippe…)
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN qui ne soit dans le texte.
 
@@ -201,7 +201,7 @@ Réponds en JSON strict :
   "controverses": ["affaires, mises en cause ou condamnations, avec dates et faits précis, sans jugement de valeur"],
   "chronologie": ["AAAA : événement clé", "AAAA : événement clé"]
 }`,
-    messages: [{ role: "user", content: `Personne : ${name}\n\nTexte de référence :\n${reference.slice(0, 45000)}` }],
+    messages: [{ role: "user", content: `Personne : ${name}\n\nTexte de référence :\n${reference.slice(0, 35000)}` }],
   }, { timeoutMs: 150000 });
   const text = (response.content[0]?.text ?? "").replace(/```json\s*|\s*```/g, "").trim();
   const match = text.match(/\{[\s\S]*\}/);
