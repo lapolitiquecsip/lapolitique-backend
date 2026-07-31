@@ -1,7 +1,7 @@
 name: Bios sénateurs (Wikipédia + IA)
 on:
   schedule:
-    - cron: '30 2 5 * *'   # mensuel (le 5, 02h30 UTC, heures creuses)
+    - cron: '50 22 * * *'   # quotidien ~00h50 Paris (22h50 UTC = heures creuses DeepSeek 16h30-00h30 UTC) ; rattrape le backlog par lots
   workflow_dispatch:
     inputs:
       force:
@@ -24,5 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
-      # Par défaut : n'enrichit que les bios encore génériques (nouveaux sénateurs) → peu d'appels IA.
-      - run: npm run data:sync-senator-bios ${{ inputs.force && '-- --force' || '' }}
+      # Par défaut : par lots de 60/jour (heures creuses), reprenable — ne (re)traite que les bios
+      # manquantes/anciennes. force=true retraite tout.
+      - run: npm run data:sync-senator-bios -- ${{ inputs.force && '--force' || '--limit=60' }}
