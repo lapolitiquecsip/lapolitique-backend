@@ -38,3 +38,6 @@ jobs:
       - run: npm run data:sync-eu-france-decisions
       # 7) Projets concrets cofinancés par l'UE en France (base Kohesio)
       - run: npm run data:sync-eu-france-projects
+      # 8) Budget France ↔ UE : données curées annuelles (upsert idempotent, coût nul).
+      #    À la parution du millésime suivant, ajouter la ligne dans le script puis ce run l'applique.
+      - run: npm run data:seed-eu-france-budget
