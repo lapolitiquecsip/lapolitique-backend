@@ -58,6 +58,7 @@ const CANDIDATE_SEED: Detected[] = [
   { full_name: "Nicolas Dupont-Aignan", party: "Debout la France", political_side: "droite", declared_at: "2025-03-08", confidence: 1 },
   { full_name: "Florian Philippot", party: "Les Patriotes", political_side: "extreme-droite", declared_at: "2026-05-09", confidence: 1 },
   { full_name: "François Asselineau", party: "Union populaire républicaine", political_side: "autre", declared_at: "2023-08-31", confidence: 1 },
+  { full_name: "Juan Branco", party: "Les Ruches", political_side: "autre", declared_at: "2024-12-21", confidence: 1 },
   { full_name: "Delphine Batho", party: "Génération écologie", political_side: "gauche", declared_at: "2025-11-25", confidence: 1 },
   { full_name: "Jérôme Guedj", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-02-05", confidence: 1 },
   { full_name: "Karim Bouamrane", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-06-09", confidence: 1 },
