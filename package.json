@@ -83,6 +83,7 @@
     "data:summarize-decrees": "tsx src/scripts/data/summarize-decrees.ts",
     "data:sync-decree-titles": "tsx src/scripts/data/sync-decree-titles.ts",
     "data:enrich-parties": "tsx src/scripts/enrich-parties.ts",
+    "data:seed-party-finance": "tsx src/scripts/data/seed-party-finance.ts",
     "data:sync-mep-votes": "tsx src/scripts/data/sync-mep-votes.ts",
     "data:sync-vote-explanations": "tsx src/scripts/data/sync-vote-explanations.ts",
     "data:sync-vote-categories": "tsx src/scripts/data/sync-vote-categories.ts",

@@ -27,3 +27,5 @@ jobs:
       - run: npm run data:enrich-parties
       # 3) Historique (adhérents Wikidata + résultats électoraux) — évolue avec la source
       - run: npm run data:party-history
+      # 4) Finances curées (subventions publiques + endettement CNCCFP) — upsert idempotent, coût nul
+      - run: npm run data:seed-party-finance
