@@ -45,24 +45,26 @@ async function wikiSearchTitle(query: string): Promise<string | null> {
 }
 
 async function wikipedia(name: string): Promise<string> {
+  let best = "";
   // 1) Page directe (cas nominal).
   const s = await wikiFetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name.replace(/ /g, "_"))}`);
   if (s) {
     const d: any = await s.json();
     if (d.type !== "disambiguation") {
-      let extract = d.extract || "";
+      if ((d.extract || "").length > best.length) best = d.extract || "";
       const more = await extractByTitle(d.title || name);
-      if (more.length > extract.length) extract = more;
-      if (extract.length >= 250) return extract;
+      if (more.length > best.length) best = more;
+      // Article intégral obtenu (pas seulement le court résumé) → on s'arrête.
+      if (best.length >= 1200) return best;
     }
   }
-  // 2) Repli : recherche avec indice de fonction → résout homonymies (« … (homme politique) »)
-  //    et accents manquants en base (« Sebastien Pla » → « Sébastien Pla »). Le garde-fou de
-  //    main() (présence de « sénat/député » ou du parti dans le texte) écarte les faux positifs.
+  // 2) Repli recherche : résout homonymies (« … (homme politique) ») et accents manquants en base
+  //    (« Sebastien Pla » → « Sébastien Pla ») ; rattrape aussi le texte intégral si l'étape 1 a été
+  //    throttlée (court résumé). Le garde-fou de main() écarte les faux positifs.
   const hint = which === "senators" ? "sénateur" : "député";
   const title = await wikiSearchTitle(`${name} ${hint}`);
-  if (title) return await extractByTitle(title);
-  return "";
+  if (title) { const ex = await extractByTitle(title); if (ex.length > best.length) best = ex; }
+  return best;
 }
 
 async function structureBio(name: string, reference: string): Promise<any | null> {
