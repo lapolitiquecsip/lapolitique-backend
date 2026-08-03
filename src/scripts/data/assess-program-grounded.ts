@@ -16,24 +16,39 @@ const MANDATE_START = "2022-05-14";   // début du second quinquennat
 // Wikipédia. Activée seulement si TAVILY_API_KEY est présent ; sinon le pipeline reste inchangé.
 async function tavilyEvidence(engagement: string): Promise<{ type: string; title: string; date: string | null; url: string | null; detail?: string | null }[]> {
   if (!TAVILY_KEY) return [];
-  try {
-    const res = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${TAVILY_KEY}`, "Content-Type": "application/json" },
-      // Tavily ne gère pas bien les accents : on dé-accentue la requête (sinon 0 résultat).
-      body: JSON.stringify({
-        query: `Macron programme 2022 ${(engagement || "").normalize("NFD").replace(/[̀-ͯ]/g, "").slice(0, 150)} application loi reforme bilan 2022 2026`,
-        max_results: 5, search_depth: "advanced", include_answer: false,
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!res.ok) return [];
-    const d: any = await res.json();
-    return (d.results || []).filter((r: any) => r.content).slice(0, 5).map((r: any) => ({
-      type: "web", title: `Web — ${r.title || r.url}`, date: r.published_date || null, url: r.url,
-      detail: String(r.content).replace(/\s+/g, " ").slice(0, 900),
-    }));
-  } catch { return []; }
+  const base = (engagement || "").normalize("NFD").replace(/[̀-ͯ]/g, "").slice(0, 140); // Tavily gère mal les accents
+  // Trois angles complémentaires → sources CROISÉES (mise en œuvre, bilan chiffré, limites/critiques).
+  const angles = [
+    `Macron 2022 ${base} application loi reforme mise en oeuvre`,
+    `${base} bilan resultats chiffres 2022 2026`,
+    `${base} critiques limites opposition abandon`,
+  ];
+  const seen = new Set<string>();
+  const perDomain: Record<string, number> = {};
+  const out: { type: string; title: string; date: string | null; url: string | null; detail?: string | null }[] = [];
+  for (const q of angles) {
+    try {
+      const res = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${TAVILY_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q, max_results: 6, search_depth: "advanced", include_answer: false }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!res.ok) continue;
+      const d: any = await res.json();
+      for (const r of (d.results || [])) {
+        if (!r.content || !r.url || seen.has(r.url)) continue;
+        let dom = r.url; try { dom = new URL(r.url).hostname.replace(/^www\./, ""); } catch { /* url brute */ }
+        if ((perDomain[dom] || 0) >= 2) continue;         // max 2 sources par site → diversité éditoriale
+        seen.add(r.url); perDomain[dom] = (perDomain[dom] || 0) + 1;
+        out.push({ type: "web", title: `Web — ${r.title || dom}`, date: r.published_date || null, url: r.url,
+          detail: String(r.content).replace(/\s+/g, " ").slice(0, 700) });
+      }
+    } catch { /* angle suivant */ }
+    await new Promise(r => setTimeout(r, 150));
+    if (out.length >= 12) break;
+  }
+  return out.slice(0, 12);
 }
 const TOP_EVIDENCE = 8;               // preuves soumises au modèle par engagement
 
@@ -341,14 +356,24 @@ async function main() {
     const [web, webT] = await Promise.all([wikiEvidence(e.engagement), tavilyEvidence(e.engagement)]);
     const candidates = [...legal, ...web, ...webT];
     let res = await assessWithEvidence(e.engagement, e.theme, candidates).catch(() => null);
-    let evidence = res?.evidence ?? [];
+    const used = res?.evidence ?? [];
 
-    if (evidence.length === 0) {
+    if (used.length === 0 && (web.length + webT.length) === 0) {
+      // Aucune source du tout : évaluation « de mémoire », sans preuve → restera « non vérifié ».
       const k = await assessFromKnowledge(e.engagement, e.theme).catch(() => null);
       if (k) { res = { ...k, evidence: [] }; fallback++; }
     } else {
       withEv++;
     }
+
+    // Sources CROISÉES montrées à l'utilisateur : les preuves réellement citées par la synthèse
+    // D'ABORD (les plus pertinentes), puis TOUT le reste du corpus web/Wikipédia collecté, dédupliqué.
+    const dedupe = (arr: Ev[]) => {
+      const seen = new Set<string>(); const o: Ev[] = [];
+      for (const ev of arr) { const k = (ev.url || ev.title || "").toLowerCase(); if (!k || seen.has(k)) continue; seen.add(k); o.push(ev); }
+      return o;
+    };
+    const evidence = dedupe([...used, ...web, ...webT]).slice(0, 14);
 
     const status = res?.status ?? "non_evaluable";
     counts[status] = (counts[status] || 0) + 1;
