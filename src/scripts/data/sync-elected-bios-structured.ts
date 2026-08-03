@@ -70,7 +70,7 @@ async function wikipedia(name: string): Promise<string> {
 async function structureBio(name: string, reference: string): Promise<any | null> {
   const resp = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
-    max_tokens: 8000,
+    max_tokens: 16000,   // modèle à raisonnement : marge large pour ne pas tronquer le JSON des longues bios (Jadot, Rossignol…)
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE d'un ${CFG.roleLabel}, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN.
 
@@ -100,7 +100,7 @@ Réponds en JSON strict :
 }`,
     messages: [{ role: "user", content: `Personne : ${name} (${CFG.roleLabel})\n\nTexte de référence :\n${reference.slice(0, 40000)}` }],
   }, { timeoutMs: 150000 });
-  const text = resp.content?.[0]?.text ?? "";
+  const text = (resp.content?.[0]?.text ?? "").replace(/```json\s*|\s*```/g, "").trim();
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;
   try { return JSON.parse(m[0]); } catch { return null; }
