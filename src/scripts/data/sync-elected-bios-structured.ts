@@ -58,9 +58,18 @@ async function wikipedia(name: string): Promise<string> {
       if (best.length >= 1200) return best;
     }
   }
-  // 2) Repli recherche : résout homonymies (« … (homme politique) ») et accents manquants en base
-  //    (« Sebastien Pla » → « Sébastien Pla ») ; rattrape aussi le texte intégral si l'étape 1 a été
-  //    throttlée (court résumé). Le garde-fou de main() écarte les faux positifs.
+  // 2) Repli déterministe par suffixe d'homonymie (motif courant sur Wikipédia FR), quand la page
+  //    directe est une page d'homonymie (ex. « Alain Marc » → « Alain Marc (homme politique) »).
+  if (best.length < 250) {
+    for (const suf of ["(homme politique)", "(femme politique)", "(personnalité politique)", "(sénateur)", "(député)"]) {
+      const ex = await extractByTitle(`${name} ${suf}`);
+      if (ex.length > best.length) best = ex;
+      if (best.length >= 1200) return best;
+    }
+  }
+  // 3) Repli recherche : homonymies restantes + accents manquants en base (« Sebastien Pla » →
+  //    « Sébastien Pla »). Le garde-fou de main() (« sénat/député » ou parti présent) écarte les
+  //    faux positifs (ex. un homonyme sans rapport).
   const hint = which === "senators" ? "sénateur" : "député";
   const title = await wikiSearchTitle(`${name} ${hint}`);
   if (title) { const ex = await extractByTitle(title); if (ex.length > best.length) best = ex; }
