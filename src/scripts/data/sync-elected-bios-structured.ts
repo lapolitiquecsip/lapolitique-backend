@@ -30,15 +30,39 @@ async function wikiFetch(url: string, tries = 4): Promise<Response | null> {
   return null;
 }
 
+// Texte intégral d'un article à partir de son titre exact.
+async function extractByTitle(title: string): Promise<string> {
+  const full = await wikiFetch(`https://fr.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&titles=${encodeURIComponent(title)}`);
+  if (!full) return "";
+  try { const j: any = await full.json(); const p: any = Object.values(j?.query?.pages ?? {})[0]; return p?.extract || ""; } catch { return ""; }
+}
+
+// Recherche plein-texte → titre de la meilleure page (gère homonymies et variantes d'accents).
+async function wikiSearchTitle(query: string): Promise<string | null> {
+  const r = await wikiFetch(`https://fr.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&format=json&srsearch=${encodeURIComponent(query)}`);
+  if (!r) return null;
+  try { const j: any = await r.json(); return j?.query?.search?.[0]?.title || null; } catch { return null; }
+}
+
 async function wikipedia(name: string): Promise<string> {
+  // 1) Page directe (cas nominal).
   const s = await wikiFetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name.replace(/ /g, "_"))}`);
-  if (!s) return "";
-  const d: any = await s.json();
-  if (d.type === "disambiguation") return "";
-  let extract = d.extract || "";
-  const full = await wikiFetch(`https://fr.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&titles=${encodeURIComponent(d.title || name)}`);
-  if (full) { try { const j: any = await full.json(); const p: any = Object.values(j?.query?.pages ?? {})[0]; if (p?.extract && p.extract.length > extract.length) extract = p.extract; } catch { /* résumé court */ } }
-  return extract;
+  if (s) {
+    const d: any = await s.json();
+    if (d.type !== "disambiguation") {
+      let extract = d.extract || "";
+      const more = await extractByTitle(d.title || name);
+      if (more.length > extract.length) extract = more;
+      if (extract.length >= 250) return extract;
+    }
+  }
+  // 2) Repli : recherche avec indice de fonction → résout homonymies (« … (homme politique) »)
+  //    et accents manquants en base (« Sebastien Pla » → « Sébastien Pla »). Le garde-fou de
+  //    main() (présence de « sénat/député » ou du parti dans le texte) écarte les faux positifs.
+  const hint = which === "senators" ? "sénateur" : "député";
+  const title = await wikiSearchTitle(`${name} ${hint}`);
+  if (title) return await extractByTitle(title);
+  return "";
 }
 
 async function structureBio(name: string, reference: string): Promise<any | null> {
