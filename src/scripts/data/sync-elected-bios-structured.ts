@@ -70,7 +70,7 @@ async function wikipedia(name: string): Promise<string> {
 async function structureBio(name: string, reference: string): Promise<any | null> {
   const resp = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash",
-    max_tokens: 16000,   // modèle à raisonnement : marge large pour ne pas tronquer le JSON des longues bios (Jadot, Rossignol…)
+    max_tokens: 24000,   // modèle à raisonnement : grande marge pour ne pas tronquer le JSON des bios les plus longues (Rossignol…)
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE d'un ${CFG.roleLabel}, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN.
 
