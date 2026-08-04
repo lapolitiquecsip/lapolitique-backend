@@ -23,6 +23,7 @@
     "automation:senate:amendments": "tsx src/scripts/legislative/sync-senate-amendments.ts",
     "automation:senate:scrutins": "tsx src/scripts/legislative/sync-senate-scrutins.ts",
     "data:summarize-scrutins": "tsx src/scripts/legislative/summarize-scrutins.ts",
+    "data:sync-commission-reports": "tsx src/scripts/data/sync-commission-reports.ts",
     "discover-datagouv-sources": "tsx src/scripts/legislative/discover-datagouv-sources.ts",
     "automation:law-summarizer": "tsx src/scripts/automation/law-summarizer.ts",
     "automation:legislative:summaries": "tsx src/scripts/legislative/summarize.ts",
