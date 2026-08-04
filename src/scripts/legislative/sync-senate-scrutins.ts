@@ -10,6 +10,15 @@ import { stableHash } from "../../lib/legislative/normalization.js";
 import { trackLegislativeSync } from "../../lib/legislative/sync-run.js";
 
 const DATASET_API = "https://www.data.gouv.fr/api/1/datasets/53ae96eaa3a729709f56d51d/";
+
+// Assainit la mojibake Windows-1252 (U+0080–U+009F) présente dans certains intitulés source
+// (apostrophe « ’ » mal encodée en U+0092 → affichée « □ »).
+const WIN1252: Record<number, string> = { 0x91: "'", 0x92: "'", 0x93: '"', 0x94: '"', 0x96: "–", 0x97: "—", 0x85: "…", 0x95: "•", 0x82: "'" };
+function sanitize(s: string | null | undefined): string | null {
+  if (!s) return s ?? null;
+  let out = ""; for (const ch of s) { const c = ch.charCodeAt(0); out += (c >= 0x80 && c <= 0x9f) ? (WIN1252[c] ?? "") : ch; }
+  return out;
+}
 const RESOURCE_ID = "ce330551-f159-4f93-bbaa-4028e8fe1ae3";
 const chunks = <T>(values: T[], size = 500) => Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size));
 const normalized = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\W+/g, " ").trim();
@@ -42,7 +51,7 @@ export async function syncSenateScrutins() {
     return dossier ? [{ record, dossierId: dossier.id }] : [];
   });
   for (const batch of chunks(linked)) {
-    const { error } = await supabase.from("legislative_scrutins").upsert(batch.map(({ record, dossierId }) => ({ official_id: record.officialId, dossier_id: dossierId, chamber: "SENAT", title: record.title, result_code: record.resultLabel, result_label: record.resultLabel, for_count: record.forCount, against_count: record.againstCount, abstain_count: record.abstainCount, voted_at: senateTimestamp(record.votedAt), source_url: record.sourceUrl, source_updated_at: resource.last_modified, source_hash: record.sourceHash })), { onConflict: "official_id" });
+    const { error } = await supabase.from("legislative_scrutins").upsert(batch.map(({ record, dossierId }) => ({ official_id: record.officialId, dossier_id: dossierId, chamber: "SENAT", title: sanitize(record.title), result_code: record.resultLabel, result_label: record.resultLabel, for_count: record.forCount, against_count: record.againstCount, abstain_count: record.abstainCount, voted_at: senateTimestamp(record.votedAt), source_url: record.sourceUrl, source_updated_at: resource.last_modified, source_hash: record.sourceHash })), { onConflict: "official_id" });
     if (error) throw error;
   }
   const ids = new Map<string, string>();
