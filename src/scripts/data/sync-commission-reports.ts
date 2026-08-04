@@ -30,10 +30,21 @@ function htmlToText(html: string): { title: string; text: string } {
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
-    .replace(/&#160;|&nbsp;/g, " ")
+    .replace(/&#160;|&#xa0;|&nbsp;/gi, " ")
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;|&rsquo;/g, "'").replace(/&laquo;|&raquo;/g, '"')
     .replace(/\s+/g, " ").trim();
   return { title, text: body };
+}
+
+// Nom lisible de la commission : il ouvre le verbatim (ex. « Commission des finances… »).
+function extractCommission(text: string): string | null {
+  const m = text.slice(0, 300).match(/Commission[^.\n]{3,110}/i);
+  if (!m) return null;
+  // On coupe au premier séparateur d'objet/date : « – », « - », « N° », « Audition », « Examen »…
+  let c = m[0].replace(/\s+/g, " ").trim();
+  c = c.split(/\s+[–-]\s+/)[0];
+  c = c.replace(/\s*(compte rendu|séance|réunion|présidence|audition|examen|table ronde|mercredi|jeudi|mardi|lundi|vendredi|n°|\d).*$/i, "").trim();
+  return c.length >= 12 && c.length <= 95 ? c : null;
 }
 
 async function summarize(commission: string, objet: string, verbatim: string): Promise<string | null> {
@@ -94,14 +105,13 @@ async function main() {
     try {
       const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(20000) });
       if (!res.ok) { continue; }
-      const { title, text } = htmlToText(await res.text());
+      const { text } = htmlToText(await res.text());
       if (text.length < 800) continue; // CR vide/non publié
-      // Nom de commission : souvent au début du titre de la page.
-      const commission = (title.split("-")[0] || title).replace(/compte rendu.*/i, "").trim() || "Commission";
-      const summary = await summarize(commission, it.objet || title, text).catch(() => null);
+      const commission = extractCommission(text) || "Réunion de commission";
+      const summary = await summarize(commission, it.objet || commission, text).catch(() => null);
       if (!summary) continue;
       await supabase.from("commission_reports").upsert({
-        ref: it.ref, organe_ref: it.organe, commission, title: it.objet || title,
+        ref: it.ref, organe_ref: it.organe, commission, title: it.objet || commission,
         meeting_date: it.date, cr_url: url, summary, updated_at: new Date().toISOString(),
       }, { onConflict: "ref" });
       ok++;
