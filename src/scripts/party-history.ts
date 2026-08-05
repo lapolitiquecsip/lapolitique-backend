@@ -25,6 +25,18 @@ const OFFICIAL_RESULTS: Array<{ slug: string; kind: string; year: number; value:
   { slug: 'les-republicains', kind: 'europeennes', year: 2024, value: 7.25, label: 'liste LR' },
   { slug: 'les-ecologistes', kind: 'europeennes', year: 2024, value: 5.50, label: 'liste Les Écologistes' },
   { slug: 'parti-communiste-francais', kind: 'europeennes', year: 2024, value: 2.36, label: 'liste PCF' },
+  // Législatives 2024, 1er tour (% des suffrages exprimés — Ministère de l'Intérieur).
+  // Ensemble et le Nouveau Front Populaire sont des COALITIONS : le score est celui de l'alliance,
+  // reporté sur chaque parti membre avec un libellé explicite.
+  { slug: 'rassemblement-national', kind: 'legislatives', year: 2024, value: 33.42, label: '1er tour (RN et alliés)' },
+  { slug: 'renaissance', kind: 'legislatives', year: 2024, value: 21.80, label: '1er tour (Ensemble)' },
+  { slug: 'les-democrates', kind: 'legislatives', year: 2024, value: 21.80, label: '1er tour (Ensemble)' },
+  { slug: 'horizons', kind: 'legislatives', year: 2024, value: 21.80, label: '1er tour (Ensemble)' },
+  { slug: 'la-france-insoumise', kind: 'legislatives', year: 2024, value: 28.84, label: '1er tour (Nouveau Front Populaire)' },
+  { slug: 'parti-socialiste', kind: 'legislatives', year: 2024, value: 28.84, label: '1er tour (Nouveau Front Populaire)' },
+  { slug: 'les-ecologistes', kind: 'legislatives', year: 2024, value: 28.84, label: '1er tour (Nouveau Front Populaire)' },
+  { slug: 'parti-communiste-francais', kind: 'legislatives', year: 2024, value: 28.84, label: '1er tour (Nouveau Front Populaire)' },
+  { slug: 'les-republicains', kind: 'legislatives', year: 2024, value: 8.49, label: '1er tour (LR)' },
   // Présidentielle 2022 (1er tour)
   { slug: 'renaissance', kind: 'presidentielle', year: 2022, value: 27.85, label: '1er tour (Macron)' },
   { slug: 'rassemblement-national', kind: 'presidentielle', year: 2022, value: 23.15, label: '1er tour (Le Pen)' },
@@ -125,8 +137,10 @@ async function main() {
     // Résultats officiels (prioritaires) : on retire les points Wikipédia du même scrutin/année.
     const official: Row[] = OFFICIAL_RESULTS.filter(o => o.slug === p.slug)
       .map(o => ({ party_slug: o.slug, kind: o.kind, year: o.year, value: o.value, label: o.label, source: 'officiel (Min. Intérieur)' }));
-    const officialKeys = new Set(official.map(o => `${o.kind}|${o.year}`));
-    const merged = rows.filter(r => !(r.source === 'wikipedia' && officialKeys.has(`${r.kind}|${r.year}`))).concat(official);
+    // L'officiel PRIME sur Wikipédia pour tout type de scrutin où on a une donnée officielle :
+    // on retire alors TOUS les points Wikipédia de ce type (évite d'afficher un vieux résultat, ex. 1973).
+    const officialKinds = new Set(official.map(o => o.kind));
+    const merged = rows.filter(r => !(r.source === 'wikipedia' && officialKinds.has(r.kind))).concat(official);
 
     if (!merged.length) { console.log(`  (aucune donnée pour ${p.name})`); continue; }
     // Remplace proprement l'historique du parti (évolue avec la source).
