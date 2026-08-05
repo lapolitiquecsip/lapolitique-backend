@@ -100,7 +100,8 @@
     "data:sync-meps": "tsx src/scripts/sync-meps.ts",
     "data:party-history": "tsx src/scripts/party-history.ts",
     "automation:weekly-stats": "tsx src/scripts/automation/generate-weekly-stats.ts",
-    "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws; npm run automation:browseract; npm run automation:legal; npm run automation:weekly-stats"
+    "automation:all": "npm run automation:petitions; npm run automation:votes; npm run automation:agenda; npm run automation:laws; npm run automation:browseract; npm run automation:legal; npm run automation:weekly-stats",
+    "data:build-party-maps": "tsx src/scripts/data/build-party-maps.ts"
   },
   "keywords": [],
   "author": "",
