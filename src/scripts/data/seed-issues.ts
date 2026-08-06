@@ -57,11 +57,28 @@ export const ISSUES: Array<{ slug: string; title: string; category: string; sort
 ];
 
 async function main() {
-  const rows = ISSUES.map(i => ({ slug: i.slug, title: i.title, category: i.category, sort_order: i.sort_order, keywords: i.keywords }));
-  const { error } = await supabase.from("issues").upsert(rows, { onConflict: "slug" });
-  if (error) throw error;
-  console.log(`Référentiel enjeux : ${rows.length} enjeux enregistrés/à jour.`);
-  for (const i of ISSUES) console.log(`  ${i.slug.padEnd(18)} (${i.keywords.length} mots-clés) — ${i.category}`);
+  // La table `issues` préexiste (référentiel candidats, proposition NOT NULL). On NE TOUCHE PAS
+  // les enjeux existants (titre/proposition/ordre curés) : on met seulement à jour leurs keywords ;
+  // les nouveaux enjeux sont insérés avec proposition='' (→ exclus du comparateur candidats côté front).
+  const { data: existing, error: exErr } = await supabase.from("issues").select("slug");
+  if (exErr) throw exErr;
+  const have = new Set((existing || []).map(r => r.slug));
+
+  let updated = 0;
+  for (const i of ISSUES.filter(x => have.has(x.slug))) {
+    const { error } = await supabase.from("issues").update({ keywords: i.keywords }).eq("slug", i.slug);
+    if (error) { console.error(`update ${i.slug}:`, error.message); continue; }
+    updated++;
+  }
+
+  const news = ISSUES.filter(x => !have.has(x.slug))
+    .map(i => ({ slug: i.slug, title: i.title, category: i.category, sort_order: i.sort_order, keywords: i.keywords, proposition: "" }));
+  if (news.length) {
+    const { error } = await supabase.from("issues").insert(news);
+    if (error) throw error;
+  }
+  console.log(`Référentiel enjeux : ${updated} existants mis à jour (keywords), ${news.length} nouveaux insérés → ${have.size + news.length} au total.`);
+  if (news.length) console.log("Nouveaux :", news.map(n => n.slug).join(", "));
 }
 
 // Ne s'exécute que si lancé directement (pas lors de l'import de ISSUES par le tagger).
