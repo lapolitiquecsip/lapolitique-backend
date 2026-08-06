@@ -5,8 +5,10 @@ import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { stableHash } from "../../lib/legislative/normalization.js";
 import { trackLegislativeSync } from "../../lib/legislative/sync-run.js";
+import { fetchExposeText } from "../../lib/legislative/expose.js";
 
-const PROMPT_VERSION = "legislative-v1";
+// v2 : ajoute l'exposé des motifs (substance du texte) aux faits fournis au modèle.
+const PROMPT_VERSION = "legislative-v2";
 
 export async function summarizeLegislativeDossiers() {
   return trackLegislativeSync("legislative_summaries", async () => {
@@ -51,7 +53,9 @@ export async function summarizeLegislativeDossiers() {
       console.error(`Analysis unavailable for ${dossier.id}: official facts could not be loaded.`);
       continue;
     }
-    const officialFacts = { dossier, steps: stepsResult.data, amendments: amendmentsResult.data, scrutins: scrutinsResult.data };
+    // Exposé des motifs (PDF officiel) : ce que contient le texte et à quel problème il répond.
+    const exposeDesMotifs = await fetchExposeText(dossier.source_urls);
+    const officialFacts = { dossier, expose_des_motifs: exposeDesMotifs, steps: stepsResult.data, amendments: amendmentsResult.data, scrutins: scrutinsResult.data };
     const sourceUrls = [...new Set([
       ...(dossier.source_urls ?? []),
       ...(stepsResult.data ?? []).map(item => item.source_url),
@@ -63,9 +67,17 @@ export async function summarizeLegislativeDossiers() {
     if ((count ?? 0) >= 2) continue;
     try {
       const response = await resilientDeepSeek.createMessage({
-        model: "deepseek-v4-flash", max_tokens: 1800,
+        model: "deepseek-v4-flash", max_tokens: 16000,
         responseFormat: "json_object",
-        system: `Tu rédiges uniquement une analyse éditoriale à partir des faits officiels fournis. N'invente aucun auteur, statut, date, vote, montant ou mesure. Si les faits sont insuffisants, indique clairement les limites. Réponds en JSON strict avec public_summary (2-3 phrases) et premium_summary (analyse structurée détaillée).`,
+        system: `Tu rédiges une analyse éditoriale à partir des faits officiels fournis (métadonnées, étapes, amendements, scrutins et surtout "expose_des_motifs" = le texte officiel expliquant le contenu et l'objectif de la proposition/projet de loi).
+
+PRIORITÉ AU FOND : le résumé doit d'abord dire CE QUE PRÉVOIT le texte et À QUEL PROBLÈME il répond (mesures concrètes, dispositif, objectif), en t'appuyant sur "expose_des_motifs" quand il est présent. La procédure (dépôt, renvoi en commission, dates) est SECONDAIRE : une phrase suffit, jamais le cœur du résumé.
+
+RÈGLES : n'invente aucun auteur, statut, date, vote, montant ni mesure ; ne cite que ce qui figure dans les faits fournis. Si "expose_des_motifs" est null ou vide, dis clairement que le contenu détaillé n'est pas encore disponible, puis résume au mieux à partir du titre et des métadonnées — sans meubler avec du jargon procédural.
+
+Réponds en JSON strict avec DEUX clés dont les valeurs sont des CHAÎNES de texte :
+- public_summary : 2-3 phrases grand public, centrées sur le fond ;
+- premium_summary : une seule chaîne de texte (pas un objet), en 4 sections séparées par des sauts de ligne, chaque titre en gras markdown : "**Objet et mesures**", "**Problème visé**", "**Où en est le texte**", "**Limites**".`,
         messages: [{ role: "user", content: JSON.stringify(officialFacts) }],
       });
       const text = response.content[0]?.type === "text" ? response.content[0].text : "";
@@ -73,9 +85,14 @@ export async function summarizeLegislativeDossiers() {
       if (!match) throw new Error("No JSON object in model response");
       const parsed = JSON.parse(match[0]);
       if (!parsed.public_summary || !parsed.premium_summary) throw new Error("Incomplete editorial response");
+      // Sécurité : le front attend des chaînes ; si le modèle renvoie un objet structuré, on l'aplatit.
+      const toStr = (v: any): string =>
+        typeof v === "string" ? v
+          : v && typeof v === "object" ? Object.entries(v).map(([k, val]) => `**${k}**\n${typeof val === "string" ? val : JSON.stringify(val)}`).join("\n\n")
+          : String(v ?? "");
       const rows = [
-        { dossier_id: dossier.id, audience: "public", summary: parsed.public_summary, source_urls: sourceUrls, input_hash: inputHash, prompt_version: PROMPT_VERSION },
-        { dossier_id: dossier.id, audience: "premium", summary: parsed.premium_summary, source_urls: sourceUrls, input_hash: inputHash, prompt_version: PROMPT_VERSION },
+        { dossier_id: dossier.id, audience: "public", summary: toStr(parsed.public_summary), source_urls: sourceUrls, input_hash: inputHash, prompt_version: PROMPT_VERSION },
+        { dossier_id: dossier.id, audience: "premium", summary: toStr(parsed.premium_summary), source_urls: sourceUrls, input_hash: inputHash, prompt_version: PROMPT_VERSION },
       ];
       const { error: insertError } = await supabase.from("legislative_analyses").upsert(rows, { onConflict: "dossier_id,audience,input_hash,prompt_version" });
       if (insertError) throw insertError;
