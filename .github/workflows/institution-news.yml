@@ -1,0 +1,26 @@
+name: Institution news feed (#4)
+on:
+  schedule:
+    - cron: '13 18 * * *'   # chaque jour ~20h13 Paris (heures creuses DeepSeek)
+  workflow_dispatch:
+concurrency:
+  group: institution-news
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  institution-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # Seed idempotent : enregistre/rafraîchit les sources (nouveaux ministères après remaniement,
+      # nouveaux départements) avant chaque passe → pipeline 100 % automatisé.
+      - run: npm run data:seed-entity-feed-sources
+      - run: npm run automation:institution-news
