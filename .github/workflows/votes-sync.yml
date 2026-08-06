@@ -23,7 +23,12 @@ jobs:
       - run: npm run automation:fetch-votes
       # 2) Résume/explique les nouveaux scrutins (IA, heures creuses)
       - run: npm run automation:summarize
-      # 3) Notifie les abonnés dont un élu suivi a voté sur un scrutin solennel
+      # 3) Tague par ENJEU les nouveaux scrutins (fondation #3, incrémental → quasi gratuit)
+      - run: npm run data:seed-issues
+      - run: npm run data:tag-scrutins
+        env:
+          SCRUTIN_TAG_WRITE: "1"
+      # 4) Notifie les abonnés dont un élu suivi a voté sur un scrutin solennel
       - run: npm run automation:notifications
       # 4) Bios structurées des députés (par lots, heures creuses ; reprenable jour après jour)
       - run: npm run data:sync-deputy-bios -- --limit=150
