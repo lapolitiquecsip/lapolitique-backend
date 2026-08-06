@@ -80,6 +80,8 @@
     "data:seed-eu-france-budget": "tsx src/scripts/data/seed-eu-france-budget.ts",
     "data:sync-deputy-photos": "tsx src/scripts/data/sync-deputy-photos-wikidata.ts",
     "data:seed-entity-feed-sources": "tsx src/scripts/data/seed-entity-feed-sources.ts",
+    "data:seed-issues": "tsx src/scripts/data/seed-issues.ts",
+    "data:tag-scrutins": "tsx src/scripts/data/tag-scrutins-issues.ts",
     "automation:institution-news": "tsx src/scripts/automation/sync-institution-news.ts",
     "data:sync-deputy-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts deputies",
     "data:sync-senator-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts senators",
