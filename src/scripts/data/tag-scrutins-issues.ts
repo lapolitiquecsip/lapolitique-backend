@@ -25,7 +25,7 @@ const PHRASE_RE = ISSUES.map(i => ({
   slug: i.slug,
   res: i.keywords.filter(k => k.includes(" ")).map(k => new RegExp(`\\b${esc(deacc(k))}\\b`)),
 }));
-const ISSUE_LABEL = Object.fromEntries(ISSUES.map(i => [i.slug, i.label]));
+const ISSUE_LABEL = Object.fromEntries(ISSUES.map(i => [i.slug, i.title]));
 
 type Tag = { issue_slug: string; confidence: number; method: "keyword" | "llm" };
 
@@ -60,7 +60,7 @@ function phraseTags(text: string): Tag[] {
 }
 
 async function llmTags(subject: string, summary: string): Promise<Tag[]> {
-  const list = ISSUES.map(i => `${i.slug} = ${i.label}`).join("\n");
+  const list = ISSUES.map(i => `${i.slug} = ${i.title}`).join("\n");
   const text = [subject, summary].filter(Boolean).join(" — ").slice(0, 1200);
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash", max_tokens: 1500, responseFormat: "json_object",
@@ -112,7 +112,19 @@ async function main() {
     if (!g.summary && s.summary) g.summary = s.summary;
     g.ids.push(String(s.id));
   }
-  const groupList = [...groups.values()];
+  // Incrémental (mode écriture) : on saute les lois dont TOUS les scrutins sont déjà taggés
+  // → le backfill tague tout la 1re fois, les passages suivants ne coûtent que les nouveautés.
+  let alreadyTagged = new Set<string>();
+  if (sample === 0 && process.env.SCRUTIN_TAG_INCREMENTAL !== "0") {
+    for (let from = 0; ; from += 1000) {
+      const { data } = await supabase.from("scrutin_issues").select("scrutin_id").range(from, from + 999);
+      if (!data || !data.length) break;
+      for (const r of data) alreadyTagged.add(r.scrutin_id);
+      if (data.length < 1000) break;
+    }
+  }
+
+  const groupList = [...groups.values()].filter(g => sample > 0 || !g.ids.every(id => alreadyTagged.has(id)));
   const targets = sample > 0 ? groupList.slice(0, sample) : groupList;
   console.log(`${scrutins.length} scrutins → ${groupList.length} lois distinctes${sample > 0 ? ` (échantillon : ${targets.length} lois)` : ""}.`);
 

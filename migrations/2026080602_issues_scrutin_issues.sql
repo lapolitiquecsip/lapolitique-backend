@@ -4,14 +4,16 @@
 --                  Le front n'affiche un vote sous un enjeu qu'au-dessus d'un seuil de confidence
 --                  (principe : mieux vaut un filtre incomplet qu'un vote mal classé).
 
+-- `issues` existe déjà (référentiel partagé des enjeux, colonnes slug/title/category/proposition/
+-- sort_order). On AJOUTE seulement la colonne keywords (les 7 nouveaux enjeux sont insérés par le
+-- seed, sans toucher aux propositions des enjeux existants).
 CREATE TABLE IF NOT EXISTS public.issues (
   slug        TEXT PRIMARY KEY,
-  label       TEXT NOT NULL,
+  title       TEXT,
   category    TEXT,
-  sort_order  INTEGER,
-  keywords    TEXT[] NOT NULL DEFAULT '{}',
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  sort_order  INTEGER
 );
+ALTER TABLE public.issues ADD COLUMN IF NOT EXISTS keywords TEXT[] NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS public.scrutin_issues (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
