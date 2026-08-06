@@ -77,6 +77,7 @@
     "data:sync-eu-france-decisions": "tsx src/scripts/data/sync-eu-france-decisions.ts",
     "data:sync-eu-france-projects": "tsx src/scripts/data/sync-eu-france-projects.ts",
     "data:seed-eu-france-budget": "tsx src/scripts/data/seed-eu-france-budget.ts",
+    "data:sync-deputy-photos": "tsx src/scripts/data/sync-deputy-photos-wikidata.ts",
     "data:sync-deputy-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts deputies",
     "data:sync-senator-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts senators",
     "push:send": "tsx src/scripts/push/send-push.ts",
