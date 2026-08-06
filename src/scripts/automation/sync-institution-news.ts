@@ -32,11 +32,12 @@ function cleanGoogleTitle(title: string): { title: string; source: string } {
 
 async function summarise(entityName: string, title: string, snippet: string) {
   const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash", max_tokens: 900, responseFormat: "json_object",
-    system: `Tu alimentes le fil d'actualité d'une institution : « ${entityName} ». À partir du titre et de l'extrait d'un article, produis une entrée courte et factuelle.
+    model: "deepseek-v4-flash", max_tokens: 3000, responseFormat: "json_object",
+    system: `Tu alimentes le fil d'actualité d'une institution publique FRANÇAISE : « ${entityName} » (gouvernement/collectivité de la France). À partir du titre et de l'extrait d'un article, produis une entrée courte et factuelle.
 
 RÈGLES :
-- "should_publish" = false si l'article ne concerne PAS réellement cette institution, ou n'a aucun intérêt (people, hors-sujet, publicité).
+- "should_publish" = false si l'article ne concerne PAS réellement CETTE institution française, ou n'a aucun intérêt (people, hors-sujet, publicité).
+- "should_publish" = false si l'article concerne une institution ÉTRANGÈRE homonyme (ex. un « ministère de la Justice » d'un autre pays, le gouvernement américain, etc.).
 - "title" : titre reformulé, factuel, sans sensationnalisme (max 14 mots).
 - "summary" : 1-2 phrases (40 mots max), un fait/chiffre concret si présent. En français.
 - "news_type" : un parmi annonce | decision | travaux | budget | evenement | nomination | actualite.
@@ -50,10 +51,15 @@ Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "
 }
 
 export async function syncInstitutionNews() {
-  const { data: sources, error } = await supabase
-    .from("entity_feed_sources").select("*").eq("active", true);
+  let query = supabase.from("entity_feed_sources").select("*").eq("active", true);
+  // Filtres optionnels (validation / garde-fou coût) : type d'entité + nombre max de sources.
+  const onlyType = process.env.INSTITUTION_NEWS_ONLY_TYPE;
+  if (onlyType) query = query.eq("entity_type", onlyType);
+  const maxSources = Number(process.env.INSTITUTION_NEWS_MAX_SOURCES ?? 0);
+  const { data: sourcesAll, error } = await query;
   if (error) throw error;
-  console.log(`[Institution-News] ${sources?.length ?? 0} source(s) active(s).`);
+  const sources = maxSources > 0 ? (sourcesAll || []).slice(0, maxSources) : (sourcesAll || []);
+  console.log(`[Institution-News] ${sources.length} source(s) traitée(s)${maxSources > 0 ? ` (plafond ${maxSources})` : ""}.`);
 
   let inserted = 0, scanned = 0;
   for (const src of sources || []) {
