@@ -83,13 +83,21 @@ Réponds en JSON strict : { "issues": [ { "slug": "immigration", "confidence": 0
     .map((x: any) => ({ issue_slug: x.slug, confidence: Math.max(0, Math.min(1, Number(x.confidence) || 0.6)), method: "llm" as const }));
 }
 
-async function fetchScrutins(limitRows: number): Promise<any[]> {
+// Source multi-chambre : AN (table `scrutins`) ou Sénat (`legislative_scrutins`, chamber SENAT).
+// On normalise vers { id, objet, title, summary } pour réutiliser tout le pipeline.
+async function fetchScrutins(limitRows: number, source: "an" | "senate"): Promise<any[]> {
   const all: any[] = [];
   for (let from = 0; ; from += 1000) {
     const to = from + 999;
-    const { data, error } = await supabase.from("scrutins").select("id, objet, title, summary").order("date_scrutin", { ascending: false }).range(from, to);
+    let q = source === "senate"
+      ? supabase.from("legislative_scrutins").select("id, title, explanation").eq("chamber", "SENAT").order("voted_at", { ascending: false })
+      : supabase.from("scrutins").select("id, objet, title, summary").order("date_scrutin", { ascending: false });
+    const { data, error } = await q.range(from, to);
     if (error) throw error;
-    all.push(...(data || []));
+    const rows = (data || []).map((r: any) => source === "senate"
+      ? { id: r.id, objet: r.title, title: r.title, summary: r.explanation }
+      : r);
+    all.push(...rows);
     if (!data || data.length < 1000 || (limitRows && all.length >= limitRows)) break;
   }
   return all;
@@ -98,9 +106,10 @@ async function fetchScrutins(limitRows: number): Promise<any[]> {
 async function main() {
   const sample = Number(process.env.SCRUTIN_TAG_SAMPLE ?? 0);
   const write = process.env.SCRUTIN_TAG_WRITE === "1";
+  const source: "an" | "senate" = process.env.TAG_SOURCE === "senate" ? "senate" : "an";
 
   // En échantillon on lit assez de scrutins pour former N lois distinctes ; sinon tout.
-  const scrutins = await fetchScrutins(sample > 0 ? Math.max(4000, sample * 40) : 0);
+  const scrutins = await fetchScrutins(sample > 0 ? Math.max(4000, sample * 40) : 0, source);
 
   // Regroupement par sujet de loi.
   const groups = new Map<string, { subject: string; summary: string; ids: string[] }>();
