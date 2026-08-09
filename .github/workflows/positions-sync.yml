@@ -1,0 +1,27 @@
+name: Positions déclaratives des élus (#3.2)
+on:
+  schedule:
+    - cron: '40 23 * * 0'   # chaque dimanche ~01h40 Paris (hebdo, heures creuses DeepSeek)
+  workflow_dispatch:
+concurrency:
+  group: positions-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  positions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # "Ce qu'il dit" : questions écrites AN → entity_positions. Incrémental (seules les nouvelles
+      # paires député×enjeu passent au LLM) → coût hebdomadaire minime.
+      - run: npm run data:sync-deputy-positions-questions
+        env:
+          POSITIONS_WRITE: "1"
+          POSITIONS_INCREMENTAL: "1"
