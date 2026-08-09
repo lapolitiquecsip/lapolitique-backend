@@ -13,7 +13,7 @@ export const ISSUES: Array<{ slug: string; title: string; category: string; sort
   { slug: "immigration", title: "Immigration", category: "Régaliens", sort_order: 1,
     keywords: ["immigration","immigré","immigration clandestine","migrant","migratoire","étranger","sans-papiers","clandestin","oqtf","asile","réfugié","demandeur d'asile","aide médicale d'état","ame","frontière","expulsion","reconduite","naturalisation","titre de séjour","visa","regroupement familial","schengen","droit du sol","intégration"] },
   { slug: "securite-justice", title: "Sécurité & justice", category: "Régaliens", sort_order: 2,
-    keywords: ["sécurité","insécurité","délinquance","police","policier","gendarmerie","forces de l'ordre","justice","peine","prison","pénitentiaire","détenu","pénal","criminalité","violence","agression","tribunal","magistrat","récidive","drogue","stupéfiants","trafic","narcotrafic","point de deal","vidéosurveillance"] },
+    keywords: ["sécurité publique","sécurité intérieure","insécurité","délinquance","délinquant","police","policier","gendarmerie","forces de l'ordre","magistrat","tribunal","justice pénale","peine de prison","prison","pénitentiaire","détenu","pénal","criminalité","violences","agression","récidive","stupéfiants","narcotrafic","trafic de drogue","point de deal","vidéosurveillance","légitime défense"] },
   { slug: "laicite", title: "Laïcité", category: "Régaliens", sort_order: 3,
     keywords: ["laïcité","laïque","voile","foulard","abaya","religion","religieux","signes religieux","séparatisme","islamisme","islam","culte","neutralité","concordat"] },
   { slug: "defense", title: "Défense & armée", category: "Régaliens", sort_order: 4,
