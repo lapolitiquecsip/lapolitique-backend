@@ -29,3 +29,8 @@ jobs:
         env:
           POSITIONS_WRITE: "1"
           POSITIONS_INCREMENTAL: "1"
+      # 2e source de parole : amendements des députés (fusion avec les positions issues des questions)
+      - run: npm run data:sync-deputy-positions-amendments
+        env:
+          POSITIONS_WRITE: "1"
+          POSITIONS_INCREMENTAL: "1"
