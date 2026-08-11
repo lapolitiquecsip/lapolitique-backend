@@ -25,3 +25,5 @@ jobs:
       - run: npm run data:summarize-decrees
       # 3) Titres synthétisés (le sujet, sans « Décret n°… portant … ») pour l'affichage
       - run: npm run data:sync-decree-titles
+      # 4) Rattache les décrets au ministère émetteur (via NOR) → fil d'action des ministères (gratuit)
+      - run: npm run data:sync-ministry-decrees

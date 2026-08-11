@@ -86,6 +86,7 @@
     "data:seed-entity-feed-sources": "tsx src/scripts/data/seed-entity-feed-sources.ts",
     "data:seed-issues": "tsx src/scripts/data/seed-issues.ts",
     "data:tag-scrutins": "tsx src/scripts/data/tag-scrutins-issues.ts",
+    "data:sync-ministry-decrees": "tsx src/scripts/data/sync-ministry-decrees.ts",
     "automation:institution-news": "tsx src/scripts/automation/sync-institution-news.ts",
     "data:sync-deputy-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts deputies",
     "data:sync-senator-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts senators",
