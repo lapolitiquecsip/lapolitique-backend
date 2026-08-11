@@ -30,10 +30,7 @@ function cleanGoogleTitle(title: string): { title: string; source: string } {
   return { title: title.trim(), source: "" };
 }
 
-async function summarise(entityName: string, title: string, snippet: string) {
-  const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash", max_tokens: 3000, responseFormat: "json_object",
-    system: `Tu alimentes un fil qui documente L'ACTION d'une institution publique FRANÇAISE : « ${entityName} ». On veut savoir ce que l'institution FAIT — ce qu'elle annonce, décide, met en œuvre — pas ce qu'on dit d'elle.
+const MINISTRY_PROMPT = (entityName: string) => `Tu alimentes un fil qui documente L'ACTION d'une institution publique FRANÇAISE : « ${entityName} ». On veut savoir ce que l'institution FAIT — ce qu'elle annonce, décide, met en œuvre — pas ce qu'on dit d'elle.
 
 À PUBLIER (should_publish=true) uniquement si l'article décrit une ACTION de cette institution : annonce, mesure, décision, plan/réforme, décret ou arrêté, financement/budget, nomination, lancement/déploiement, ouverture/inauguration, résultat ou bilan chiffré, texte déposé.
 
@@ -47,8 +44,29 @@ NE PAS PUBLIER (should_publish=false) :
 - "summary" : 1-2 phrases (40 mots max), avec le fait/chiffre concret de l'action. En français.
 - "news_type" : un parmi annonce | decision | mesure | budget | decret | nomination | lancement | bilan.
 
-Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "annonce" }`,
-    messages: [{ role: "user", content: `Institution : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
+Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "annonce" }`;
+
+const COMMUNE_PROMPT = (entityName: string) => `Tu alimentes le fil d'actualité LOCALE de la ville de « ${entityName} » (France) : ce qui se passe dans la commune et ce que fait la mairie.
+
+À PUBLIER (should_publish=true) si l'article concerne la VIE LOCALE de CETTE commune : projet ou décision de la mairie, conseil municipal, travaux, urbanisme/construction, équipements (école, crèche, gymnase…), transports, budget municipal, événement local, sécurité/propreté, environnement, ouverture/inauguration.
+
+NE PAS PUBLIER (should_publish=false) :
+- une actualité nationale sans lien avec cette ville ;
+- une AUTRE commune homonyme (vérifie que c'est bien cette ville-là) ;
+- le fait divers pur (accident, faits divers people) sans dimension municipale ;
+- le sport-résultats, la publicité.
+
+- "title" : reformulé, factuel, centré sur le fait local (max 14 mots).
+- "summary" : 1-2 phrases (40 mots max), le fait concret. En français.
+- "news_type" : un parmi projet | travaux | conseil_municipal | budget | evenement | equipement | decision | actualite.
+
+Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "projet" }`;
+
+async function summarise(entityName: string, title: string, snippet: string, entityType: string) {
+  const response = await resilientDeepSeek.createMessage({
+    model: "deepseek-v4-flash", max_tokens: 3000, responseFormat: "json_object",
+    system: entityType === "commune" ? COMMUNE_PROMPT(entityName) : MINISTRY_PROMPT(entityName),
+    messages: [{ role: "user", content: `${entityType === "commune" ? "Ville" : "Institution"} : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
   });
   const text = response.content[0]?.type === "text" ? response.content[0].text : "";
   const m = text.match(/\{[\s\S]*\}/);
@@ -59,7 +77,7 @@ export async function syncInstitutionNews() {
   let query = supabase.from("entity_feed_sources").select("*").eq("active", true);
   // Filtres optionnels (validation / garde-fou coût) : type d'entité + nombre max de sources.
   const onlyType = process.env.INSTITUTION_NEWS_ONLY_TYPE;
-  if (onlyType) query = query.eq("entity_type", onlyType);
+  if (onlyType) query = query.in("entity_type", onlyType.split(",").map(s => s.trim()).filter(Boolean));
   const maxSources = Number(process.env.INSTITUTION_NEWS_MAX_SOURCES ?? 0);
   const { data: sourcesAll, error } = await query;
   if (error) throw error;
@@ -101,7 +119,7 @@ export async function syncInstitutionNews() {
       scanned++;
       const snippet = (item.contentSnippet || item.content || "").slice(0, 500);
       let ai;
-      try { ai = await summarise(src.entity_name, rawTitle, snippet); }
+      try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); }
       catch { await sleep(500); continue; }
       if (!ai || ai.should_publish === false || !ai.title || !ai.summary) continue;
 

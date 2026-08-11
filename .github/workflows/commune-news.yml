@@ -1,29 +1,26 @@
-name: Institution news feed (#4)
+name: Commune news feed (#1)
 on:
   schedule:
-    - cron: '13 18 * * *'   # chaque jour ~20h13 Paris (heures creuses DeepSeek)
+    - cron: '37 19 * * *'   # chaque jour ~21h37 Paris (heures creuses DeepSeek)
   workflow_dispatch:
 concurrency:
-  group: institution-news
+  group: commune-news
   cancel-in-progress: false
 permissions:
   contents: read
 jobs:
-  institution-news:
+  commune-news:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      INSTITUTION_NEWS_ONLY_TYPE: commune
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
-      # Seed idempotent : enregistre/rafraîchit les sources (nouveaux ministères après remaniement,
-      # nouveaux départements) avant chaque passe → pipeline 100 % automatisé.
+      # Communes > 20 000 hab : fil d'actu locale (projets mairie, travaux, décisions, événements).
       - run: npm run data:seed-entity-feed-sources
-      # Ministères + départements (les communes ont leur propre cron dédié, plus lourd).
       - run: npm run automation:institution-news
-        env:
-          INSTITUTION_NEWS_ONLY_TYPE: "ministry,department"

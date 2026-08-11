@@ -65,9 +65,26 @@ async function departments(): Promise<Source[]> {
   return out;
 }
 
+// Brique #1 — communes de plus de 20 000 habitants (support = fiches maires). Google News ciblé
+// sur la vie municipale (mairie/conseil municipal/travaux/projet) pour limiter les homonymes.
+async function communesTop(): Promise<Source[]> {
+  const out: Source[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from("mayors").select("insee_code, commune_name, population").gte("population", 20000).order("population", { ascending: false }).range(from, from + 999);
+    if (error) throw error;
+    for (const r of data || []) {
+      const insee = (r.insee_code || "").trim(); const name = (r.commune_name || "").trim();
+      if (!insee || !name) continue;
+      out.push({ entity_type: "commune", entity_id: insee, entity_name: name, feed_url: gnews(`"${name}" (mairie OR municipal OR "conseil municipal" OR travaux OR projet OR urbanisme)`), source_name: "Google News", kind: "google_news", active: true });
+    }
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
 async function main() {
-  const sources = [...await ministries(), ...await departments()];
-  console.log(`→ ${sources.length} sources à enregistrer (${sources.filter(s => s.entity_type === "ministry").length} ministères, ${sources.filter(s => s.entity_type === "department").length} départements).`);
+  const sources = [...await ministries(), ...await departments(), ...await communesTop()];
+  console.log(`→ ${sources.length} sources (${sources.filter(s => s.entity_type === "ministry").length} ministères, ${sources.filter(s => s.entity_type === "department").length} départements, ${sources.filter(s => s.entity_type === "commune").length} communes).`);
   let ok = 0;
   for (let i = 0; i < sources.length; i += 200) {
     const batch = sources.slice(i, i + 200);
