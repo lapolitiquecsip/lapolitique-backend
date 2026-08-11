@@ -15,6 +15,20 @@ const gnews = (q: string) =>
 
 type Source = { entity_type: string; entity_id: string; entity_name: string; feed_url: string; source_name: string; kind: string; active: boolean };
 
+// Requête Google News orientée ACTION (annonces, mesures, décrets…) — évite le pur commentaire.
+const gnewsAction = (name: string) =>
+  gnews(`"${name}" (annonce OR mesure OR décret OR arrêté OR plan OR réforme OR lance OR déploie OR budget OR nomination)`);
+
+// RSS d'actualités OFFICIELS vérifiés, rattachés par mot-clé du nom du ministère (robuste aux
+// remaniements). Voix authentique du ministère → son action réelle.
+const OFFICIAL_RSS: { kw: RegExp; url: string; source: string }[] = [
+  { kw: /travail|emploi/i, url: "https://travail-emploi.gouv.fr/rss.xml", source: "Ministère du Travail" },
+  { kw: /agriculture/i, url: "https://agriculture.gouv.fr/rss.xml", source: "Ministère de l'Agriculture" },
+  { kw: /justice/i, url: "https://www.justice.gouv.fr/rss.xml", source: "Ministère de la Justice" },
+  { kw: /enseignement sup|recherche/i, url: "https://www.enseignementsup-recherche.gouv.fr/rss.xml", source: "Enseignement supérieur & Recherche" },
+  { kw: /sant[ée]/i, url: "https://sante.gouv.fr/rss.xml", source: "Ministère de la Santé" },
+];
+
 async function ministries(): Promise<Source[]> {
   const { data, error } = await supabase.from("minister_profiles").select("ministry_name").not("ministry_name", "is", null);
   if (error) throw error;
@@ -26,7 +40,11 @@ async function ministries(): Promise<Source[]> {
     const id = slugify(name);
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    out.push({ entity_type: "ministry", entity_id: id, entity_name: name, feed_url: gnews(`"${name}"`), source_name: "Google News", kind: "google_news", active: true });
+    // 1) RSS officiel du ministère si disponible (prioritaire, action authentique).
+    const rss = OFFICIAL_RSS.find(o => o.kw.test(name));
+    if (rss) out.push({ entity_type: "ministry", entity_id: id, entity_name: name, feed_url: rss.url, source_name: rss.source, kind: "official_rss", active: true });
+    // 2) Google News orienté action (couverture large + fallback).
+    out.push({ entity_type: "ministry", entity_id: id, entity_name: name, feed_url: gnewsAction(name), source_name: "Google News", kind: "google_news", active: true });
   }
   return out;
 }

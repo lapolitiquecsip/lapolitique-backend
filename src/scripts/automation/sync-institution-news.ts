@@ -33,16 +33,21 @@ function cleanGoogleTitle(title: string): { title: string; source: string } {
 async function summarise(entityName: string, title: string, snippet: string) {
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-v4-flash", max_tokens: 3000, responseFormat: "json_object",
-    system: `Tu alimentes le fil d'actualité d'une institution publique FRANÇAISE : « ${entityName} » (gouvernement/collectivité de la France). À partir du titre et de l'extrait d'un article, produis une entrée courte et factuelle.
+    system: `Tu alimentes un fil qui documente L'ACTION d'une institution publique FRANÇAISE : « ${entityName} ». On veut savoir ce que l'institution FAIT — ce qu'elle annonce, décide, met en œuvre — pas ce qu'on dit d'elle.
 
-RÈGLES :
-- "should_publish" = false si l'article ne concerne PAS réellement CETTE institution française, ou n'a aucun intérêt (people, hors-sujet, publicité).
-- "should_publish" = false si l'article concerne une institution ÉTRANGÈRE homonyme (ex. un « ministère de la Justice » d'un autre pays, le gouvernement américain, etc.).
-- "title" : titre reformulé, factuel, sans sensationnalisme (max 14 mots).
-- "summary" : 1-2 phrases (40 mots max), un fait/chiffre concret si présent. En français.
-- "news_type" : un parmi annonce | decision | travaux | budget | evenement | nomination | actualite.
+À PUBLIER (should_publish=true) uniquement si l'article décrit une ACTION de cette institution : annonce, mesure, décision, plan/réforme, décret ou arrêté, financement/budget, nomination, lancement/déploiement, ouverture/inauguration, résultat ou bilan chiffré, texte déposé.
 
-Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "actualite" }`,
+NE PAS PUBLIER (should_publish=false) :
+- le COMMENTAIRE, l'opinion, la polémique, la réaction ou la critique de tiers (ex. « X critique… », « la gauche dénonce… ») ;
+- le people / l'agenda personnel (vacances, déplacements privés, anecdotes) ;
+- un article qui ne décrit PAS une action concrète de l'institution ;
+- une institution ÉTRANGÈRE homonyme (gouvernement d'un autre pays, etc.).
+
+- "title" : reformulé, factuel, centré sur l'action (max 14 mots).
+- "summary" : 1-2 phrases (40 mots max), avec le fait/chiffre concret de l'action. En français.
+- "news_type" : un parmi annonce | decision | mesure | budget | decret | nomination | lancement | bilan.
+
+Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "annonce" }`,
     messages: [{ role: "user", content: `Institution : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
   });
   const text = response.content[0]?.type === "text" ? response.content[0].text : "";
