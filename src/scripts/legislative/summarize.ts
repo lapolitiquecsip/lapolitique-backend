@@ -55,7 +55,8 @@ export async function summarizeLegislativeDossiers() {
     }
     // Exposé des motifs (PDF officiel) : ce que contient le texte et à quel problème il répond.
     const exposeDesMotifs = await fetchExposeText(dossier.source_urls);
-    const officialFacts = { dossier, expose_des_motifs: exposeDesMotifs, steps: stepsResult.data, amendments: amendmentsResult.data, scrutins: scrutinsResult.data };
+    // Cap les amendements/scrutins envoyés au LLM (les gros dossiers en ont 100+ → coût token énorme).
+    const officialFacts = { dossier, expose_des_motifs: exposeDesMotifs, steps: (stepsResult.data || []).slice(0, 40), amendments: (amendmentsResult.data || []).slice(0, 30), scrutins: (scrutinsResult.data || []).slice(0, 20) };
     const sourceUrls = [...new Set([
       ...(dossier.source_urls ?? []),
       ...(stepsResult.data ?? []).map(item => item.source_url),
