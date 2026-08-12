@@ -41,7 +41,28 @@ export async function summarizeLegislativeDossiers() {
   ]);
   if (promulgatedResult.error) throw promulgatedResult.error;
   if (activeResult.error) throw activeResult.error;
-  const dossiers = [...new Map([...(promulgatedResult.data ?? []), ...(activeResult.data ?? [])].map(dossier => [dossier.id, dossier])).values()];
+  let dossiers = [...new Map([...(promulgatedResult.data ?? []), ...(activeResult.data ?? [])].map(dossier => [dossier.id, dossier])).values()];
+
+  // Mode BACKFILL : traite les dossiers SANS analyse publique (couvre le retard : anciens, Sénat…)
+  // au lieu de la seule fenêtre « récents actifs + promulgués ».
+  if (process.env.SUMMARY_FILL_MISSING === "1") {
+    const analyzed = new Set<string>();
+    for (let from = 0; ; from += 1000) {
+      const { data } = await supabase.from("legislative_analyses").select("dossier_id").eq("audience", "public").range(from, from + 999);
+      if (!data || !data.length) break;
+      for (const r of data) analyzed.add(r.dossier_id);
+      if (data.length < 1000) break;
+    }
+    const missing: any[] = [];
+    for (let from = 0; missing.length < requestedLimit; from += 1000) {
+      const { data } = await supabase.from("legislative_dossiers").select(fields + ",source_updated_at").order("source_updated_at", { ascending: false }).range(from, from + 999);
+      if (!data || !data.length) break;
+      for (const d of data) { if (!analyzed.has(d.id)) missing.push(d); if (missing.length >= requestedLimit) break; }
+      if (data.length < 1000) break;
+    }
+    dossiers = missing;
+    console.log(`[BACKFILL] ${analyzed.size} dossiers déjà analysés ; ${missing.length} manquants à traiter.`);
+  }
   let generated = 0;
   for (const dossier of dossiers) {
     const [stepsResult, amendmentsResult, scrutinsResult] = await Promise.all([
