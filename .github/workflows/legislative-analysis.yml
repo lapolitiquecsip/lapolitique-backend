@@ -29,4 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
+      # 1) Dossiers récents actifs + promulgués (fenêtre standard).
       - run: npm run automation:legislative:summaries
+      # 2) Comble le RETARD : dossiers sans analyse (anciens, Sénat…), par lots, jusqu'à épuisement.
+      - run: npm run automation:legislative:summaries
+        env:
+          SUMMARY_FILL_MISSING: "1"
+          LEGISLATIVE_SUMMARY_LIMIT: "120"
