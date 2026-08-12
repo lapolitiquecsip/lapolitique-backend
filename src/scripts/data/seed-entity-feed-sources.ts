@@ -59,8 +59,11 @@ async function departments(): Promise<Source[]> {
     const name = (r.dep_name || "").trim();
     if (!code || seen.has(code)) continue;
     seen.add(code);
-    // Requête ciblée sur l'institution (conseil départemental) — pas la géographie entière (ça, c'est #1).
+    // Conseil départemental (élus) — action de la collectivité.
     out.push({ entity_type: "department", entity_id: code, entity_name: name, feed_url: gnews(`conseil départemental "${name}"`), source_name: "Google News", kind: "google_news", active: true });
+    // Préfecture (État) — actions/arrêtés préfectoraux. Pas de RAA en open data national → Google News
+    // ciblé sur l'action préfectorale (arrêtés : sécheresse, circulation, sécurité, manifestations…).
+    out.push({ entity_type: "department", entity_id: code, entity_name: name, feed_url: gnews(`(préfecture OR préfet OR "arrêté préfectoral") "${name}" (arrêté OR interdit OR autorise OR restriction OR mesure OR sécheresse)`), source_name: "Préfecture", kind: "google_news", active: true });
   }
   return out;
 }
@@ -70,7 +73,7 @@ async function departments(): Promise<Source[]> {
 async function communesTop(): Promise<Source[]> {
   const out: Source[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from("mayors").select("insee_code, commune_name, population").gte("population", 20000).order("population", { ascending: false }).range(from, from + 999);
+    const { data, error } = await supabase.from("mayors").select("insee_code, commune_name, population").gte("population", 10000).order("population", { ascending: false }).range(from, from + 999);
     if (error) throw error;
     for (const r of data || []) {
       const insee = (r.insee_code || "").trim(); const name = (r.commune_name || "").trim();
