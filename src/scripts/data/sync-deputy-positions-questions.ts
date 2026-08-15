@@ -29,6 +29,22 @@ function tagText(text: string): string[] {
 const arr = (x: any) => (Array.isArray(x) ? x : x ? [x] : []);
 const questionUrl = (numero: string) => `https://questions.assemblee-nationale.fr/q17/17-${numero}QE.htm`;
 
+// Extrait LISIBLE d'une question écrite = la SUBSTANCE de la question, tirée de son corps officiel
+// (textesQuestion), pas le simple label thématique de l'AN (souvent cryptique : « Filière Mohair »).
+// On retire la formule d'introduction protocolaire (« M./Mme X attire l'attention de … sur ») pour
+// ne garder que le fond, on nettoie le HTML et on tronque court (extrait — droit d'auteur).
+function questionExcerpt(q: any, fallback: string): string {
+  const tq = arr(q?.textesQuestion?.texteQuestion ?? q?.textesQuestion);
+  let body = String(tq[0]?.texte ?? "").replace(/<[^>]+>/g, " ").replace(/&#?\w+;/g, " ").replace(/\s+/g, " ").trim();
+  if (!body) return fallback;
+  // Retire l'introduction « M./Mme … attire/appelle/interroge … sur » → garde la substance.
+  const m = body.match(/^\s*m(?:me|\.|r\.?)\s.*?\b(?:sur|au sujet de|quant à|concernant|à propos de)\s+(.+)$/is);
+  if (m && m[1].length > 25) body = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+  // Coupe à la première frontière de phrase raisonnable, plafonné à ~240 caractères.
+  if (body.length > 240) { const cut = body.slice(0, 240); const dot = cut.lastIndexOf(". "); body = (dot > 80 ? cut.slice(0, dot + 1) : cut).trim(); }
+  return body || fallback;
+}
+
 async function main() {
   const write = process.env.POSITIONS_WRITE === "1";
   const limit = Number(process.env.POSITIONS_LIMIT ?? 0); // limite le nb de (député,enjeu) traités (validation)
@@ -46,7 +62,7 @@ async function main() {
   console.log(`${entries.length} questions.`);
 
   // 3) Tag + regroupement par (député, enjeu)
-  type Item = { analyse: string; url: string; date: string | null };
+  type Item = { analyse: string; excerpt: string; url: string; date: string | null };
   const groups = new Map<string, { slug: string; issue: string; name: string; items: Item[] }>();
   let matchedAuthors = 0;
   for (const e of entries) {
@@ -62,11 +78,12 @@ async function main() {
     if (!issuesHit.length) continue;
     const numero = q?.identifiant?.numero || "";
     const date = q?.minAttribs?.minAttrib?.infoJO?.dateJO || null;
+    const excerpt = questionExcerpt(q, analyse);
     for (const issue of issuesHit) {
       const key = `${dep.slug}|${issue}`;
       let g = groups.get(key);
       if (!g) { g = { slug: dep.slug, issue, name: `${dep.first_name} ${dep.last_name}`, items: [] }; groups.set(key, g); }
-      g.items.push({ analyse, url: questionUrl(numero), date });
+      g.items.push({ analyse, excerpt, url: questionUrl(numero), date });
     }
   }
   const eligible = [...groups.values()].filter(g => g.items.length >= MIN_ITEMS);
@@ -100,8 +117,8 @@ async function main() {
   const targets = (limit > 0 ? eligible.slice(0, limit) : eligible).filter(g => !done.has(`${g.slug}|${g.issue}`));
   let written = 0;
   for (const g of targets) {
-    const evidence = g.items.slice(0, MAX_EVIDENCE).map(it => ({ type: "question", url: it.url, date: it.date, excerpt: it.analyse }));
-    const list = g.items.slice(0, 12).map(it => `- ${it.analyse}`).join("\n");
+    const evidence = g.items.slice(0, MAX_EVIDENCE).map(it => ({ type: "question", url: it.url, date: it.date, excerpt: it.excerpt }));
+    const list = g.items.slice(0, 12).map(it => `- ${it.excerpt}`).join("\n");
     let summary = "", stance = "inconnu";
     try {
       const resp = await resilientDeepSeek.createMessage({
