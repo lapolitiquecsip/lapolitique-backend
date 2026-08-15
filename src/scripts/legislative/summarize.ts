@@ -43,9 +43,18 @@ export async function summarizeLegislativeDossiers() {
   if (activeResult.error) throw activeResult.error;
   let dossiers = [...new Map([...(promulgatedResult.data ?? []), ...(activeResult.data ?? [])].map(dossier => [dossier.id, dossier])).values()];
 
+  // Mode CIBLÉ : force l'analyse de dossiers précis (par id), utile pour combler un dossier
+  // manquant sans attendre son tour dans la file du backfill. Ex : SUMMARY_DOSSIER_IDS="uuid1,uuid2".
+  if (process.env.SUMMARY_DOSSIER_IDS) {
+    const ids = process.env.SUMMARY_DOSSIER_IDS.split(",").map(s => s.trim()).filter(Boolean);
+    const { data, error } = await supabase.from("legislative_dossiers").select(fields).in("id", ids);
+    if (error) throw error;
+    dossiers = (data as any[]) ?? [];
+    console.log(`[CIBLÉ] ${dossiers.length} dossier(s) demandé(s) à (ré)analyser.`);
+  }
   // Mode BACKFILL : traite les dossiers SANS analyse publique (couvre le retard : anciens, Sénat…)
   // au lieu de la seule fenêtre « récents actifs + promulgués ».
-  if (process.env.SUMMARY_FILL_MISSING === "1") {
+  else if (process.env.SUMMARY_FILL_MISSING === "1") {
     const analyzed = new Set<string>();
     for (let from = 0; ; from += 1000) {
       const { data } = await supabase.from("legislative_analyses").select("dossier_id").eq("audience", "public").range(from, from + 999);
@@ -57,19 +66,26 @@ export async function summarizeLegislativeDossiers() {
     for (let from = 0; missing.length < requestedLimit; from += 1000) {
       const { data } = await supabase.from("legislative_dossiers").select(fields + ",source_updated_at").order("source_updated_at", { ascending: false }).range(from, from + 999);
       if (!data || !data.length) break;
-      for (const d of data) { if (!analyzed.has(d.id)) missing.push(d); if (missing.length >= requestedLimit) break; }
+      for (const d of (data as any[])) { if (!analyzed.has(d.id)) missing.push(d); if (missing.length >= requestedLimit) break; }
       if (data.length < 1000) break;
     }
     dossiers = missing;
     console.log(`[BACKFILL] ${analyzed.size} dossiers déjà analysés ; ${missing.length} manquants à traiter.`);
   }
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
   let generated = 0;
   for (const dossier of dossiers) {
-    const [stepsResult, amendmentsResult, scrutinsResult] = await Promise.all([
-      supabase.from("legislative_steps").select("step_label,chamber,occurred_at,source_url,source_hash").eq("dossier_id", dossier.id).order("sequence").limit(100),
-      supabase.from("legislative_amendments").select("number,author_name,subject,outcome_label,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(100),
-      supabase.from("legislative_scrutins").select("title,result_label,for_count,against_count,abstain_count,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(30),
-    ]);
+    // Fetch des faits officiels avec retries (évite les coupures Supabase sous charge en backfill).
+    let stepsResult: any = {}, amendmentsResult: any = {}, scrutinsResult: any = {};
+    for (let attempt = 0; attempt < 3; attempt++) {
+      [stepsResult, amendmentsResult, scrutinsResult] = await Promise.all([
+        supabase.from("legislative_steps").select("step_label,chamber,occurred_at,source_url,source_hash").eq("dossier_id", dossier.id).order("sequence").limit(100),
+        supabase.from("legislative_amendments").select("number,author_name,subject,outcome_label,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(100),
+        supabase.from("legislative_scrutins").select("title,result_label,for_count,against_count,abstain_count,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(30),
+      ]);
+      if (!(stepsResult.error || amendmentsResult.error || scrutinsResult.error)) break;
+      await sleep(800 * (attempt + 1));
+    }
     if (stepsResult.error || amendmentsResult.error || scrutinsResult.error) {
       console.error(`Analysis unavailable for ${dossier.id}: official facts could not be loaded.`);
       continue;
@@ -122,6 +138,7 @@ Réponds en JSON strict avec DEUX clés dont les valeurs sont des CHAÎNES de te
     } catch (cause) {
       console.error(`Analysis unavailable for ${dossier.id}:`, cause);
     }
+    await sleep(120); // pace : ménage Supabase/DeepSeek en backfill
   }
   console.log(`Generated ${generated} sourced legislative analyses; failures were left unavailable.`);
   return generated;

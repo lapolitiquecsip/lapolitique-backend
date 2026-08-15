@@ -19,10 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
+      # 0) Garde-fou budget DeepSeek : si le solde est épuisé, les étapes IA sont IGNORÉES
+      #    (le job reste vert, les étapes gratuites ci-dessous tournent quand même).
+      - id: budget
+        run: npm run automation:budget-check
       # 1) Importe les scrutins + votes individuels (open data AN) → tables du front (gratuit)
       - run: npm run automation:fetch-votes
       # 2) Résume/explique les nouveaux scrutins (IA, heures creuses)
       - run: npm run automation:summarize
+        if: steps.budget.outputs.has_budget == 'true'
       # 3) Tague par ENJEU les nouveaux scrutins (fondation #3, incrémental → quasi gratuit)
       - run: npm run data:seed-issues
       - run: npm run data:tag-scrutins   # AN (table scrutins)
@@ -34,5 +39,6 @@ jobs:
           TAG_SOURCE: senate
       # 4) Notifie les abonnés dont un élu suivi a voté sur un scrutin solennel
       - run: npm run automation:notifications
-      # 4) Bios structurées des députés (par lots, heures creuses ; reprenable jour après jour)
+      # 5) Bios structurées des députés (IA, par lots ; reprenable jour après jour)
       - run: npm run data:sync-deputy-bios -- --limit=150
+        if: steps.budget.outputs.has_budget == 'true'

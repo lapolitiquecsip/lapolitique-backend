@@ -49,7 +49,10 @@ export const ISSUES: Array<{ slug: string; title: string; category: string; sort
   { slug: "ukraine-russie", title: "Ukraine / Russie", category: "International", sort_order: 16,
     keywords: ["ukraine","ukrainien","russie","russe","poutine","zelensky","guerre en ukraine","otan","kiev","moscou","invasion","sanctions russes","aide militaire à l'ukraine","livraison d'armes","donbass","crimée"] },
   { slug: "europe-ue", title: "Union européenne", category: "International", sort_order: 17,
-    keywords: ["europe","européen","union européenne","ue","bruxelles","commission européenne","souveraineté européenne","zone euro","frexit","directive européenne","règlement européen","parlement européen","élargissement","traité européen"] },
+    // Mots-clés SPÉCIFIQUES uniquement : « europe »/« européen »/« ue »/« élargissement » isolés
+    // créaient des faux tags (« Coupe d'Europe », « championnat européen », « élargir les pouvoirs »…).
+    // On exige des formulations propres à la politique européenne.
+    keywords: ["union européenne","union europeenne","bruxelles","commission européenne","souveraineté européenne","zone euro","frexit","directive européenne","règlement européen","parlement européen","traité européen","conseil européen","droit de l'union","marché unique","politique européenne","fonds européens","aides européennes","semestre européen"] },
 
   // ── Numérique ───────────────────────────────────────────────────────────────
   { slug: "numerique", title: "Numérique & tech", category: "Numérique", sort_order: 18,

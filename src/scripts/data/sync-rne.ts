@@ -1,5 +1,6 @@
 import { parse } from "csv-parse/sync";
 import { OFFICIAL_SOURCES, runIngestion, sha256, upsertInChunks } from "../../lib/data-platform.js";
+import { supabase } from "../../config/supabase.js";
 
 interface DataGouvResource { id: string; title?: string; url: string; format?: string; last_modified?: string; }
 const source = OFFICIAL_SOURCES.find(item => item.slug === "rne")!;
@@ -18,6 +19,26 @@ const isoDate = (value: string) => {
   if (parts.length === 3 && parts[0].length <= 2) return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
   return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
 };
+// Téléchargement robuste : data.gouv.fr coupe fréquemment la connexion sur les gros CSV
+// (ECONNRESET). Sans retry, une seule coupure fait échouer tout le sync → 2 échecs consécutifs
+// → source en « warning » → data-reconcile lève une alerte. On réessaie avec backoff.
+const fetchWithRetry = async (url: string, opts: RequestInit, attempts = 4): Promise<Response> => {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, opts);
+      if (res.ok) return res;
+      // 5xx / 429 : transitoire côté serveur → on réessaie ; 4xx : définitif.
+      if (res.status < 500 && res.status !== 429) return res;
+      lastErr = new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      lastErr = err; // ECONNRESET, timeout, etc.
+    }
+    if (i < attempts - 1) await new Promise(r => setTimeout(r, 3000 * (i + 1)));
+  }
+  throw lastErr;
+};
+
 const classify = (title: string) => {
   const value = normalize(title);
   if (value.includes("conseillers municipaux")) return "municipal_councillor";
@@ -29,7 +50,7 @@ const classify = (title: string) => {
 };
 
 await runIngestion({ domain: "officials", jobName: "sync-rne", source }, async ({ sourceId, dryRun }) => {
-  const response = await fetch("https://www.data.gouv.fr/api/1/datasets/repertoire-national-des-elus-1/", { signal: AbortSignal.timeout(30_000) });
+  const response = await fetchWithRetry("https://www.data.gouv.fr/api/1/datasets/repertoire-national-des-elus-1/", { signal: AbortSignal.timeout(30_000) });
   if (!response.ok) throw new Error(`RNE catalog lookup failed: HTTP ${response.status}`);
   const dataset = await response.json() as { resources: DataGouvResource[] };
   const candidates = dataset.resources.filter(resource => resource.url && (resource.format?.toLowerCase() === "csv" || resource.url.toLowerCase().includes(".csv"))).map(resource => ({ ...resource, mandateType: classify(resource.title ?? "") })).filter(resource => resource.mandateType);
@@ -41,7 +62,7 @@ await runIngestion({ domain: "officials", jobName: "sync-rne", source }, async (
   let rejected = 0;
   const now = new Date().toISOString();
   for (const resource of latest) {
-    const download = await fetch(resource.url, { signal: AbortSignal.timeout(5 * 60_000) });
+    const download = await fetchWithRetry(resource.url, { signal: AbortSignal.timeout(5 * 60_000) });
     if (!download.ok) throw new Error(`RNE resource ${resource.id} failed: HTTP ${download.status}`);
     const rows = parse(Buffer.from(await download.arrayBuffer()), { columns: true, delimiter: [";", ","], bom: true, skip_empty_lines: true, relax_column_count: true }) as Record<string, string>[];
     rowsRead += rows.length;
@@ -61,11 +82,30 @@ await runIngestion({ domain: "officials", jobName: "sync-rne", source }, async (
       mandates.set(mandateId, { official_id: mandateId, official_id_person: personId, mandate_type: resource.mandateType, territory_code: territoryCode, institution: get(row, "Libellé de la collectivité", "Libellé de la commune", "Nom de la commune") || null, group_name: get(row, "Libellé de la nuance politique", "Groupe politique") || null, started_at: startedAt, ended_at: null, source_id: sourceId, source_updated_at: resource.last_modified ?? now, collected_at: now });
     }
   }
+  // elected_mandates.territory_code référence territories(code) : le RNE contient des codes
+  // absents de notre table (communes nouvelles/COG non couvertes, EPCI…). Sans filtre, un seul
+  // orphelin fait échouer TOUT l'upsert (violation de FK). On charge les codes valides et on
+  // n'importe que les mandats rattachables ; les orphelins sont ignorés (comptabilisés).
+  const validTerritories = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from("territories").select("code").range(from, from + 999);
+    if (error) throw error;
+    if (!data?.length) break;
+    for (const t of data as { code: string }[]) validTerritories.add(t.code);
+    if (data.length < 1000) break;
+  }
+  const allMandates = [...mandates.values()];
+  const keptMandates = allMandates.filter(m => validTerritories.has(m.territory_code as string));
+  const orphanMandates = allMandates.length - keptMandates.length;
+  // On ne garde que les personnes rattachées à au moins un mandat conservé (évite les orphelins).
+  const keptPersonIds = new Set(keptMandates.map(m => m.official_id_person as string));
+  const keptPeople = [...people.values()].filter(p => keptPersonIds.has(p.official_id as string));
+
   let written = 0;
   if (!dryRun) {
-    written += await upsertInChunks("elected_officials", [...people.values()], "official_id");
-    written += await upsertInChunks("elected_mandates", [...mandates.values()], "official_id");
+    written += await upsertInChunks("elected_officials", keptPeople, "official_id");
+    written += await upsertInChunks("elected_mandates", keptMandates, "official_id");
   }
-  console.log(`${dryRun ? "Validated" : "Published"} ${people.size} RNE officials and ${mandates.size} mandates; ${rejected} rows rejected.`);
+  console.log(`${dryRun ? "Validated" : "Published"} ${keptPeople.length} RNE officials and ${keptMandates.length} mandates; ${rejected} rows rejected, ${orphanMandates} mandates skipped (territoire hors référentiel).`);
   return { result: undefined, rowsRead, rowsWritten: written, rowsRejected: rejected, details: { resources: latest.map(item => item.id) } };
 });

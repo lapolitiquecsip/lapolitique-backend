@@ -20,11 +20,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
+      # 0) Garde-fou budget DeepSeek : si solde épuisé, les étapes IA sont ignorées (job reste vert).
+      - id: budget
+        run: npm run automation:budget-check
       # 1) Détecte et ajoute les nouveaux candidats déclarés
       - run: npm run automation:presidential
+        if: steps.budget.outputs.has_budget == 'true'
       # 2) Met à jour le fil d'actualité de chaque candidat
       - run: npm run automation:presidential-news
+        if: steps.budget.outputs.has_budget == 'true'
       # 3) Positions sourcées (Wikipédia) des candidats sur les grands enjeux
       - run: npm run automation:candidate-positions
+        if: steps.budget.outputs.has_budget == 'true'
       # 4) Positions via votes réels au Parlement (prioritaires sur Wikipédia)
       - run: npm run automation:candidate-positions-votes
+        if: steps.budget.outputs.has_budget == 'true'

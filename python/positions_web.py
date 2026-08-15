@@ -4,7 +4,7 @@ Crawle des pages fiables (programmes officiels), en extrait la position par enje
 avec l'URL comme source, et remplit public.candidate_positions (source_type=programme).
 Ne remplace jamais une position issue d'un vote réel (source_type=vote), plus fiable.
 """
-import os, json, asyncio, httpx
+import os, sys, json, asyncio, httpx
 from openai import OpenAI
 from crawl4ai import AsyncWebCrawler
 
@@ -23,7 +23,29 @@ def clean_env(key: str, required: bool = True) -> str:
 
 SUPABASE_URL = clean_env("SUPABASE_URL").rstrip("/")
 SRK = clean_env("SUPABASE_SERVICE_ROLE_KEY")
-ds = OpenAI(api_key=clean_env("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com")
+DEEPSEEK_KEY = clean_env("DEEPSEEK_API_KEY")
+ds = OpenAI(api_key=DEEPSEEK_KEY, base_url="https://api.deepseek.com")
+
+
+def deepseek_has_budget() -> bool:
+    """Solde DeepSeek disponible ? Un solde à 0 est un événement de budget attendu
+    (plafond mensuel), pas un bug : on SKIP proprement plutôt que de faire échouer le job."""
+    try:
+        r = httpx.get("https://api.deepseek.com/user/balance",
+                      headers={"Authorization": f"Bearer {DEEPSEEK_KEY}"}, timeout=15)
+        if r.status_code != 200:
+            return True  # API solde indisponible → on laisse tenter
+        return bool(r.json().get("is_available"))
+    except Exception:
+        return True  # vérif réseau échouée → on laisse tenter
+
+
+if not deepseek_has_budget():
+    print("=" * 72)
+    print("[BUDGET] SOLDE DEEPSEEK EPUISE — extraction des positions web IGNOREE pour ce run.")
+    print("[BUDGET] Recharger https://platform.deepseek.com/top_up pour reactiver l'IA.")
+    print("=" * 72)
+    sys.exit(0)
 
 PROPOSITIONS = {
     "immigration": "Durcir les règles de l'immigration",
