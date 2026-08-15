@@ -28,7 +28,9 @@ async function main() {
     const list = items.slice(0, 12).map((t: string) => `- ${t}`).join("\n");
     try {
       const resp = await resilientDeepSeek.createMessage({
-        model: "deepseek-v4-flash", max_tokens: 1200, responseFormat: "json_object",
+        // max_tokens élevé : deepseek-v4-flash RAISONNE ; à 1200 le raisonnement épuisait le budget
+        // sur les positions à nombreux items → summary vide. 4000 laisse la place au raisonnement + JSON.
+        model: "deepseek-v4-flash", max_tokens: 4000, responseFormat: "json_object",
         system: `À partir des intitulés de QUESTIONS posées au gouvernement par un·e élu·e sur l'enjeu « ${ISSUE_LABEL[p.issue_slug] || p.issue_slug} », résume factuellement CE QUE l'élu·e met en avant.
 RÈGLES : n'invente rien au-delà des intitulés ; 2-3 phrases (50 mots max). "stance" = 'inconnu' par défaut ; 'pour'/'contre'/'nuance' seulement si nettement exprimé. Rédige STRICTEMENT en français. Réponds en JSON : { "summary": "...", "stance": "inconnu" }`,
         messages: [{ role: "user", content: `Enjeu : ${ISSUE_LABEL[p.issue_slug] || p.issue_slug}\nQuestions :\n${list}` }],
