@@ -16,6 +16,10 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      # Monitoring Healthchecks : fetch-votes pinge ce check (start/success/fail). Sans cette
+      # variable, le cron n'alimentait jamais le check « votes » → faux DOWN. Ajouter le secret
+      # HEALTHCHECK_ID_VOTES dans les repo secrets GitHub (UUID déjà présent dans le .env local).
+      HEALTHCHECK_ID_VOTES: ${{ secrets.HEALTHCHECK_ID_VOTES }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
