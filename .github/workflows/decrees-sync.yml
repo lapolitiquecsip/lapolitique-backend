@@ -1,7 +1,8 @@
 name: Décrets JORF (Journal Officiel)
 on:
   schedule:
-    - cron: '40 6 * * *'   # chaque jour ~08h40 Paris (le JO paraît le matin) — pas de DeepSeek, coût nul
+    - cron: '40 23 * * *'   # ~00h40 Paris = heures CREUSES DeepSeek (le résumé des décrets du JO du
+                            # matin est fait le soir même). 06:40 UTC tombait en heures PLEINES (2× le prix).
   workflow_dispatch:
 concurrency:
   group: decrees-sync

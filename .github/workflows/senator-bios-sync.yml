@@ -1,7 +1,8 @@
 name: Bios sénateurs (Wikipédia + IA)
 on:
   schedule:
-    - cron: '50 22 * * *'   # quotidien ~00h50 Paris (22h50 UTC = heures creuses DeepSeek 16h30-00h30 UTC) ; rattrape le backlog par lots
+    - cron: '50 22 * * 0'   # HEBDO (dimanche ~00h50 Paris, heures creuses DeepSeek). Les bios ne
+                            # changent quasi jamais → hebdo suffit et divise le coût DeepSeek par ~7.
   workflow_dispatch:
     inputs:
       force:

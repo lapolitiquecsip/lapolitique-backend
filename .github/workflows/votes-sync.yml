@@ -43,6 +43,9 @@ jobs:
           TAG_SOURCE: senate
       # 4) Notifie les abonnés dont un élu suivi a voté sur un scrutin solennel
       - run: npm run automation:notifications
-      # 5) Bios structurées des députés (IA, par lots ; reprenable jour après jour)
-      - run: npm run data:sync-deputy-bios -- --limit=150
-        if: steps.budget.outputs.has_budget == 'true'
+      # 5) Bios structurées des députés (IA). HEBDO (lundi uniquement) : les bios ne changent
+      #    quasi jamais → une passe/semaine suffit et divise le coût DeepSeek de ce poste par ~7.
+      - id: dow
+        run: echo "monday=$([ "$(date -u +%u)" = "1" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - run: npm run data:sync-deputy-bios -- --limit=300
+        if: steps.budget.outputs.has_budget == 'true' && steps.dow.outputs.monday == 'true'
