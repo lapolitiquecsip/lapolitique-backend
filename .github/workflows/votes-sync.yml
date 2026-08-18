@@ -43,6 +43,13 @@ jobs:
           TAG_SOURCE: senate
       # 4) Notifie les abonnés dont un élu suivi a voté sur un scrutin solennel
       - run: npm run automation:notifications
+      # 4bis) Envoie par e-mail les notifications non encore envoyées (digest quotidien).
+      #       Dry-run tant que RESEND_API_KEY n'est pas fourni (log seulement).
+      - run: npm run automation:send-notification-emails
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          SITE_URL: https://lapolitiquecsip.github.io/politique-pour-tous
       # 5) Bios structurées des députés (IA). HEBDO (lundi uniquement) : les bios ne changent
       #    quasi jamais → une passe/semaine suffit et divise le coût DeepSeek de ce poste par ~7.
       - id: dow
