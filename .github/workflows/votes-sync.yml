@@ -49,7 +49,7 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-          SITE_URL: https://lapolitiquecsip.github.io/politique-pour-tous
+          SITE_URL: https://lapolitiquecestsimple.fr
       # 5) Bios structurées des députés (IA). HEBDO (lundi uniquement) : les bios ne changent
       #    quasi jamais → une passe/semaine suffit et divise le coût DeepSeek de ce poste par ~7.
       - id: dow

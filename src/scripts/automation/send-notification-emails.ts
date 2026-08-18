@@ -9,10 +9,10 @@ import { supabase } from "../../config/supabase.js";
 // Provider : Resend (offre gratuite ~3000 mails/mois). Variables d'env requises :
 //   RESEND_API_KEY   (secret)
 //   EMAIL_FROM       ex. "La Politique C'est Simple <alertes@ton-domaine.fr>" (expéditeur vérifié)
-//   SITE_URL         ex. "https://lapolitiquecsip.github.io/politique-pour-tous" (liens)
+//   SITE_URL         ex. "https://lapolitiquecestsimple.fr" (liens)
 // Dry-run si RESEND_API_KEY absente : log seulement, n'écrit rien.
 
-const SITE_URL = process.env.SITE_URL || "https://lapolitiquecsip.github.io/politique-pour-tous";
+const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
 const FROM = process.env.EMAIL_FROM || "La Politique C'est Simple <onboarding@resend.dev>";
 const RESEND_KEY = process.env.RESEND_API_KEY;
 const LOOKBACK_DAYS = Number(process.env.EMAIL_LOOKBACK_DAYS || 7);
