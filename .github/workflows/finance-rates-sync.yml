@@ -1,0 +1,21 @@
+name: Taux d'emprunt (Eurostat)
+on:
+  schedule:
+    - cron: '25 5 * * 1'   # chaque lundi ~07h25 Paris (Eurostat publie mensuellement ; gratuit, sans IA)
+  workflow_dispatch:
+concurrency:
+  group: finance-rates-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  rates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:sync-borrowing-rates
