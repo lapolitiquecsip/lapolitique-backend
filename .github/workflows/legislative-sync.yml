@@ -82,3 +82,12 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Monitoring Healthchecks : on re-route le check « laws » (dont le script d'origine
+      # fetch-laws.ts est mort) vers CE pipeline législatif réel. Ping succès / échec.
+      # Régler la période du check sur ~1 h côté healthchecks.io (ce cron tourne toutes les 30 min).
+      - name: Healthcheck laws (succès)
+        if: success()
+        run: curl -fsS -m 10 --retry 3 "https://hc-ping.com/${{ secrets.HEALTHCHECK_ID_LAWS }}" || true
+      - name: Healthcheck laws (échec)
+        if: failure()
+        run: curl -fsS -m 10 --retry 3 "https://hc-ping.com/${{ secrets.HEALTHCHECK_ID_LAWS }}/fail" || true

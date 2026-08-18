@@ -21,6 +21,9 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       INGESTION_MODE: ${{ inputs.mode || 'incremental' }}
+      # Monitoring Healthchecks : fetch-petitions pinge ce check. Sans la variable, le cron
+      # n'alimentait pas le check « petitions » → faux DOWN. Ajouter le secret côté GitHub.
+      HEALTHCHECK_ID_PETITIONS: ${{ secrets.HEALTHCHECK_ID_PETITIONS }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job

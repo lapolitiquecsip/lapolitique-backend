@@ -55,6 +55,37 @@ class RequestQueue {
 
 const deepseekQueue = new RequestQueue();
 
+// Garde-fou budget GLOBAL : au tout premier appel DeepSeek d'un process, on vérifie le solde du
+// compte. S'il est épuisé (événement de budget attendu, plafond ~10 $/mois — PAS un bug), on sort
+// proprement (exit 0) plutôt que d'enchaîner des 402 « Insufficient Balance » qui font échouer le
+// cron en rouge. Couvre TOUS les scripts qui utilisent DeepSeek, sans toucher aux workflows. Le
+// travail GRATUIT déjà effectué avant le 1er appel IA est préservé.
+let budgetChecked = false;
+async function ensureBudgetOrExit(): Promise<void> {
+  if (budgetChecked) return;
+  budgetChecked = true;
+  const key = process.env.DEEPSEEK_API_KEY;
+  if (!key || process.env.DEEPSEEK_SKIP_BUDGET_CHECK === '1') return;
+  try {
+    const res = await fetch('https://api.deepseek.com/user/balance', {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return; // API solde indisponible → on laisse tenter
+    const data = (await res.json()) as { is_available?: boolean; balance_infos?: { total_balance?: string }[] };
+    if (data.is_available === false) {
+      const bal = data.balance_infos?.[0]?.total_balance ?? '?';
+      console.log('='.repeat(72));
+      console.log('[BUDGET] Solde DeepSeek epuise (' + bal + ' USD) — etape IA ignoree, sortie propre.');
+      console.log('[BUDGET] Recharger https://platform.deepseek.com/top_up pour reactiver l\'IA.');
+      console.log('='.repeat(72));
+      process.exit(0);
+    }
+  } catch {
+    // Erreur reseau sur la verif → on laisse tenter plutot que de bloquer.
+  }
+}
+
 export interface DeepSeekMessageParams {
   model: string;
   max_tokens: number;
@@ -87,6 +118,7 @@ export class ResilientDeepSeek {
     params: DeepSeekMessageParams,
     options?: { timeoutMs?: number }
   ): Promise<DeepSeekMessage> {
+    await ensureBudgetOrExit(); // sortie propre si solde epuise (couvre tous les crons)
     const timeoutMs = options?.timeoutMs || 45000; // 45s default timeout
 
     const executeWithRetryAndTimeout = async (): Promise<DeepSeekMessage> => {
