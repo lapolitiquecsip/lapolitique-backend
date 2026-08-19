@@ -93,12 +93,15 @@ export async function syncDeputyStats() {
     let updatedCount = 0;
     let missingCount = 0;
     const sittingIds = new Set<string>();   // députés présents dans le roster officiel (en fonction)
+    const toInsert: string[][] = [];         // députés du roster ABSENTS de la base (nouveaux : suppléants…)
+
+    const gv = (row: string[], header: string): string => {
+      const idx = headerIndices[header];
+      return idx !== undefined ? (row[idx] || '') : '';
+    };
 
     for (const row of dataRows) {
-      const getValue = (header: string): string => {
-        const idx = headerIndices[header];
-        return idx !== undefined ? row[idx] || '' : '';
-      };
+      const getValue = (header: string): string => gv(row, header);
 
       const anId = getValue('id').trim();
       if (!anId) continue;
@@ -106,6 +109,7 @@ export async function syncDeputyStats() {
       const dbDeputy = deputyMapByAnId.get(anId);
       if (!dbDeputy) {
         missingCount++;
+        if (anId.startsWith('PA')) toInsert.push(row);   // à créer
         continue;
       }
       sittingIds.add(dbDeputy.id);   // présent dans le roster AN → en fonction
@@ -183,10 +187,47 @@ export async function syncDeputyStats() {
       }
     }
 
-    // NB : on NE déduit PAS le statut « en fonction » de ce CSV datan — il n'est pas un roster
-    // exhaustif (des députés en fonction en sont absents → faux positifs). La détection des départs
-    // députés nécessite la source AUTORITAIRE de l'AN (acteurs/mandats avec dateFin), à part.
+    // NB : on NE déduit PAS le statut « en fonction » de ce CSV (fait par sync-deputy-roster, source AN).
     void sittingIds;
+
+    // Insère les députés du roster ABSENTS de la base (nouveaux entrants : suppléants des sortis…),
+    // pour garder le roster complet automatiquement. Champs officiels tirés du CSV datan.
+    if (toInsert.length > 0) {
+      const GROUP_COLOR: Record<string, string> = {
+        LFI: '#E4032E', GDR: '#D40000', ECO: '#4CA85F', SOC: '#E24E8B', LIOT: '#F2C037',
+        DEM: '#FF9900', EPR: '#7B2C8F', HOR: '#5BC0EB', DR: '#2E5AAC', UDR: '#0B3D91', NI: '#8D949A',
+      };
+      const slugify = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const pct = (v: string) => { const n = parseFloat(v); return isNaN(n) ? null : Math.round(n * 1000) / 10; };
+      const num = (v: string) => { const n = parseInt(v, 10); return isNaN(n) ? null : n; };
+      const { data: existing } = await supabase.from('deputies').select('slug');
+      const slugs = new Set((existing || []).map((d: any) => d.slug));
+      const records = toInsert.map(row => {
+        const anId = gv(row, 'id').trim();
+        const prenom = gv(row, 'prenom').trim(), nom = gv(row, 'nom').trim();
+        let slug = slugify(`${prenom} ${nom}`);
+        if (slugs.has(slug)) slug = `${slug}-${anId.replace('PA', '')}`;   // désambiguïse (homonyme)
+        slugs.add(slug);
+        const abbr = gv(row, 'groupeAbrev').trim();
+        return {
+          an_id: anId, first_name: prenom, last_name: nom, slug,
+          party: abbr || gv(row, 'groupe').trim() || null,
+          party_color: GROUP_COLOR[abbr] || null,
+          department: gv(row, 'departementNom').trim() || null,
+          constituency_number: num(gv(row, 'circo')),
+          photo_url: `https://www.assemblee-nationale.fr/dyn/static/tribun/17/photos/carre/${anId.replace('PA', '')}.jpg`,
+          participation_rate: pct(gv(row, 'scoreParticipation')),
+          group_loyalty: pct(gv(row, 'scoreLoyaute')),
+          nombre_mandats: num(gv(row, 'nombreMandats')),
+          date_prise_fonction: gv(row, 'datePriseFonction').trim() || null,
+          job: gv(row, 'job').trim() || null,
+          sitting: true,
+        };
+      });
+      const { error: insErr } = await supabase.from('deputies').insert(records);
+      if (insErr) console.warn(`⚠️ insertion nouveaux députés : ${insErr.message}`);
+      else console.log(`> ${records.length} nouveau(x) député(s) ajouté(s) au roster.`);
+    }
 
     console.log(`\n=== SYNCHRONIZATION COMPLETED ===`);
     console.log(`Updated deputies: ${updatedCount}`);
