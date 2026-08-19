@@ -60,16 +60,27 @@ export async function syncSenatorOdsen() {
   }
   console.log(`> ODSEN : ${activeByMat.size} sénateurs actifs.`);
 
-  const { data: senators, error } = await supabase.from("senators").select("id, first_name, last_name");
+  const { data: senators, error } = await supabase.from("senators").select("id, first_name, last_name, photo_url");
   if (error) throw error;
 
-  let ok = 0, miss = 0;
+  // Photo officielle senat.fr : {nom}_{prenom}{matricule}[_carre].jpg — on garde celle qui existe.
+  const fileNorm = (str: string) => (str || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
+  const findPhoto = async (nom: string, pre: string, mat: string): Promise<string | null> => {
+    if (!mat) return null;
+    const base = `https://www.senat.fr/senimg/${fileNorm(nom)}_${fileNorm(pre)}${mat.toLowerCase()}`;
+    for (const cand of [`${base}_carre.jpg`, `${base}.jpg`]) {
+      try { const r = await fetch(cand, { signal: AbortSignal.timeout(12000) }); if (r.ok && (r.headers.get("content-type") || "").includes("image")) return cand; } catch { /* ignore */ }
+    }
+    return null;
+  };
+
+  let ok = 0, miss = 0, photos = 0;
   const sitting: string[] = [], gone: string[] = [];   // ids en fonction / sortis
   for (const s of senators || []) {
     const r = byName.get(norm(`${s.last_name} ${s.first_name}`)) || byName.get(norm(`${s.first_name} ${s.last_name}`));
     if (!r) { miss++; gone.push(s.id); console.warn(`  ! non trouvé dans ODSEN (sorti ?) : ${s.first_name} ${s.last_name}`); continue; }
     sitting.push(s.id);
-    const payload = {
+    const payload: Record<string, any> = {
       senate_matricule: r[iMat] || null,
       birth_date: cleanDate(r[iNai]),
       profession: (r[iProf] || "").trim() || null,
@@ -78,6 +89,9 @@ export async function syncSenatorOdsen() {
       committee: (r[iCom] || "").trim() || null,
       email: (r[iMail] || "").trim() || null,
     };
+    // Rattrapage photo : sénateur sans photo → on tente senat.fr (utile pour les nouveaux entrants
+    // dont la photo est mise en ligne après leur arrivée, ex. Anne Camerac).
+    if (!s.photo_url) { const p = await findPhoto(r[iNom] || "", r[iPrenom] || "", r[iMat] || ""); if (p) { payload.photo_url = p; photos++; } }
     const { error: upErr } = await supabase.from("senators").update(payload).eq("id", s.id);
     if (upErr) console.warn(`  ! update ${s.last_name}:`, upErr.message);
     else ok++;
@@ -106,15 +120,6 @@ export async function syncSenatorOdsen() {
   const { data: existing } = await supabase.from("senators").select("slug");
   const slugs = new Set((existing || []).map((x: any) => x.slug));
   const slugify = (str: string) => (str || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  const fileNorm = (str: string) => (str || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
-  // Photo officielle senat.fr : {nom}_{prenom}{matricule}[_carre].jpg — on garde celle qui existe.
-  const findPhoto = async (nom: string, pre: string, mat: string): Promise<string | null> => {
-    const base = `https://www.senat.fr/senimg/${fileNorm(nom)}_${fileNorm(pre)}${(mat || "").toLowerCase()}`;
-    for (const cand of [`${base}_carre.jpg`, `${base}.jpg`]) {
-      try { const r = await fetch(cand, { signal: AbortSignal.timeout(12000) }); if (r.ok && (r.headers.get("content-type") || "").includes("image")) return cand; } catch { /* ignore */ }
-    }
-    return null;
-  };
   const newSen: any[] = [];
   for (const [mat, r] of activeByMat) {
     const nom = r[iNom] || "", pre = r[iPrenom] || "";
@@ -137,7 +142,7 @@ export async function syncSenatorOdsen() {
     else console.log(`> ${newSen.length} nouveau(x) sénateur(s) ajouté(s) (remplaçants).`);
   }
 
-  console.log(`--- TERMINE. ${ok} sénateurs renseignés, ${miss} non trouvés. ---`);
+  console.log(`--- TERMINE. ${ok} sénateurs renseignés, ${miss} non trouvés, ${photos} photo(s) rattrapée(s). ---`);
   return ok;
 }
 
