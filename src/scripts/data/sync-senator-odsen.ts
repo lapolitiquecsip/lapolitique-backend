@@ -106,6 +106,15 @@ export async function syncSenatorOdsen() {
   const { data: existing } = await supabase.from("senators").select("slug");
   const slugs = new Set((existing || []).map((x: any) => x.slug));
   const slugify = (str: string) => (str || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const fileNorm = (str: string) => (str || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
+  // Photo officielle senat.fr : {nom}_{prenom}{matricule}[_carre].jpg — on garde celle qui existe.
+  const findPhoto = async (nom: string, pre: string, mat: string): Promise<string | null> => {
+    const base = `https://www.senat.fr/senimg/${fileNorm(nom)}_${fileNorm(pre)}${(mat || "").toLowerCase()}`;
+    for (const cand of [`${base}_carre.jpg`, `${base}.jpg`]) {
+      try { const r = await fetch(cand, { signal: AbortSignal.timeout(12000) }); if (r.ok && (r.headers.get("content-type") || "").includes("image")) return cand; } catch { /* ignore */ }
+    }
+    return null;
+  };
   const newSen: any[] = [];
   for (const [mat, r] of activeByMat) {
     const nom = r[iNom] || "", pre = r[iPrenom] || "";
@@ -115,6 +124,7 @@ export async function syncSenatorOdsen() {
     slugs.add(slug);
     newSen.push({
       first_name: pre.trim(), last_name: nom.trim(), slug, senate_matricule: mat,
+      photo_url: await findPhoto(nom, pre, mat),
       senate_group: (r[iGrp] || "").trim() || null, department: (r[iCirc] || "").trim() || null,
       birth_date: cleanDate(r[iNai]), profession: (r[iProf] || "").trim() || null,
       csp: (r[iCsp] || "").trim() || null, committee: (r[iCom] || "").trim() || null,
