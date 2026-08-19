@@ -92,6 +92,7 @@ export async function syncDeputyStats() {
 
     let updatedCount = 0;
     let missingCount = 0;
+    const sittingIds = new Set<string>();   // députés présents dans le roster officiel (en fonction)
 
     for (const row of dataRows) {
       const getValue = (header: string): string => {
@@ -107,6 +108,7 @@ export async function syncDeputyStats() {
         missingCount++;
         continue;
       }
+      sittingIds.add(dbDeputy.id);   // présent dans le roster AN → en fonction
 
       // Safe number parsers
       const parsePercent = (val: string): number | null => {
@@ -179,6 +181,25 @@ export async function syncDeputyStats() {
       } else {
         updatedCount++;
       }
+    }
+
+    // Statut « en fonction » : présent dans le roster officiel = en fonction ; absent = sorti
+    // (décès, démission, nomination au gouvernement remplacé par le suppléant…). Tolérant si la
+    // colonne `sitting` n'existe pas encore.
+    const gone = (dbDeputies || []).filter(d => !sittingIds.has(d.id)).map(d => d.id);
+    const markSitting = async (ids: string[], value: boolean) => {
+      for (let i = 0; i < ids.length; i += 200) {
+        const { error } = await supabase.from('deputies').update({ sitting: value }).in('id', ids.slice(i, i + 200));
+        if (error) return error;
+      }
+      return null;
+    };
+    const sErr = await markSitting([...sittingIds], true);
+    if (sErr && /sitting|column .* does not exist/i.test(sErr.message)) {
+      console.warn(`⚠️ colonne deputies.sitting absente — appliquer la migration pour activer la détection des départs.`);
+    } else if (gone.length) {
+      await markSitting(gone, false);
+      console.log(`> Statut : ${sittingIds.size} en fonction, ${gone.length} sorti(s) marqué(s).`);
     }
 
     console.log(`\n=== SYNCHRONIZATION COMPLETED ===`);

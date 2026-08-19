@@ -62,9 +62,11 @@ export async function syncSenatorOdsen() {
   if (error) throw error;
 
   let ok = 0, miss = 0;
+  const sitting: string[] = [], gone: string[] = [];   // ids en fonction / sortis
   for (const s of senators || []) {
     const r = byName.get(norm(`${s.last_name} ${s.first_name}`)) || byName.get(norm(`${s.first_name} ${s.last_name}`));
-    if (!r) { miss++; console.warn(`  ! non trouvé dans ODSEN : ${s.first_name} ${s.last_name}`); continue; }
+    if (!r) { miss++; gone.push(s.id); console.warn(`  ! non trouvé dans ODSEN (sorti ?) : ${s.first_name} ${s.last_name}`); continue; }
+    sitting.push(s.id);
     const payload = {
       senate_matricule: r[iMat] || null,
       birth_date: cleanDate(r[iNai]),
@@ -78,6 +80,24 @@ export async function syncSenatorOdsen() {
     if (upErr) console.warn(`  ! update ${s.last_name}:`, upErr.message);
     else ok++;
   }
+  // Statut « en fonction » : ACTIF dans ODSEN = en fonction ; absent = sorti (décès, démission,
+  // remplacement par le suppléant…). Tolérant si la colonne `sitting` n'existe pas encore.
+  const setSitting = async (ids: string[], value: boolean) => {
+    if (!ids.length) return null;
+    for (let i = 0; i < ids.length; i += 200) {
+      const { error: e } = await supabase.from("senators").update({ sitting: value }).in("id", ids.slice(i, i + 200));
+      if (e) return e;
+    }
+    return null;
+  };
+  const e1 = await setSitting(sitting, true);
+  if (e1 && /sitting|column .* does not exist/i.test(e1.message)) {
+    console.warn("  ! colonne senators.sitting absente — appliquer la migration pour activer la détection des départs.");
+  } else {
+    await setSitting(gone, false);
+    console.log(`> Statut mis à jour : ${sitting.length} en fonction, ${gone.length} sorti(s).`);
+  }
+
   console.log(`--- TERMINE. ${ok} sénateurs renseignés, ${miss} non trouvés. ---`);
   return ok;
 }
