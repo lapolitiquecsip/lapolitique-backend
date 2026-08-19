@@ -19,9 +19,15 @@ export async function generateWeeklyStats() {
   const randomTopic = topics[Math.floor(Math.random() * topics.length)];
   const currentDate = new Date().toLocaleDateString('fr-FR');
 
-  const prompt = `Expert du Parlement français. Génère 5 informations marquantes + 1 "Intox" hebdo.
-Exigences : UTILES et NON-ÉVIDENTES (même pour connaisseurs), VARIÉES à chaque fois (ne répète pas les stats habituelles). Inclus au moins un fait lié au thème : "${randomTopic}". Date : ${currentDate}.
-Évite les généralités ("le 49.3", "la présidente de l'AN"). Vise : chiffres techniques précis (taux d'amendements…), procédures méconnues, faits historiques rares, détails budgétaires/institutionnels pointus, données réelles de la 17e législature ou de l'histoire parlementaire.
+  const prompt = `Expert du fonctionnement institutionnel du Parlement français. Génère 5 informations marquantes + 1 "Intox" hebdo.
+
+CADRE STRICT — faits INSTITUTIONNELS VÉRIFIABLES uniquement :
+- Autorisé : règles et procédures parlementaires (Constitution, règlements de l'AN/du Sénat, procédure législative, CMP, motions, 49.3, art. 40/45…), faits historiques établis et datés, chiffres structurels stables et publics (nombre de sièges, seuils, durées de mandat, majorités requises, composition des commissions), budget officiel des assemblées.
+- INTERDIT : tout chiffre que tu n'es pas certain de connaître exactement, toute statistique "de la semaine" ou récente invérifiable (taux d'amendements de tel texte, nombre de recrutements, montants précis d'une rénovation…). Dans le doute, choisis un fait de procédure ou historique CERTAIN plutôt qu'un chiffre inventé. Mieux vaut un fait connu et exact qu'un chiffre précis mais fabriqué.
+- L'"intox" doit opposer une idée reçue répandue à la RÈGLE réelle (vérifiable dans la Constitution ou les règlements), pas à une actualité.
+
+Exigences : UTILES et NON-ÉVIDENTES (même pour connaisseurs), VARIÉES à chaque fois. Inclus au moins un fait lié au thème : "${randomTopic}". Date : ${currentDate}.
+Évite les généralités trop connues ("le 49.3 permet d'adopter sans vote", "l'AN a 577 députés").
 
 Réponds UNIQUEMENT par le tableau JSON, sans texte avant/après. Exactement 5 faits (mélange "fact" chiffrés et "did-you-know") + 1 "intox". Couleurs = codes HEX VIFS et saturés (texte blanc lisible).
 [

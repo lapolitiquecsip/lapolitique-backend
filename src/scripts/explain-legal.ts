@@ -1,3 +1,5 @@
+import 'dotenv/config';   // DOIT rester en 1er : charge .env AVANT l'import du client DeepSeek
+                          // (son OpenAI() lit process.env.DEEPSEEK_API_KEY dès la construction).
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import path from 'path';
@@ -35,33 +37,43 @@ function parseAffairs(legalIssues: string | null): Affair[] {
     .filter(a => a.title.length > 0);
 }
 
-async function explainAffair(a: Affair): Promise<string | null> {
-  const response = await resilientDeepSeek.createMessage({
-    model: 'deepseek-v4-flash',
-    max_tokens: 500,
-    system: `Tu es un journaliste judiciaire. On te donne le TITRE et les DÉTAILS (peines, infractions, année) d'une affaire judiciaire impliquant une personnalité politique française.
+const EXPLAIN_SYSTEM = `Tu es un journaliste judiciaire. On te donne le TITRE et les DÉTAILS (peines, infractions, année) d'une affaire judiciaire impliquant une personnalité politique française.
 
-Ta tâche : expliquer CONCRÈTEMENT et FACTUELLEMENT en quoi consiste cette affaire précise — ce que la personne a fait ou ce qui lui est reproché, en 2 à 3 phrases simples et neutres, pour un citoyen non juriste.
+Ta tâche : expliquer CONCRÈTEMENT et FACTUELLEMENT en quoi consiste cette affaire précise — ce que la personne a fait ou ce qui lui est reproché, en 2 à 4 phrases simples et neutres, pour un citoyen non juriste.
 
 RÈGLES STRICTES :
 - Reste factuel et neutre, sans jugement moral ni sensationnalisme.
 - Décris les FAITS de CETTE affaire précise (pas une définition générale de l'infraction).
 - Si tu ne connais pas les faits précis de l'affaire, décris prudemment ce qui est reproché à partir du titre et de l'infraction, sans inventer de détails (noms, dates, montants) que tu ignores.
-- Pas d'introduction ni de conclusion. Réponds uniquement par l'explication.`,
-    messages: [
-      { role: 'user', content: `TITRE : ${a.title}\nDÉTAILS : ${a.details || '(non précisés)'}` }
-    ],
-  }, { timeoutMs: 60000 });
+- Pas d'introduction ni de conclusion. Réponds uniquement par l'explication.`;
 
-  const text = response.content?.[0]?.text?.trim();
-  return text && text.length > 10 ? text : null;
+async function explainAffair(a: Affair): Promise<string | null> {
+  const userMsg = `TITRE : ${a.title}\nDÉTAILS : ${a.details || '(non précisés)'}`;
+  // deepseek-chat (non-raisonneur) : réponse complète et immédiate. Le modèle « flash »
+  // raisonne et tronque parfois la sortie à max_tokens → explication vide. Repli sur flash
+  // (gros plafond) si l'alias chat est un jour retiré.
+  const attempts: Array<{ model: string; max_tokens: number; timeoutMs: number }> = [
+    { model: 'deepseek-chat', max_tokens: 800, timeoutMs: 60000 },
+    { model: 'deepseek-v4-flash', max_tokens: 4000, timeoutMs: 120000 },
+  ];
+  for (const at of attempts) {
+    try {
+      const response = await resilientDeepSeek.createMessage({
+        model: at.model, max_tokens: at.max_tokens, system: EXPLAIN_SYSTEM,
+        messages: [{ role: 'user', content: userMsg }],
+      }, { timeoutMs: at.timeoutMs });
+      const text = response.content?.[0]?.text?.trim();
+      if (text && text.length > 10) return text;
+    } catch { /* tentative suivante */ }
+  }
+  return null;
 }
 
 async function main() {
   console.log('--- EXPLICATIONS DES AFFAIRES JUDICIAIRES ---');
 
-  // 1) Rassemble toutes les affaires connues (députés, sénateurs, candidats).
-  const tables = ['deputies', 'senators', 'presidential_candidates'];
+  // 1) Rassemble toutes les affaires connues (députés, sénateurs, eurodéputés, candidats).
+  const tables = ['deputies', 'senators', 'meps', 'presidential_candidates'];
   const affairsByKey = new Map<string, Affair>();
   for (const table of tables) {
     const { data, error } = await supabase.from(table).select('legal_issues');
