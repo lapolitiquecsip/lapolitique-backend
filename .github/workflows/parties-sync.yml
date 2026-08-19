@@ -21,8 +21,10 @@ jobs:
       - uses: ./.github/actions/setup-data-job
       # 1) Fiches + statistiques datan (quotidien)
       - run: npm run data:sync-parties
-      # 1a) Stats députés (datan) + détection des départs (sitting=false si absent du roster officiel)
+      # 1a) Stats députés (datan : participation, loyauté…)
       - run: npm run automation:deputy-stats
+      # 1b) Roster AUTORITAIRE AN (députés actifs) → détection des départs (sitting=false)
+      - run: npm run data:sync-deputy-roster
       # 1b) Eurodéputés français (Parlement européen)
       - run: npm run data:sync-meps
       # 2) Enrichissement Wikipédia/IA (budget, adhérents, fondation…) — mis en cache

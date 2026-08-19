@@ -183,24 +183,10 @@ export async function syncDeputyStats() {
       }
     }
 
-    // Statut « en fonction » : présent dans le roster officiel = en fonction ; absent = sorti
-    // (décès, démission, nomination au gouvernement remplacé par le suppléant…). Tolérant si la
-    // colonne `sitting` n'existe pas encore.
-    const gone = (dbDeputies || []).filter(d => !sittingIds.has(d.id)).map(d => d.id);
-    const markSitting = async (ids: string[], value: boolean) => {
-      for (let i = 0; i < ids.length; i += 200) {
-        const { error } = await supabase.from('deputies').update({ sitting: value }).in('id', ids.slice(i, i + 200));
-        if (error) return error;
-      }
-      return null;
-    };
-    const sErr = await markSitting([...sittingIds], true);
-    if (sErr && /sitting|column .* does not exist/i.test(sErr.message)) {
-      console.warn(`⚠️ colonne deputies.sitting absente — appliquer la migration pour activer la détection des départs.`);
-    } else if (gone.length) {
-      await markSitting(gone, false);
-      console.log(`> Statut : ${sittingIds.size} en fonction, ${gone.length} sorti(s) marqué(s).`);
-    }
+    // NB : on NE déduit PAS le statut « en fonction » de ce CSV datan — il n'est pas un roster
+    // exhaustif (des députés en fonction en sont absents → faux positifs). La détection des départs
+    // députés nécessite la source AUTORITAIRE de l'AN (acteurs/mandats avec dateFin), à part.
+    void sittingIds;
 
     console.log(`\n=== SYNCHRONIZATION COMPLETED ===`);
     console.log(`Updated deputies: ${updatedCount}`);
