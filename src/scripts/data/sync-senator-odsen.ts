@@ -48,15 +48,17 @@ export async function syncSenatorOdsen() {
   // Prénom = colonne juste après "Nom usuel".
   const iPrenom = iNom + 1;
 
-  // Index des lignes ACTIF par nom normalisé (nom + prénom, et prénom + nom).
+  // Index des lignes ACTIF par nom normalisé (nom + prénom, et prénom + nom) + liste dédup par matricule.
   const byName = new Map<string, string[]>();
+  const activeByMat = new Map<string, string[]>();
   for (const r of rows.slice(1)) {
     if ((r[iEtat] || "").toUpperCase() !== "ACTIF") continue;
     const nom = r[iNom] || "", pre = r[iPrenom] || "";
     byName.set(norm(`${nom} ${pre}`), r);
     byName.set(norm(`${pre} ${nom}`), r);
+    if (r[iMat]) activeByMat.set(r[iMat], r);
   }
-  console.log(`> ODSEN : ${byName.size / 2 | 0} sénateurs actifs.`);
+  console.log(`> ODSEN : ${activeByMat.size} sénateurs actifs.`);
 
   const { data: senators, error } = await supabase.from("senators").select("id, first_name, last_name");
   if (error) throw error;
@@ -96,6 +98,33 @@ export async function syncSenatorOdsen() {
   } else {
     await setSitting(gone, false);
     console.log(`> Statut mis à jour : ${sitting.length} en fonction, ${gone.length} sorti(s).`);
+  }
+
+  // Insère les sénateurs ACTIF d'ODSEN absents de notre base (remplaçants des sortis).
+  const ourNames = new Set<string>();
+  for (const s of senators || []) { ourNames.add(norm(`${s.last_name} ${s.first_name}`)); ourNames.add(norm(`${s.first_name} ${s.last_name}`)); }
+  const { data: existing } = await supabase.from("senators").select("slug");
+  const slugs = new Set((existing || []).map((x: any) => x.slug));
+  const slugify = (str: string) => (str || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const newSen: any[] = [];
+  for (const [mat, r] of activeByMat) {
+    const nom = r[iNom] || "", pre = r[iPrenom] || "";
+    if (ourNames.has(norm(`${nom} ${pre}`)) || ourNames.has(norm(`${pre} ${nom}`))) continue; // déjà en base
+    let slug = slugify(`${pre} ${nom}`);
+    if (slugs.has(slug)) slug = `${slug}-${(mat || "").toLowerCase()}`;
+    slugs.add(slug);
+    newSen.push({
+      first_name: pre.trim(), last_name: nom.trim(), slug, senate_matricule: mat,
+      senate_group: (r[iGrp] || "").trim() || null, department: (r[iCirc] || "").trim() || null,
+      birth_date: cleanDate(r[iNai]), profession: (r[iProf] || "").trim() || null,
+      csp: (r[iCsp] || "").trim() || null, committee: (r[iCom] || "").trim() || null,
+      email: (r[iMail] || "").trim() || null, sitting: true,
+    });
+  }
+  if (newSen.length) {
+    const { error: insErr } = await supabase.from("senators").insert(newSen);
+    if (insErr) console.warn(`  ! insertion nouveaux sénateurs : ${insErr.message}`);
+    else console.log(`> ${newSen.length} nouveau(x) sénateur(s) ajouté(s) (remplaçants).`);
   }
 
   console.log(`--- TERMINE. ${ok} sénateurs renseignés, ${miss} non trouvés. ---`);
