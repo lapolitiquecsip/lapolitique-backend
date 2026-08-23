@@ -12,6 +12,7 @@
     "automation:petitions": "tsx src/scripts/automation/fetch-petitions.ts",
     "automation:votes": "tsx src/scripts/legislative/sync-scrutins.ts",
     "automation:notifications": "tsx src/scripts/automation/generate-notifications.ts",
+    "automation:interest-notifications": "tsx src/scripts/automation/generate-interest-notifications.ts",
     "automation:fetch-votes": "tsx src/scripts/automation/fetch-votes.ts",
     "automation:summarize": "tsx src/scripts/automation/scrutin-summarizer.ts",
     "automation:budget-check": "tsx src/scripts/automation/deepseek-budget-check.ts",

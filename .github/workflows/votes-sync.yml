@@ -43,6 +43,8 @@ jobs:
           TAG_SOURCE: senate
       # 4) Notifie les abonnés dont un élu suivi a voté sur un scrutin solennel
       - run: npm run automation:notifications
+      # 4a) Notifications PERSONNALISÉES premium (flux entity_feed → profils/intérêts). Aucun coût IA.
+      - run: npm run automation:interest-notifications
       # 4bis) Envoie par e-mail les notifications non encore envoyées (digest quotidien).
       #       Dry-run tant que RESEND_API_KEY n'est pas fourni (log seulement).
       - run: npm run automation:send-notification-emails
