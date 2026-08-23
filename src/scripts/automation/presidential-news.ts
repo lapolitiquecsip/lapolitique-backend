@@ -9,7 +9,9 @@ const MAX_ITEMS_PER_CANDIDATE = 5;
 // Résume une actualité concernant un candidat, avec valeur ajoutée et classification.
 async function summariseNews(candidate: string, title: string, snippet: string) {
   const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    // deepseek-chat (non-raisonneur) : appelé en boucle sur chaque actu → bien moins cher
+    // et pas de risque de troncature par raisonnement (flash pouvait rendre un JSON vide).
+    model: "deepseek-chat",
     max_tokens: 1200,
     responseFormat: "json_object",
     system: `Tu alimentes le fil d'actualité d'un candidat à la présidentielle 2027 (${candidate}). À partir du titre et de l'extrait d'un article, produis une entrée courte et à valeur ajoutée.
