@@ -29,6 +29,20 @@ const IMPORTANCE_BY_TYPE: Record<string, number> = {
 };
 const importanceOf = (newsType: string | null) => IMPORTANCE_BY_TYPE[String(newsType || "").toLowerCase()] ?? 3;
 
+// Intérêts IMPLICITES déduits de la profession et de l'âge : un retraité est concerné par les
+// retraites/la santé, un étudiant par l'éducation… même sans les avoir cochés explicitement.
+const PROFESSION_INTERESTS: Record<string, string[]> = {
+  etudiant: ["education", "emploi"], salarie_prive: ["emploi", "economie"],
+  fonctionnaire: ["institutions", "emploi"], independant: ["economie", "emploi"],
+  demandeur: ["emploi", "social"], retraite: ["retraites", "sante"],
+};
+const AGE_INTERESTS: Record<string, string[]> = {
+  "-18": ["education"], "18-24": ["education", "emploi"], "65+": ["retraites", "sante"],
+};
+function withImplied(explicit: string[], profession: string | null, age: string | null): string[] {
+  return [...new Set([...(explicit || []), ...(PROFESSION_INTERESTS[profession || ""] || []), ...(AGE_INTERESTS[age || ""] || [])])];
+}
+
 // Code département depuis un texte libre (nom ou numéro) saisi par le membre.
 const DEPARTMENTS: Record<string, string> = {
   "01": "ain", "02": "aisne", "03": "allier", "04": "alpes-de-haute-provence", "05": "hautes-alpes",
@@ -150,9 +164,9 @@ export async function generateInterestNotifications() {
 
   // 1) Membres avec un profil (intérêts et/ou localisation renseignés).
   const prefs = await fetchAll("user_preferences",
-    "user_id, interests, region, department, city, notify_email, email_min_importance", q => q);
+    "user_id, interests, region, department, city, age_range, profession, notify_email, email_min_importance", q => q);
   const users = prefs
-    .map(p => ({ ...p, deptCode: userDeptCode(p.department), interests: (p.interests || []) as string[] }))
+    .map(p => ({ ...p, deptCode: userDeptCode(p.department), interests: withImplied(p.interests || [], p.profession, p.age_range) }))
     .filter(u => u.interests.length > 0 || u.deptCode);
   if (TEST) users.push({ user_id: "00000000-0000-0000-0000-000000000000", interests: ["economie", "securite", "ecologie", "sante", "logement", "agriculture"], region: null, department: "34", city: null, notify_email: true, email_min_importance: 3, deptCode: "34" } as any);
   console.log(`> ${users.length} membre(s) avec profil.`);
