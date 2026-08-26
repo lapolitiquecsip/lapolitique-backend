@@ -61,6 +61,7 @@ const CANDIDATE_SEED: Detected[] = [
   { full_name: "Juan Branco", party: "Les Ruches", political_side: "autre", declared_at: "2024-12-21", confidence: 1 },
   { full_name: "Delphine Batho", party: "Génération écologie", political_side: "gauche", declared_at: "2025-11-25", confidence: 1 },
   { full_name: "Jérôme Guedj", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-02-05", confidence: 1 },
+  { full_name: "Raphaël Glucksmann", party: "Place publique", political_side: "gauche", declared_at: "2026-08-23", confidence: 1 },
   { full_name: "Karim Bouamrane", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-06-09", confidence: 1 },
   { full_name: "Nathalie Arthaud", party: "Lutte ouvrière", political_side: "extreme-gauche", declared_at: "2025-12-08", confidence: 1 },
   { full_name: "Anasse Kazib", party: "Révolution permanente", political_side: "extreme-gauche", declared_at: "2026-06-01", confidence: 1 },
@@ -290,101 +291,111 @@ async function enrichWebPositions(name: string, party: string | null | undefined
   }
 }
 
+// Résumé court, factuel, tiré du début de l'extrait Wikipédia (sans IA, sans invention).
+function shortSummary(extract: string): string | null {
+  const s = (extract || "").replace(/\s+/g, " ").trim();
+  if (!s) return null;
+  const cut = s.slice(0, 400);
+  const lastDot = cut.lastIndexOf(". ");
+  return (lastDot > 80 ? cut.slice(0, lastDot + 1) : cut).trim();
+}
+
 // ---- Pipeline principal ---------------------------------------------------
 export async function syncPresidentialCandidates() {
-  // 0) Ré-enrichir les fiches existantes dont la bio n'a pas la structure détaillée
-  //    (marqueur : présence de "chronologie"). Mise à jour en place, sans supprimer.
   const { data: allExisting } = await supabase
     .from("presidential_candidates")
     .select("id, full_name, normalized_name, party, bio");
-  for (const row of allExisting ?? []) {
-    if (row.bio && (row.bio as any)._v === BIO_VERSION) continue; // déjà à jour
-    try {
-      const wiki = await wikipediaData(row.full_name);
-      if (!wiki.extract) continue;
-      const bio = await structureBio(row.full_name, wiki.extract);
-      if (!bio) continue;
-      await enrichWebPositions(row.full_name, (row as any).party, bio); // positions fortes tirées du web
-      await supabase.from("presidential_candidates").update({
-        bio: { ...bio, _v: BIO_VERSION }, summary: bio.summary ?? null, updated_at: new Date().toISOString(),
-      }).eq("id", row.id);
-      console.log(`[Presidential] ↻ Bio détaillée régénérée : ${row.full_name}`);
-    } catch (err: any) {
-      console.error(`[Presidential] Échec ré-enrichissement ${row.full_name}: ${err.message}`);
-    }
+  const known = new Set((allExisting ?? []).filter(row => !EXCLUDED_NAMES.has(row.normalized_name)).map(row => row.normalized_name));
+
+  // 1) SOCLE GARANTI — SANS IA. Insère les candidat·e·s vérifié·e·s absent·e·s avec photo +
+  //    résumé Wikipédia (fetch pur, aucun appel DeepSeek). => les nouveaux déclarés (ex.
+  //    Glucksmann) apparaissent MÊME quand le solde DeepSeek est à zéro. La bio détaillée
+  //    est ajoutée à l'étape 3 (IA), quand des crédits sont disponibles.
+  let added = 0;
+  for (const c of [...CANDIDATE_SEED, ...PRIMARY_SEED]) {
+    const n = normalizeName(c.full_name);
+    if (!n || known.has(n) || EXCLUDED_NAMES.has(n)) continue;
+    const wiki = await wikipediaData(c.full_name);   // pas de DeepSeek
+    const summary = c.fallback_summary ?? shortSummary(wiki.extract);
+    const { error } = await supabase.from("presidential_candidates").insert({
+      slug: slugify(c.full_name), full_name: c.full_name, normalized_name: n,
+      party: c.party ?? null, political_side: c.political_side ?? null,
+      category: c.category ?? "Chef de file", status: "declared", declared_at: c.declared_at || null,
+      photo_url: wiki.photo ?? c.fallback_photo ?? null,
+      photo_credit: wiki.photo ? "Wikimedia Commons" : (c.fallback_photo ? (c.fallback_photo_credit ?? "Wikimedia Commons") : null),
+      summary, bio: null, source_urls: [wiki.url].filter(Boolean), confidence: c.confidence,
+    });
+    if (error) { console.error(`[Presidential] Insert socle ${c.full_name}:`, error.message); continue; }
+    known.add(n); added++;
+    console.log(`[Presidential] ✓ Socle (sans IA) : ${c.full_name}`);
   }
 
-  // Nettoyage : retire les faux positifs (candidats à une primaire, etc.).
+  // 2) NETTOYAGE + labels de primaire — SANS IA.
   for (const row of allExisting ?? []) {
     if (EXCLUDED_NAMES.has(row.normalized_name)) {
       await supabase.from("presidential_candidates").delete().eq("id", row.id);
-      console.log(`[Presidential] ✗ Retiré (pas candidat à la présidentielle) : ${row.full_name}`);
+      console.log(`[Presidential] ✗ Retiré : ${row.full_name}`);
     }
   }
-
-  console.log("[Presidential] Détection des candidats 2027...");
-  const headlines = await gatherHeadlines();
-  const detectedRaw = await detectCandidates(headlines);
-  // Socle vérifié + détection presse, en excluant les noms bannis.
-  const bySlug = new Map<string, Detected>();
-  for (const c of [...CANDIDATE_SEED, ...PRIMARY_SEED, ...detectedRaw]) {
-    const n = normalizeName(c.full_name);
-    if (!n || EXCLUDED_NAMES.has(n) || bySlug.has(n)) continue;
-    bySlug.set(n, c);
-  }
-  const detected = [...bySlug.values()];
-  console.log(`[Presidential] ${detected.length} candidat(s) déclaré(s) (socle + presse).`);
-
-  // Corrige la `category` (label « Primaire … ») des candidat·e·s déjà en base.
   {
-    const desiredCat = new Map(detected.filter(c => c.category).map(c => [normalizeName(c.full_name), c.category!]));
+    const desiredCat = new Map([...CANDIDATE_SEED, ...PRIMARY_SEED].filter(c => c.category).map(c => [normalizeName(c.full_name), c.category!]));
     const { data: existingCat } = await supabase.from("presidential_candidates").select("id, normalized_name, category");
     for (const row of existingCat ?? []) {
       const want = desiredCat.get(row.normalized_name);
       if (want && row.category !== want) {
         await supabase.from("presidential_candidates").update({ category: want }).eq("id", row.id);
-        console.log(`[Presidential] ⟳ Label primaire : ${row.normalized_name} → ${want}`);
+        console.log(`[Presidential] ⟳ Label : ${row.normalized_name} → ${want}`);
       }
     }
   }
 
-  const known = new Set((allExisting ?? []).filter(row => !EXCLUDED_NAMES.has(row.normalized_name)).map(row => row.normalized_name));
+  // 3) ENRICHISSEMENT IA des bios (existant + socle). Si le solde DeepSeek est à zéro, le
+  //    client sort proprement ici — mais les candidat·e·s sont DÉJÀ visibles (étapes 1-2).
+  const { data: toEnrich } = await supabase.from("presidential_candidates").select("id, full_name, party, bio");
+  for (const row of toEnrich ?? []) {
+    if (row.bio && (row.bio as any)._v === BIO_VERSION) continue;   // déjà à jour
+    try {
+      const wiki = await wikipediaData(row.full_name);
+      if (!wiki.extract) continue;
+      const bio = await structureBio(row.full_name, wiki.extract);
+      if (!bio) continue;
+      await enrichWebPositions(row.full_name, (row as any).party, bio);
+      await supabase.from("presidential_candidates").update({
+        bio: { ...bio, _v: BIO_VERSION }, summary: bio.summary ?? null, updated_at: new Date().toISOString(),
+      }).eq("id", row.id);
+      console.log(`[Presidential] ↻ Bio détaillée : ${row.full_name}`);
+    } catch (err: any) {
+      console.error(`[Presidential] Échec bio ${row.full_name}: ${err.message}`);
+    }
+  }
 
-  let added = 0;
-  for (const candidate of detected) {
+  // 4) DÉTECTION PRESSE (IA) des déclaré·e·s hors socle. Nécessite des crédits DeepSeek.
+  console.log("[Presidential] Détection presse des candidats 2027...");
+  const headlines = await gatherHeadlines();
+  const detectedRaw = await detectCandidates(headlines);
+  for (const candidate of detectedRaw) {
     const normalized = normalizeName(candidate.full_name);
-    if (!normalized || known.has(normalized)) continue;
-
+    if (!normalized || known.has(normalized) || EXCLUDED_NAMES.has(normalized)) continue;
     const wiki = await wikipediaData(candidate.full_name);
-    // Sans article Wikipédia : on insère quand même à partir des faits vérifiés du socle
-    // (parti, camp, résumé de repli sourcé), sans bio structurée inventée.
     if (!wiki.extract && !candidate.fallback_summary) {
-      console.warn(`[Presidential] Pas de fiche Wikipédia ni de résumé de repli pour ${candidate.full_name}, ignoré.`);
+      console.warn(`[Presidential] Ni Wikipédia ni résumé pour ${candidate.full_name}, ignoré.`);
       continue;
     }
     const bio = wiki.extract ? await structureBio(candidate.full_name, wiki.extract) : null;
-    if (bio) await enrichWebPositions(candidate.full_name, candidate.party, bio); // positions fortes tirées du web
-
+    if (bio) await enrichWebPositions(candidate.full_name, candidate.party, bio);
     const { error } = await supabase.from("presidential_candidates").insert({
-      slug: slugify(candidate.full_name),
-      full_name: candidate.full_name,
-      normalized_name: normalized,
-      party: candidate.party ?? null,
-      political_side: candidate.political_side ?? null,
-      category: candidate.category ?? "Chef de file",
-      status: "declared",
-      declared_at: candidate.declared_at || null,
+      slug: slugify(candidate.full_name), full_name: candidate.full_name, normalized_name: normalized,
+      party: candidate.party ?? null, political_side: candidate.political_side ?? null,
+      category: candidate.category ?? "Chef de file", status: "declared", declared_at: candidate.declared_at || null,
       photo_url: wiki.photo ?? candidate.fallback_photo ?? null,
       photo_credit: wiki.photo ? "Wikimedia Commons" : (candidate.fallback_photo ? (candidate.fallback_photo_credit ?? "Wikimedia Commons") : null),
-      summary: bio?.summary ?? candidate.fallback_summary ?? null,
+      summary: bio?.summary ?? candidate.fallback_summary ?? shortSummary(wiki.extract),
       bio: bio ? { ...bio, _v: BIO_VERSION } : null,
-      source_urls: [candidate.source_url, wiki.url].filter(Boolean),
-      confidence: candidate.confidence,
+      source_urls: [candidate.source_url, wiki.url].filter(Boolean), confidence: candidate.confidence,
     });
-    if (error) { console.error(`[Presidential] Insert ${candidate.full_name}:`, error.message); continue; }
-    known.add(normalized);
-    added++;
-    console.log(`[Presidential] ✓ Ajouté : ${candidate.full_name}`);
+    if (error) { console.error(`[Presidential] Insert presse ${candidate.full_name}:`, error.message); continue; }
+    known.add(normalized); added++;
+    console.log(`[Presidential] ✓ Ajouté (presse) : ${candidate.full_name}`);
   }
 
   console.log(`[Presidential] Terminé. ${added} nouveau(x) candidat(s).`);
