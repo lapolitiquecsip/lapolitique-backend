@@ -34,6 +34,7 @@
     "discover-datagouv-sources": "tsx src/scripts/legislative/discover-datagouv-sources.ts",
     "automation:law-summarizer": "tsx src/scripts/automation/law-summarizer.ts",
     "automation:legislative:summaries": "tsx src/scripts/legislative/summarize.ts",
+    "automation:law-visual": "tsx src/scripts/automation/generate-law-visual.ts",
     "data:validate-expose": "tsx src/scripts/legislative/validate-expose.ts",
     "compile:official-territories": "tsx src/scripts/compile-official-territories.ts",
     "data:register-sources": "tsx src/scripts/data/register-sources.ts",
