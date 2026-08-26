@@ -101,7 +101,26 @@ async function fetchAll(table: string, select: string, apply: (q: any) => any): 
 // Contenu normalisé, toutes automatisations confondues.
 interface Item {
   title: string; summary: string | null; url: string | null; date: string | null;
-  scope: "local" | "thematic"; deptCode?: string | null; importance: number; type: string;
+  scope: "local" | "thematic"; deptCode?: string | null; communeCode?: string | null;
+  importance: number; type: string;
+}
+
+// Résout la localisation du membre à partir de sa VILLE (prioritaire, la plus précise) :
+// ville → code INSEE (table territories) → département (2-3 premiers chiffres). Repli sur le
+// département saisi si la ville est absente/introuvable. Corrige aussi une saisie erronée du
+// champ « département » (ex. l'utilisateur y a mis une région).
+async function resolveLocation(city: string | null, department: string | null): Promise<{ communeCode: string | null; deptCode: string | null }> {
+  const c = (city || "").trim();
+  if (c) {
+    const { data } = await supabase.from("territories").select("code").eq("type", "commune").ilike("name", c).limit(10);
+    if (data && data.length) {
+      let code = String(data[0].code);
+      const dep = userDeptCode(department);
+      if (data.length > 1 && dep) { const m = data.find(d => itemDeptCode("commune", String(d.code)) === dep); if (m) code = String(m.code); }
+      return { communeCode: code, deptCode: itemDeptCode("commune", code) };
+    }
+  }
+  return { communeCode: null, deptCode: userDeptCode(department) };
 }
 
 // Agrège TOUTES les sources de contenu du site en une seule liste normalisée.
@@ -118,6 +137,7 @@ async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
       out.push({
         title: it.title, summary: it.summary, url: it.url, date: it.published_at,
         scope: isLocal ? "local" : "thematic", deptCode: isLocal ? itemDeptCode(it.entity_type, it.entity_id) : null,
+        communeCode: it.entity_type === "commune" ? String(it.entity_id) : null,
         importance: importanceOf(it.news_type), type: isLocal ? "local" : "info",
       });
     }
@@ -165,10 +185,13 @@ export async function generateInterestNotifications() {
   // 1) Membres avec un profil (intérêts et/ou localisation renseignés).
   const prefs = await fetchAll("user_preferences",
     "user_id, interests, region, department, city, age_range, profession, notify_email, email_min_importance", q => q);
-  const users = prefs
-    .map(p => ({ ...p, deptCode: userDeptCode(p.department), interests: withImplied(p.interests || [], p.profession, p.age_range) }))
-    .filter(u => u.interests.length > 0 || u.deptCode);
-  if (TEST) users.push({ user_id: "00000000-0000-0000-0000-000000000000", interests: ["economie", "securite", "ecologie", "sante", "logement", "agriculture"], region: null, department: "34", city: null, notify_email: true, email_min_importance: 3, deptCode: "34" } as any);
+  const users: any[] = [];
+  for (const p of prefs) {
+    const loc = await resolveLocation(p.city, p.department);
+    const interests = withImplied(p.interests || [], p.profession, p.age_range);
+    if (interests.length > 0 || loc.deptCode || loc.communeCode) users.push({ ...p, ...loc, interests });
+  }
+  if (TEST) users.push({ user_id: "00000000-0000-0000-0000-000000000000", interests: ["economie", "securite", "ecologie", "sante", "logement", "agriculture"], region: null, department: "34", city: null, notify_email: true, email_min_importance: 3, deptCode: "34", communeCode: null } as any);
   console.log(`> ${users.length} membre(s) avec profil.`);
   if (!users.length) { console.log("--- Aucun profil. Rien à faire. ---"); return 0; }
 
@@ -192,8 +215,18 @@ export async function generateInterestNotifications() {
     for (const u of users) {
       const inter = domains.filter(d => u.interests.includes(d));
       if (isLocal) {
-        if (!it.deptCode || u.deptCode !== it.deptCode) continue;   // pas dans son département
-        if (u.interests.length && !inter.length) continue;         // filtre par intérêt SEULEMENT s'il en a coché
+        if (it.communeCode) {
+          // Actu de COMMUNE : si le membre a une ville précise → sa commune EXACTE uniquement
+          // (ex. Orvault, pas les autres communes) ; sinon → tout son département, filtré par intérêt.
+          if (u.communeCode) { if (it.communeCode !== u.communeCode) continue; }
+          else {
+            if (!it.deptCode || u.deptCode !== it.deptCode) continue;
+            if (u.interests.length && !inter.length) continue;
+          }
+        } else {
+          // Actu DÉPARTEMENTALE : tout le département du membre (pas de filtre d'intérêt).
+          if (!it.deptCode || u.deptCode !== it.deptCode) continue;
+        }
       } else {
         if (!inter.length) continue;                                // national/thématique : match par intérêt
       }
