@@ -16,6 +16,7 @@ import { matchDomains } from "../../lib/interest-domains.js";
 
 const LOOKBACK_DAYS = Number(process.env.INTEREST_NOTIF_LOOKBACK_DAYS || 3);
 const MAX_PER_USER = Number(process.env.INTEREST_NOTIF_MAX_PER_USER || 25);
+const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
 const DRY = process.argv.includes("--dry");
 const TEST = process.argv.includes("--test");
 
@@ -83,6 +84,67 @@ async function fetchAll(table: string, select: string, apply: (q: any) => any): 
   return out;
 }
 
+// Contenu normalisé, toutes automatisations confondues.
+interface Item {
+  title: string; summary: string | null; url: string | null; date: string | null;
+  scope: "local" | "thematic"; deptCode?: string | null; importance: number; type: string;
+}
+
+// Agrège TOUTES les sources de contenu du site en une seule liste normalisée.
+// Chaque source échoue en silence (une table absente n'empêche pas les autres).
+async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
+  const out: Item[] = [];
+
+  // a) entity_feed — actus institutions (national/ministères) + local (communes/départements), décrets.
+  try {
+    const feed = await fetchAll("entity_feed", "entity_type, entity_id, title, summary, url, published_at, news_type",
+      q => q.gte("published_at", since));
+    for (const it of feed) {
+      const isLocal = it.entity_type === "commune" || it.entity_type === "department";
+      out.push({
+        title: it.title, summary: it.summary, url: it.url, date: it.published_at,
+        scope: isLocal ? "local" : "thematic", deptCode: isLocal ? itemDeptCode(it.entity_type, it.entity_id) : null,
+        importance: importanceOf(it.news_type), type: isLocal ? "local" : "info",
+      });
+    }
+    console.log(`  · entity_feed : ${feed.length}`);
+  } catch (e: any) { console.warn("  ! entity_feed:", e.message); }
+
+  // b) laws — textes législatifs curés (résumé + catégorie).
+  try {
+    const laws = await fetchAll("laws", "id, title, summary, source_urls, created_at", q => q.gte("created_at", since));
+    for (const x of laws) {
+      const url = Array.isArray(x.source_urls) ? x.source_urls[0] : (typeof x.source_urls === "string" ? x.source_urls : null);
+      // URL unique par loi (sinon le repli générique /lois donnerait le même dedup_key à toutes).
+      out.push({ title: x.title, summary: x.summary, url: url || `${SITE_URL}/lois?law=${x.id}`, date: x.created_at, scope: "thematic", importance: 4, type: "loi" });
+    }
+    console.log(`  · laws : ${laws.length}`);
+  } catch (e: any) { console.warn("  ! laws:", e.message); }
+
+  // c) décisions UE ↔ France.
+  try {
+    const eu = await fetchAll("eu_france_decisions", "title, summary, url, published_at", q => q.gte("published_at", since));
+    for (const x of eu) out.push({ title: x.title, summary: x.summary, url: x.url, date: x.published_at, scope: "thematic", importance: 4, type: "europe" });
+    console.log(`  · eu_france_decisions : ${eu.length}`);
+  } catch (e: any) { console.warn("  ! eu_france_decisions:", e.message); }
+
+  // d) actualités des candidats à la présidentielle.
+  try {
+    const cand = await fetchAll("candidate_news", "title, summary, news_type, source_url, date", q => q.gte("date", sinceDate));
+    for (const x of cand) out.push({ title: x.title, summary: x.summary, url: x.source_url, date: x.date, scope: "thematic", importance: x.news_type === "programme" ? 4 : 3, type: "candidat" });
+    console.log(`  · candidate_news : ${cand.length}`);
+  } catch (e: any) { console.warn("  ! candidate_news:", e.message); }
+
+  // e) comptes rendus de commission.
+  try {
+    const com = await fetchAll("commission_reports", "title, summary, cr_url, meeting_date", q => q.gte("meeting_date", sinceDate));
+    for (const x of com) out.push({ title: x.title, summary: x.summary, url: x.cr_url, date: x.meeting_date, scope: "thematic", importance: 3, type: "commission" });
+    console.log(`  · commission_reports : ${com.length}`);
+  } catch (e: any) { console.warn("  ! commission_reports:", e.message); }
+
+  return out;
+}
+
 export async function generateInterestNotifications() {
   console.log(`--- NOTIFICATIONS PERSONNALISÉES ${DRY ? "(DRY-RUN) " : ""}---`);
 
@@ -96,12 +158,12 @@ export async function generateInterestNotifications() {
   console.log(`> ${users.length} membre(s) avec profil.`);
   if (!users.length) { console.log("--- Aucun profil. Rien à faire. ---"); return 0; }
 
-  // 2) Nouveaux contenus du flux d'automatisations.
+  // 2) NOUVEAUX contenus de TOUTES les automatisations, normalisés en une seule liste.
   const since = new Date(Date.now() - LOOKBACK_DAYS * 86400000).toISOString();
-  const items = await fetchAll("entity_feed",
-    "entity_type, entity_id, title, summary, url, published_at, news_type",
-    q => q.gte("published_at", since).order("published_at", { ascending: false }));
-  console.log(`> ${items.length} contenu(s) sur ${LOOKBACK_DAYS} j.`);
+  const sinceDate = since.slice(0, 10);
+  console.log(`> Contenus sur ${LOOKBACK_DAYS} j :`);
+  const items = await collectItems(since, sinceDate);
+  console.log(`> ${items.length} contenu(s) au total (toutes sources).`);
 
   const now = new Date().toISOString();
   const perUser = new Map<string, number>();
@@ -110,27 +172,25 @@ export async function generateInterestNotifications() {
   for (const it of items) {
     const domains = matchDomains(`${it.title || ""} ${it.summary || ""}`);
     if (!domains.length) continue;                          // rien à quoi rattacher
-    const isLocal = it.entity_type === "commune" || it.entity_type === "department";
-    const itDept = isLocal ? itemDeptCode(it.entity_type, it.entity_id) : null;
-    const importance = importanceOf(it.news_type);
+    const isLocal = it.scope === "local";
     const dedup = `feed|${crypto.createHash("md5").update(String(it.url || it.title)).digest("hex").slice(0, 16)}`;
 
     for (const u of users) {
       const inter = domains.filter(d => u.interests.includes(d));
       if (isLocal) {
-        if (!itDept || u.deptCode !== itDept) continue;     // pas dans son département
-        if (u.interests.length && !inter.length) continue;  // filtre par intérêt SEULEMENT s'il en a coché
+        if (!it.deptCode || u.deptCode !== it.deptCode) continue;   // pas dans son département
+        if (u.interests.length && !inter.length) continue;         // filtre par intérêt SEULEMENT s'il en a coché
       } else {
-        if (!inter.length) continue;                        // national : match par intérêt
+        if (!inter.length) continue;                                // national/thématique : match par intérêt
       }
       if ((perUser.get(u.user_id) || 0) >= MAX_PER_USER) continue;
       perUser.set(u.user_id, (perUser.get(u.user_id) || 0) + 1);
       rows.push({
-        user_id: u.user_id, type: isLocal ? "local" : "info",
+        user_id: u.user_id, type: it.type,
         title: String(it.title || "").slice(0, 300),
         detail: it.summary ? String(it.summary).slice(0, 300) : null,
-        domain: inter[0] || domains[0], importance, url: it.url || null,
-        event_at: it.published_at || null, created_at: now, read: false, dedup_key: dedup,
+        domain: inter[0] || domains[0], importance: it.importance, url: it.url || null,
+        event_at: it.date || null, created_at: now, read: false, dedup_key: dedup,
       });
     }
   }
