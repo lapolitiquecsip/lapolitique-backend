@@ -36,7 +36,7 @@ async function wikipedia(name: string): Promise<{ extract: string; title?: strin
 
 async function writeBio(name: string, party: string, dept: string, reference: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 6000,
     system: `Tu rédiges un PORTRAIT biographique détaillé et rigoureusement FACTUEL d'un sénateur français, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN.
 

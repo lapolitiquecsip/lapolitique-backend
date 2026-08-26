@@ -23,7 +23,7 @@ async function fetchPageText(url: string): Promise<string> {
 
 async function summarize(title: string, text: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     // Modèle à raisonnement : prévoir le budget pour sa réflexion PUIS la réponse,
     // sinon le contenu revient vide sans erreur.
     max_tokens: 4000,

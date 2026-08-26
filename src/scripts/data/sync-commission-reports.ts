@@ -49,7 +49,7 @@ function extractCommission(text: string): string | null {
 
 async function summarize(commission: string, objet: string, verbatim: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 1600,
     system: `On te donne le COMPTE RENDU officiel (verbatim) d'une réunion de commission de l'Assemblée nationale française (souvent une audition). Rédige un RÉSUMÉ clair et NEUTRE de CE QUI A ÉTÉ DIT, pour un citoyen qui n'a pas le temps de tout lire.
 

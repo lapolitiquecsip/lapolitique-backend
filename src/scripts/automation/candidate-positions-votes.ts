@@ -92,7 +92,7 @@ async function main() {
       const laws = list.sort((a, b) => String(b.date_scrutin).localeCompare(String(a.date_scrutin))).slice(0, 6);
       const lawsText = laws.map((l, i) => `${i + 1}. Loi : ${(l.title || l.objet || "").slice(0, 120)} — ce qu'elle fait : ${(l.summary || l.why_it_matters || "").slice(0, 300)} — VOTE : ${l.position}`).join("\n");
       const resp = await resilientDeepSeek.createMessage({
-        model: "deepseek-v4-flash",
+        model: "deepseek-chat",
         max_tokens: 400,
         responseFormat: "json_object",
         system: `On te donne les VOTES RÉELS d'un·e parlementaire sur des lois, avec ce que fait chaque loi, et une PROPOSITION. Déduis sa position sur la proposition à partir de ces votes.

@@ -105,7 +105,7 @@ export async function summarizeLegislativeDossiers() {
     if ((count ?? 0) >= 2) continue;
     try {
       const response = await resilientDeepSeek.createMessage({
-        model: "deepseek-v4-flash", max_tokens: 16000,
+        model: "deepseek-chat", max_tokens: 16000,
         responseFormat: "json_object",
         system: `Tu rédiges une analyse éditoriale à partir des faits officiels fournis (métadonnées, étapes, amendements, scrutins et surtout "expose_des_motifs" = le texte officiel expliquant le contenu et l'objectif de la proposition/projet de loi).
 

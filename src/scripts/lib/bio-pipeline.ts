@@ -51,7 +51,7 @@ export async function wikipediaByTitle(title: string): Promise<{ extract: string
 // `roleNoun` ex. « maire », « président(e) de conseil départemental » ; `place` ex. commune/département.
 export async function structureBio(name: string, roleNoun: string, place: string, reference: string): Promise<any | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 8000,
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE d'un(e) ${roleNoun} en France, UNIQUEMENT à partir du texte Wikipédia fourni. N'invente RIEN.

@@ -55,7 +55,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 
   try {
     const response = await resilientDeepSeek.createMessage({
-      model: "deepseek-v4-flash",
+      model: "deepseek-chat",
       max_tokens: 1500,
       messages: [{ role: "user", content: prompt }]
     });

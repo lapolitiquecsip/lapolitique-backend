@@ -159,7 +159,7 @@ function relevantPassages(text: string, q: string[], max = 4): string[] {
 // SUJET de l'engagement (le nom de la chose, pas la phrase), ce que le moteur sait chercher.
 async function wikiQuery(engagement: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 1200,
     system: `On te donne un engagement politique. Réponds UNIQUEMENT par le titre d'article Wikipédia français le plus susceptible d'en traiter — 1 à 4 mots, le nom du dispositif, de la réforme ou de l'institution concernée. Pas de phrase, pas d'explication. Si aucun sujet identifiable, réponds : AUCUN`,
     messages: [{ role: "user", content: engagement }],

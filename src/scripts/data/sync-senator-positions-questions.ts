@@ -99,7 +99,7 @@ async function main() {
     let summary = "", stance = "inconnu";
     try {
       const resp = await resilientDeepSeek.createMessage({
-        model: "deepseek-v4-flash", max_tokens: 1200, responseFormat: "json_object",
+        model: "deepseek-chat", max_tokens: 1200, responseFormat: "json_object",
         system: `À partir des intitulés de QUESTIONS posées au gouvernement par un·e sénateur·rice sur l'enjeu « ${ISSUE_LABEL[g.issue]} », résume factuellement CE QUE l'élu·e met en avant / sur quoi il ou elle interpelle le gouvernement.
 RÈGLES : n'invente rien au-delà des intitulés ; 2-3 phrases (50 mots max). "stance" = 'inconnu' par défaut ; 'pour'/'contre'/'nuance' seulement si les intitulés expriment clairement une orientation. Rédige le summary STRICTEMENT en français. Réponds en JSON : { "summary": "...", "stance": "inconnu" }`,
         messages: [{ role: "user", content: `Enjeu : ${ISSUE_LABEL[g.issue]}\nQuestions :\n${list}` }],

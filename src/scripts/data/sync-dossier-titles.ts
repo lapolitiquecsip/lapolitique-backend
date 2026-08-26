@@ -24,7 +24,7 @@ async function fetchAll(apply: (q: any) => any): Promise<any[]> {
 
 async function shorten(title: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 400,
     system: `Tu synthétises l'intitulé officiel (souvent long) d'un texte de loi français en un TITRE COURT, clair et neutre, façon titre de presse.
 

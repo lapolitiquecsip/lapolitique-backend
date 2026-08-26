@@ -55,7 +55,7 @@ async function wikipediaByTitle(title: string): Promise<{ extract: string; photo
 
 async function structureBio(name: string, dep: string, reference: string): Promise<any | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 8000,
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE d'un(e) président(e) de conseil départemental français, UNIQUEMENT à partir du texte Wikipédia fourni. N'invente RIEN.

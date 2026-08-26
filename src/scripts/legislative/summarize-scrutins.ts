@@ -13,7 +13,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 async function explain(title: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 900,
     system: `On te donne l'intitulé OFFICIEL d'un scrutin parlementaire français (souvent procédural : « sur la motion… », « sur l'ensemble du projet de loi… »).
 Rédige UNE seule phrase courte, simple et NEUTRE (max ~30 mots) expliquant à un citoyen DE QUOI TRAITE le texte concerné et l'enjeu du vote, sans jargon.

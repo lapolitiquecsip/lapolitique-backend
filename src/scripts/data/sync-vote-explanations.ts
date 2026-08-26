@@ -37,7 +37,7 @@ async function explain(v: any): Promise<{ subject: string; explanation: string; 
   ].filter(Boolean).join("\n");
 
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 2500,
     responseFormat: "json_object",
     system: `Tu expliques à un citoyen non spécialiste un vote du Parlement européen. Tu réponds IMPÉRATIVEMENT EN FRANÇAIS.

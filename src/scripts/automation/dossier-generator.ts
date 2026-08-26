@@ -96,7 +96,7 @@ Sois précis, concret, et fournis de véritables chiffres ou faits concrets si p
 
     try {
       const msg = await resilientDeepSeek.createMessage({
-        model: "deepseek-v4-flash",
+        model: "deepseek-chat",
         max_tokens: 2500,
         system: "Tu es un expert politique qui génères des JSON valides.",
         messages: [{ role: "user", content: prompt }]

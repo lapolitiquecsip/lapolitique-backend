@@ -187,6 +187,14 @@ export class ResilientDeepSeek {
           const is4xx = status >= 400 && status < 500;
 
           if (is4xx && !isRateLimit) {
+            // Repli disponibilité : si l'alias non-raisonneur "deepseek-chat" est retiré
+            // (400 modèle inconnu/non supporté), on rebascule sur le modèle supporté et on
+            // réessaie. Permet d'utiliser deepseek-chat partout (moins cher) sans risque.
+            if (params.model === "deepseek-chat" && /model|support|invalid|not found|404|exist/i.test(err.message || "")) {
+              console.warn("[DeepSeek] deepseek-chat indisponible → repli sur deepseek-v4-flash.");
+              params.model = "deepseek-v4-flash";
+              continue;
+            }
             console.error(
               `[DeepSeek] ❌ NON_RETRYABLE_ERROR: ${err.message} (status: ${status})`
             );

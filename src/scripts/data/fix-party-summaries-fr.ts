@@ -8,7 +8,7 @@ const ENGLISH = /\bthe\b|\bis a\b|\bhas been\b|founded in|political party|\band\
 
 async function toFrench(name: string, text: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 400,
     system: `Traduis/réécris en FRANÇAIS clair et neutre ce résumé de parti politique, en 2-3 phrases. Aucune phrase en anglais. Pas d'introduction, uniquement le résumé.`,
     messages: [{ role: "user", content: `Parti : ${name}\nTexte : ${text}` }],

@@ -37,7 +37,7 @@ async function wikipedia(name: string): Promise<{ extract: string; photo?: strin
 
 async function structureBio(name: string, ref: string) {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 8000,
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE, UNIQUEMENT à partir du texte Wikipédia fourni. N'invente RIEN.

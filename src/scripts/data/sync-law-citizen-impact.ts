@@ -30,7 +30,7 @@ async function fetchPromulgated(): Promise<any[]> {
 
 async function impactOf(title: string, summary: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 1200,
     system: `Tu expliques à un citoyen ce qu'une loi PROMULGUÉE (déjà en vigueur) change CONCRÈTEMENT pour lui, à partir du titre et du résumé officiel fournis.
 

@@ -65,7 +65,7 @@ async function extractPositionsWeb(name: string, issues: any[], blocks: Record<s
   const issuesText = issues.map(i => `- ${i.slug} : « ${i.proposition} »`).join("\n");
   const ctx = issues.map(i => `### ${i.slug}\n${blocks[i.slug] || "(pas de source)"}`).join("\n\n");
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 4000,
     responseFormat: "json_object",
     system: `On te donne, pour un·e candidat·e à la présidentielle française, des EXTRAITS WEB (presse, déclarations, programme, votes, synthèse) regroupés par proposition. Pour CHAQUE proposition, détermine sa position d'après ces extraits.
@@ -88,7 +88,7 @@ Réponds en JSON strict : { "positions": { "<slug>": {"stance":"...","summary":"
 async function extractPositions(name: string, extract: string): Promise<Record<string, { stance: string; summary: string }>> {
   const issuesText = ISSUES.map(i => `- ${i.slug} : « ${i.proposition} »`).join("\n");
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 2500,
     responseFormat: "json_object",
     system: `On te donne le TEXTE de référence (Wikipédia) sur une personnalité politique française, et une liste de PROPOSITIONS. Pour CHAQUE proposition, détermine la position de la personne UNIQUEMENT d'après le texte.

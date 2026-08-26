@@ -63,7 +63,7 @@ async function llmTags(subject: string, summary: string): Promise<Tag[]> {
   const list = ISSUES.map(i => `${i.slug} = ${i.title}`).join("\n");
   const text = [subject, summary].filter(Boolean).join(" — ").slice(0, 1200);
   const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash", max_tokens: 1500, responseFormat: "json_object",
+    model: "deepseek-chat", max_tokens: 1500, responseFormat: "json_object",
     system: `Tu classes un TEXTE de loi français par ENJEU, à partir de cette liste fermée :
 ${list}
 

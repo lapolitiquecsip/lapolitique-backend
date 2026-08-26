@@ -34,7 +34,7 @@ async function main() {
 
   const officialFacts = { dossier, expose_des_motifs: expose, steps: [], amendments: [], scrutins: [] };
   const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash", max_tokens: 16000, responseFormat: "json_object",
+    model: "deepseek-chat", max_tokens: 16000, responseFormat: "json_object",
     system: SYSTEM,
     messages: [{ role: "user", content: JSON.stringify(officialFacts) }],
   });

@@ -13,7 +13,7 @@ function ruleSummary(type: string, title: string): string | null {
 
 async function aiSummary(title: string): Promise<string | null> {
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 220,
     system: `On te donne le TITRE d'un décret publié au Journal officiel. Explique en 2 phrases MAX, en français simple et neutre, ce que sa publication implique concrètement (ce qui change / ce qui est mis en application). Pas d'introduction, pas de jugement. Si le titre ne permet pas d'en dire plus, reformule-le clairement.`,
     messages: [{ role: "user", content: `TITRE : ${title}` }],

@@ -38,7 +38,7 @@ Génère un JSON avec les champs suivants :
 Réponds UNIQUEMENT avec le JSON.`;
 
   const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 1500,
     messages: [{ role: "user", content: prompt }]
   });

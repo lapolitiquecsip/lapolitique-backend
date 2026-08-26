@@ -112,7 +112,7 @@ async function main() {
     let summary = "", stance = "inconnu";
     try {
       const resp = await resilientDeepSeek.createMessage({
-        model: "deepseek-v4-flash", max_tokens: 1300, responseFormat: "json_object",
+        model: "deepseek-chat", max_tokens: 1300, responseFormat: "json_object",
         system: `À partir des QUESTIONS écrites et surtout des AMENDEMENTS déposés par un·e député·e sur l'enjeu « ${ISSUE_LABEL[g.issue]} », résume factuellement CE QUE l'élu·e défend.
 RÈGLES : n'invente rien au-delà des éléments fournis ; 2-3 phrases (55 mots max). Un amendement est une proposition CONCRÈTE : tu peux en déduire une "stance" ('pour'/'contre'/'nuance') SI la direction est claire ; sinon 'inconnu'. Rédige STRICTEMENT en français. Réponds en JSON : { "summary": "...", "stance": "inconnu" }`,
         messages: [{ role: "user", content: `Enjeu : ${ISSUE_LABEL[g.issue]}\nAmendements :\n${aList}\n${qList ? "Questions :\n" + qList : ""}` }],

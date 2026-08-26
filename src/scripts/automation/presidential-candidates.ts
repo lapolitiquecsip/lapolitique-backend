@@ -107,7 +107,7 @@ async function gatherHeadlines(): Promise<string> {
 // ---- 2. Détecter les candidats DÉCLARÉS (grounded, anti-rumeur) -----------
 async function detectCandidates(headlines: string): Promise<Detected[]> {
   const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 4000,
     responseFormat: "json_object",
     system: `Tu analyses des extraits d'actualité politique française pour identifier les personnes ayant OFFICIELLEMENT DÉCLARÉ leur candidature à l'élection présidentielle française de 2027.
@@ -168,7 +168,7 @@ async function wikipediaData(name: string): Promise<{ extract: string; photo?: s
 // ---- 4. Structurer la bio À PARTIR du texte Wikipédia (aucune invention) --
 async function structureBio(name: string, reference: string) {
   const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 24000,   // modèle à raisonnement : les tokens de raisonnement consomment le budget → grande marge pour les bios les plus longues (Mélenchon, Philippe…)
     responseFormat: "json_object",
     system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN qui ne soit dans le texte.
@@ -256,7 +256,7 @@ async function webStrongPositions(name: string, party?: string | null): Promise<
   const context = blocks.join("\n\n---\n\n");
   if (context.length < 200) return [];
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
     max_tokens: 3000,
     responseFormat: "json_object",
     system: `On te donne des EXTRAITS WEB (presse, programme, déclarations) sur un·e candidat·e à la présidentielle française. Extrais ses POSITIONS FORTES : ce qu'il·elle défend/propose réellement.

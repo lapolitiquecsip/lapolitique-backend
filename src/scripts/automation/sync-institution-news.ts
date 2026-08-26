@@ -64,7 +64,7 @@ Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "
 
 async function summarise(entityName: string, title: string, snippet: string, entityType: string) {
   const response = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash", max_tokens: 3000, responseFormat: "json_object",
+    model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object",
     system: entityType === "commune" ? COMMUNE_PROMPT(entityName) : MINISTRY_PROMPT(entityName),
     messages: [{ role: "user", content: `${entityType === "commune" ? "Ville" : "Institution"} : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
   });
