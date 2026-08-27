@@ -36,8 +36,6 @@ jobs:
         env:
           SUMMARY_FILL_MISSING: "1"
           LEGISLATIVE_SUMMARY_LIMIT: "120"
-      # 3) Données VISUELLES de l'analyse détaillée (essence / avant-après / impacts / vote),
-      #    extraites de l'analyse premium existante (aucune invention). Par lots.
-      - run: npm run automation:law-visual
-        env:
-          LAW_VISUAL_BATCH: "80"
+      # NB : le DESIGN de l'analyse détaillée (sections, avant/après implicite, chiffres, vote)
+      # est fait 100% CÔTÉ FRONT à partir du texte d'analyse existant — AUCUN coût DeepSeek.
+      # (Le script automation:law-visual reste dispo mais n'est plus câblé.)
