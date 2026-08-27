@@ -21,8 +21,9 @@ export async function summarizeScrutins() {
       .select('id, objet')
       .in('type', ['LOI']) // Focus on Laws as requested
       .is('summary', null)
+      .ilike('title', "l'ensemble%") // votes solennels sur l'ensemble d'un texte (les vraies « lois »)
       .order('date_scrutin', { ascending: false })
-      .limit(20); // Increased limit for industrialization
+      .limit(Number(process.env.SCRUTIN_SUMMARIZE_LIMIT || 40)); // débit configurable
 
     if (error) {
       throw error;
@@ -34,8 +35,8 @@ export async function summarizeScrutins() {
       try {
         console.log(`Processing: ${s.objet}`);
 
-        // Try deepseek-v4-flash first, fall back to deepseek-v4-pro
-        const DEEPSEEK_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'];
+        // deepseek-chat (non-raisonneur, peu cher) en priorité ; flash en repli.
+        const DEEPSEEK_MODELS = ['deepseek-chat', 'deepseek-v4-flash'];
 
         let success = false;
         for (const model of DEEPSEEK_MODELS) {
