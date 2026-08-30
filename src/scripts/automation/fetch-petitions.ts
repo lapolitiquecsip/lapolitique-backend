@@ -18,28 +18,41 @@ const SOURCES = [
   }
 ];
 
+// Un problème PASSAGER de la source (réseau, timeout, 5xx, 429, blocage 4xx) est marqué
+// `transient` → ne doit PAS déclencher d'alerte DOWN. Un HTML qui a changé (page servie mais
+// plus de cartes) est marqué `structural` → NOTRE scraper est cassé, on VEUT l'alerte.
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+};
+
+async function fetchHtml(url: string, attempts = 3): Promise<string> {
+  let lastErr: any;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(20000) });
+      if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { transient: true, status: res.status });
+      return await res.text();
+    } catch (e: any) {
+      lastErr = Object.assign(e, { transient: true });   // réseau/timeout/HTTP non-OK = passager
+      if (i < attempts) { console.warn(`    … tentative ${i}/${attempts} échouée (${e.message}), retry`); await new Promise(r => setTimeout(r, 1500 * i)); }
+    }
+  }
+  throw lastErr;
+}
+
 async function scrapeWithCheerio(url: string, source: typeof SOURCES[0]) {
   console.log(`  > Fetching page with cheerio: ${url}`);
+  const html = await fetchHtml(url);   // lève une erreur `transient` après retries si la source est KO
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
-    }
-
-    const html = await response.text();
     const $ = cheerio.load(html);
     const results: any[] = [];
-    
+
     const cards = $('.card--initiative');
     if (cards.length === 0) {
-      throw new Error(`SELECTOR_NOT_FOUND: '.card--initiative' (no petition cards found on ${url})`);
+      // Page servie mais plus aucune carte → la structure HTML a changé : NOTRE scraper est cassé.
+      throw Object.assign(new Error(`SELECTOR_NOT_FOUND: '.card--initiative' introuvable sur ${url}`), { structural: true });
     }
     
     cards.each((_, card) => {
@@ -110,14 +123,23 @@ export async function main() {
   await logStart('fetchPetitions', hcId);
 
   let processedCount = 0;
+  let structuralErrors = 0;   // NOTRE scraper est cassé (HTML changé) → vraie alerte
+  let transientErrors = 0;    // source injoignable/passagère → toléré, pas d'alerte
 
   try {
     for (const source of SOURCES) {
       console.log(`\n> Site: ${source.name}`);
       for (const url of source.endpoints) {
-        const petitions = await scrapeWithCheerio(url, source);
+        let petitions: any[];
+        try {
+          petitions = await scrapeWithCheerio(url, source);
+        } catch (e: any) {
+          if (e.structural) { structuralErrors++; console.error(`    ❌ STRUCTUREL (${url}): ${e.message}`); }
+          else { transientErrors++; console.warn(`    ⚠️ source injoignable (${url}, passager) : ${e.message}`); }
+          continue;   // on n'interrompt pas le job pour une source
+        }
         console.log(`    Found ${petitions.length} petitions.`);
-        
+
         for (const p of petitions) {
           // cardStatus = état PROPRE de la pétition sur la plateforme (« Enregistrée »…).
           const { cardStatus, ...petitionRow } = p as any;
@@ -141,11 +163,21 @@ export async function main() {
       }
     }
 
-    console.log('\nSUCCESS : Synchronisation par Cheerio terminée.');
+    // DOWN (alerte) UNIQUEMENT si notre scraper est cassé (HTML changé) et qu'on n'a rien pu
+    // récupérer. Une panne passagère de la source (transient) ne déclenche PAS de fausse alerte.
+    if (structuralErrors > 0 && processedCount === 0) {
+      // Le catch ci-dessous logguera l'échec (alerte) et fera échouer l'action.
+      throw new Error(`Scraper pétitions cassé : ${structuralErrors} page(s) sans cartes (structure HTML changée ?).`);
+    }
+    if (transientErrors > 0 && processedCount === 0) {
+      console.warn(`\n⚠️ Source pétitions momentanément injoignable (${transientErrors} échec(s) passager(s)). Données conservées, pas d'alerte.`);
+    }
+    console.log(`\nSUCCESS : ${processedCount} pétition(s) synchronisée(s)${structuralErrors ? ` — ⚠️ ${structuralErrors} page(s) structurellement KO` : ""}.`);
     await logSuccess('fetchPetitions', processedCount, hcId);
     return processedCount;
 
   } catch (err: any) {
+    // Erreur inattendue (code/DB) → vraie alerte.
     await logError('fetchPetitions', err, hcId);
     throw err;
   }
