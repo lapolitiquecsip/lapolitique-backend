@@ -26,9 +26,10 @@ jobs:
       # 1) Détecte et ajoute les nouveaux candidats déclarés
       - run: npm run automation:presidential
         if: steps.budget.outputs.has_budget == 'true'
-      # 2) Met à jour le fil d'actualité de chaque candidat
+      # 2) Met à jour le fil d'actualité de chaque candidat (mode brut sans IA si solde épuisé).
       - run: npm run automation:presidential-news
-        if: steps.budget.outputs.has_budget == 'true'
+      # 2bis) Fil vidéo de chaque candidat (YouTube officiel, RSS — aucun coût IA).
+      - run: npm run data:sync-candidate-videos
       # 3) Positions sourcées (Wikipédia) des candidats sur les grands enjeux
       - run: npm run automation:candidate-positions
         if: steps.budget.outputs.has_budget == 'true'
