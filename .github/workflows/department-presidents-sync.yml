@@ -2,7 +2,7 @@ name: Présidents de département (RNE + bios)
 on:
   schedule:
     # Mensuel, le 6 à 02h50 UTC (heures creuses) — après la synchro RNE hebdomadaire.
-    - cron: '50 2 6 * *'
+    - cron: '50 12 6 * *'
   workflow_dispatch:
     inputs:
       force:

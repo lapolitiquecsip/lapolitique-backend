@@ -2,7 +2,7 @@ name: Maires (RNE + bios ≥ 5000 hab)
 on:
   schedule:
     # Mensuel, le 7 à 03h10 UTC — après la synchro RNE hebdomadaire (elected_officials).
-    - cron: '10 3 7 * *'
+    - cron: '10 13 7 * *'
   workflow_dispatch:
     inputs:
       min_pop:

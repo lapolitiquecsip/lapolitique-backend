@@ -1,8 +1,8 @@
 name: Eurodéputés (Parlement européen)
 on:
   schedule:
-    - cron: '25 3 * * 4'   # hebdo (jeudi 03h25 UTC) : votes + liste
-    - cron: '45 2 7 * *'   # mensuel (le 7) : bios des nouveaux
+    - cron: '25 12 * * 4'   # hebdo (jeudi 12h25 UTC, heures creuses) : votes + liste
+    - cron: '45 12 7 * *'   # mensuel (le 7, 12h45 UTC, heures creuses) : bios des nouveaux
   workflow_dispatch:
 concurrency:
   group: europe-sync
