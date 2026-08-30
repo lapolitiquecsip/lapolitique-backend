@@ -37,13 +37,27 @@ function sourceFromTitle(title: string): { clean: string; source: string } {
   return { clean: title.trim(), source: "" };
 }
 
+// Solde DeepSeek disponible ? (léger, ne déclenche pas le garde-fou qui coupe le process).
+async function deepseekAvailable(): Promise<boolean> {
+  try {
+    const r = await fetch("https://api.deepseek.com/user/balance", {
+      headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` }, signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) return false;
+    return !!(await r.json()).is_available;
+  } catch { return false; }
+}
+
 export async function syncPresidentialNews() {
   const { data: candidates, error } = await supabase
     .from("presidential_candidates")
     .select("id, full_name")
     .eq("status", "declared");
   if (error) throw error;
-  console.log(`[Presidential-News] ${candidates?.length ?? 0} candidat(s).`);
+  // Si le solde IA est épuisé, on continue quand même en MODE BRUT (titre + extrait, sans
+  // reformulation) : le fil ne s'arrête plus jamais. L'IA n'est utilisée que si du crédit existe.
+  const aiOn = await deepseekAvailable();
+  console.log(`[Presidential-News] ${candidates?.length ?? 0} candidat(s). IA : ${aiOn ? "activée" : "épuisée → mode brut"}.`);
 
   let inserted = 0;
   for (const candidate of candidates ?? []) {
@@ -75,22 +89,28 @@ export async function syncPresidentialNews() {
       const snippet = (item.contentSnippet || item.content || "").slice(0, 500);
 
       try {
-        const summary = await summariseNews(candidate.full_name, clean, snippet);
-        if (!summary || summary.should_publish === false) continue;
+        let row: { title: string; summary: string | null; news_type: string };
+        if (aiOn) {
+          const summary = await summariseNews(candidate.full_name, clean, snippet);
+          if (!summary || summary.should_publish === false) continue;
+          row = { title: summary.title || clean, summary: summary.summary || null, news_type: summary.news_type || "actualite" };
+          await new Promise(r => setTimeout(r, 600));
+        } else {
+          // Mode brut (sans IA) : filtre minimal de pertinence (le nom du candidat dans le titre).
+          const last = candidate.full_name.split(" ").pop()?.toLowerCase() || "";
+          if (last && !clean.toLowerCase().includes(last)) continue;
+          row = { title: clean, summary: snippet.slice(0, 200) || null, news_type: "actualite" };
+        }
 
         const { error: insertError } = await supabase.from("candidate_news").insert({
           candidate_id: candidate.id,
           date: item.pubDate ? new Date(item.pubDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
-          title: summary.title || clean,
-          summary: summary.summary || null,
-          news_type: summary.news_type || "actualite",
-          source_name: source || "Presse",
-          source_url: url,
+          title: row.title, summary: row.summary, news_type: row.news_type,
+          source_name: source || "Presse", source_url: url,
         });
         if (insertError) { console.error(`[Presidential-News] insert:`, insertError.message); continue; }
         processed++;
         inserted++;
-        await new Promise(r => setTimeout(r, 600));
       } catch (cause: any) {
         console.error(`[Presidential-News] ${candidate.full_name}:`, cause.message);
       }
