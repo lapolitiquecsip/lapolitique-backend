@@ -11,7 +11,10 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 // FORCE_PROPOSALS=1 force la régénération.
 const PROGRAMS: Record<string, { base: string; index: string }> = {
   "david lisnard": { base: "https://www.unenouvelleenergie.fr", index: "/notre-programme/" },
+  // NB Mélenchon (L'Avenir en Commun) : programme publié mais site SPA JS + PDF → non scrapable
+  // par simple fetch. À traiter par parsing PDF (avenir_en_commun_2025.pdf) plus tard.
 };
+const MAX_PAGES = Number(process.env.PROPOSALS_MAX_PAGES || 24);   // borne le coût IA par candidat
 const FRESH_DAYS = Number(process.env.PROPOSALS_FRESH_DAYS || 7);
 const FORCE = process.argv.includes("--force") || process.env.FORCE_PROPOSALS === "1";
 const CONTEXT_MARK = "__contexte__";
@@ -102,10 +105,12 @@ export async function syncCandidateProposals() {
       if (h.replace(/\/$/, "") === (prog.base + prog.index).replace(/\/$/, "")) return;
       if (!/pole-de-travail|idees\/?$/i.test(h)) themeUrls.add(h);
     });
+    // Programme sur UNE SEULE page (pas de sous-pages thématiques) : on scrape la page elle-même.
+    if (themeUrls.size === 0) themeUrls.add(prog.base + prog.index);
 
     const rows: any[] = [];
     let order = 0;
-    for (const url of themeUrls) {
+    for (const url of [...themeUrls].slice(0, MAX_PAGES)) {
       const doc = await fetchDoc(url);
       if (!doc) continue;
       const { theme, text } = pageText(doc);
@@ -121,14 +126,16 @@ export async function syncCandidateProposals() {
       }
       await new Promise(r => setTimeout(r, 300));
     }
-    if (rows.length) {
+    // Dédoublonnage par id (une même proposition peut apparaître dans 2 pages/chapitres).
+    const uniq = Array.from(new Map(rows.map(r => [r.id, r])).values());
+    if (uniq.length) {
       // Régénération propre : on remplace l'ancien jeu (les IDs changent si le texte change).
       await supabase.from("candidate_proposals").delete().eq("candidate_id", c.id);
-      const { error: e } = await supabase.from("candidate_proposals").upsert(rows, { onConflict: "id" });
+      const { error: e } = await supabase.from("candidate_proposals").upsert(uniq, { onConflict: "id" });
       if (e) { console.error(`  ! upsert ${c.full_name}: ${e.message}`); continue; }
     }
-    console.log(`> ${c.full_name} : ${rows.length} entrée(s) depuis ${themeUrls.size} page(s).`);
-    totalCand++; totalProp += rows.length;
+    console.log(`> ${c.full_name} : ${uniq.length} entrée(s) depuis ${Math.min(themeUrls.size, MAX_PAGES)} page(s).`);
+    totalCand++; totalProp += uniq.length;
   }
   console.log(`--- TERMINE. ${totalCand} candidat(s), ${totalProp} entrée(s). ---`);
   return totalProp;
