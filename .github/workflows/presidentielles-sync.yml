@@ -32,6 +32,8 @@ jobs:
       - run: npm run data:sync-candidate-videos
       # 2ter) Propositions/idées de chaque candidat (site officiel du mouvement — sans IA).
       - run: npm run data:sync-candidate-proposals
+      # 2quater) Explique chaque proposition (le « ? ») avec chiffres nationaux vérifiés.
+      - run: npm run data:explain-proposals
       # 3) Positions sourcées (Wikipédia) des candidats sur les grands enjeux
       - run: npm run automation:candidate-positions
         if: steps.budget.outputs.has_budget == 'true'
