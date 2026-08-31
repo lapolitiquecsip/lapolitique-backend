@@ -2,22 +2,22 @@ import "dotenv/config";
 import crypto from "crypto";
 import * as cheerio from "cheerio";
 import { supabase } from "../../config/supabase.js";
+import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 
-// Propositions / idées de chaque candidat, scrapées VERBATIM du site OFFICIEL de son mouvement.
-// Aucune reformulation, aucune IA, aucune invention : on stocke le texte officiel + le lien source.
-// Pour ajouter un candidat : vérifier le site de son mouvement + la page « programme » et l'ajouter.
+// Propositions / idées de chaque candidat, à partir du site OFFICIEL de son mouvement.
+// On RESTRUCTURE le texte officiel en idées claires par thème (fidèle, aucune invention) via
+// deepseek-chat, + un CONTEXTE (« pourquoi ce thème ») tiré du texte. Garde-fou anti-coût :
+// on ne relance l'IA que si les données du candidat ont plus de FRESH_DAYS (proposals stables).
+// FORCE_PROPOSALS=1 force la régénération.
 const PROGRAMS: Record<string, { base: string; index: string }> = {
-  // clé = normalized_name du candidat
   "david lisnard": { base: "https://www.unenouvelleenergie.fr", index: "/notre-programme/" },
 };
+const FRESH_DAYS = Number(process.env.PROPOSALS_FRESH_DAYS || 7);
+const FORCE = process.argv.includes("--force") || process.env.FORCE_PROPOSALS === "1";
+const CONTEXT_MARK = "__contexte__";
 
 const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-// Sections/paragraphes de navigation ou d'appel à l'action à IGNORER (pas des propositions).
-const NOISE = /(recevez|actualit|newsletter|s'engager|s’engager|participer|découvrir|decouvrir|cookies|nous pose|proposer vos idées|faire un don|adhérer|adherer|rejoignez|inscri|mentions légales|©)/i;
-const STOP = /(les questions qu|recevez les actualit)/i;
-// Une PROPOSITION = phrase d'action commençant par un verbe à l'infinitif (mesure concrète),
-// ex. « Supprimer… », « Exercer… », « Fixer… ». Évite la rhétorique et les titres d'accordéon.
-const PROPOSAL = /^[A-ZÉÀÊÎÔ][a-zà-ÿ]+(er|ir|re)\b/;
+const NOISE = /(recevez|newsletter|s'engager|s’engager|participer|proposer vos idées|faire un don|adhérer|adherer|rejoignez|mentions légales|abonnez|suivez-nous|cookies)/i;
 
 async function fetchDoc(url: string): Promise<cheerio.CheerioAPI | null> {
   try {
@@ -27,33 +27,52 @@ async function fetchDoc(url: string): Promise<cheerio.CheerioAPI | null> {
   } catch (e: any) { console.warn(`  ! ${url} : ${e.message}`); return null; }
 }
 
-// Extrait les propositions d'une page thème : <p> substantiels sous les <h3>, avant la
-// section « questions/actualités ». On garde le texte tel quel.
-function extractProposals($: cheerio.CheerioAPI, source_url: string) {
-  const theme = ($("h1").first().text().trim() || "").slice(0, 80) || null;
-  const out: { theme: string | null; subsection: string | null; text: string }[] = [];
-  let subsection: string | null = null;
+// Texte brut du programme d'une page thème (titres + paragraphes + listes), avant la FAQ.
+function pageText($: cheerio.CheerioAPI): { theme: string; text: string } {
+  const theme = ($("h1").first().text().trim() || "").slice(0, 80);
+  const parts: string[] = [];
   let stopped = false;
-  const seen = new Set<string>();
-  $("h2, h3, p, li").each((_, el) => {
+  $("h2, h3, h4, p, li").each((_, el) => {
     if (stopped) return;
     const tag = (el as any).tagName;
     const t = $(el).text().replace(/\s+/g, " ").replace(/[↓↑]/g, "").trim();
-    if (!t) return;
-    if (tag === "h2") { if (STOP.test(t)) stopped = true; return; }
-    if (tag === "h3") { subsection = NOISE.test(t) ? subsection : t.slice(0, 120); return; }
-    // <p>/<li> : ne garder que les vraies PROPOSITIONS (phrase d'action à l'infinitif).
-    if (t.length < 20 || t.length > 320 || NOISE.test(t) || /\?$/.test(t)) return;
-    if (!PROPOSAL.test(t)) return;
-    const key = norm(t);
-    if (seen.has(key)) return; seen.add(key);
-    out.push({ theme, subsection, text: t });
+    if (!t || NOISE.test(t)) return;
+    if (tag === "h2" && /les questions qu|recevez les actualit/i.test(t)) { stopped = true; return; }
+    if (t.length < 8) return;
+    parts.push((tag === "h3" || tag === "h2" ? `\n## ${t}` : t));
   });
-  return out.map(p => ({ ...p, source_url }));
+  return { theme, text: parts.join("\n").slice(0, 9000) };
+}
+
+const SYS = `On te donne le TEXTE d'une page du PROGRAMME OFFICIEL d'un·e candidat·e à la présidentielle (thème indiqué). Tu le RESTRUCTURES en idées claires, SANS RIEN INVENTER ni ajouter le moindre fait absent du texte.
+
+Réponds en JSON STRICT :
+{
+  "context": "1 à 2 phrases : le constat/l'objectif du candidat sur ce thème (POURQUOI il propose ça), repris fidèlement du texte. Neutre.",
+  "proposals": ["chaque PROPOSITION/idée concrète du texte, une par entrée, formulée clairement (verbatim ou légèrement condensé), factuelle"]
+}
+
+RÈGLES : reste FIDÈLE au texte (aucune invention, aucun ajout, aucune opinion). Capture TOUTES les propositions concrètes présentes (vise l'exhaustivité). Chaque proposition = 1 phrase claire. Si le texte est purement introductif, "proposals" peut être court.`;
+
+async function extractIdeas(theme: string, text: string): Promise<{ context: string | null; proposals: string[] }> {
+  const resp = await resilientDeepSeek.createMessage({
+    model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object",
+    system: SYS, messages: [{ role: "user", content: `THÈME : ${theme}\n\nTEXTE :\n${text}` }],
+  }, { timeoutMs: 90000 });
+  const t = resp.content[0]?.text ?? "";
+  const m = t.match(/\{[\s\S]*\}/);
+  if (!m) return { context: null, proposals: [] };
+  try {
+    const j = JSON.parse(m[0]);
+    return {
+      context: typeof j.context === "string" ? j.context.slice(0, 400) : null,
+      proposals: Array.isArray(j.proposals) ? j.proposals.filter((p: any) => typeof p === "string" && p.trim().length > 8).map((p: string) => p.trim().slice(0, 320)) : [],
+    };
+  } catch { return { context: null, proposals: [] }; }
 }
 
 export async function syncCandidateProposals() {
-  console.log("--- SYNC PROPOSITIONS CANDIDATS (sites officiels) ---");
+  console.log(`--- SYNC PROPOSITIONS CANDIDATS (sites officiels)${FORCE ? " [FORCE]" : ""} ---`);
   const { data: candidates, error } = await supabase
     .from("presidential_candidates").select("id, full_name, normalized_name").eq("status", "declared");
   if (error) throw error;
@@ -64,17 +83,24 @@ export async function syncCandidateProposals() {
     const prog = PROGRAMS[key] || PROGRAMS[norm(c.full_name)];
     if (!prog) continue;
 
+    // Garde-fou anti-coût IA : si des propositions récentes existent déjà, on saute.
+    if (!FORCE) {
+      const { data: fresh } = await supabase.from("candidate_proposals").select("updated_at")
+        .eq("candidate_id", c.id).order("updated_at", { ascending: false }).limit(1);
+      const last = fresh?.[0]?.updated_at ? new Date(fresh[0].updated_at).getTime() : 0;
+      if (last && (Date.now() - last) < FRESH_DAYS * 86400000) { console.log(`> ${c.full_name} : à jour (< ${FRESH_DAYS} j), sauté.`); continue; }
+    }
+
     const idx = await fetchDoc(prog.base + prog.index);
     if (!idx) continue;
-    // Auto-découverte des pages thèmes (/notre-programme/xxx/), hors index & pages non-programmatiques.
     const themeUrls = new Set<string>();
     idx("a[href]").each((_, a) => {
       let h = (idx(a).attr("href") || "").split("#")[0].split("?")[0];
       if (!h) return;
       if (h.startsWith("/")) h = prog.base + h;
       if (!h.startsWith(prog.base + prog.index)) return;
-      if (h.replace(/\/$/, "") === (prog.base + prog.index).replace(/\/$/, "")) return; // l'index
-      if (/pole-de-travail|idees\/?$|propositions?\/?$/i.test(h) === false) themeUrls.add(h);
+      if (h.replace(/\/$/, "") === (prog.base + prog.index).replace(/\/$/, "")) return;
+      if (!/pole-de-travail|idees\/?$/i.test(h)) themeUrls.add(h);
     });
 
     const rows: any[] = [];
@@ -82,23 +108,29 @@ export async function syncCandidateProposals() {
     for (const url of themeUrls) {
       const doc = await fetchDoc(url);
       if (!doc) continue;
-      for (const p of extractProposals(doc, url)) {
-        rows.push({
-          id: crypto.createHash("md5").update(`${c.id}|${norm(p.text)}`).digest("hex"),
-          candidate_id: c.id, theme: p.theme, subsection: p.subsection, text: p.text,
-          source_url: p.source_url, sort_order: order++, updated_at: new Date().toISOString(),
-        });
+      const { theme, text } = pageText(doc);
+      if (text.length < 100) continue;
+      const { context, proposals } = await extractIdeas(theme, text);
+      if (context) {
+        rows.push({ id: crypto.createHash("md5").update(`${c.id}|ctx|${norm(theme)}`).digest("hex"),
+          candidate_id: c.id, theme, subsection: CONTEXT_MARK, text: context, source_url: url, sort_order: order++, updated_at: new Date().toISOString() });
+      }
+      for (const p of proposals) {
+        rows.push({ id: crypto.createHash("md5").update(`${c.id}|${norm(p)}`).digest("hex"),
+          candidate_id: c.id, theme, subsection: null, text: p, source_url: url, sort_order: order++, updated_at: new Date().toISOString() });
       }
       await new Promise(r => setTimeout(r, 300));
     }
     if (rows.length) {
+      // Régénération propre : on remplace l'ancien jeu (les IDs changent si le texte change).
+      await supabase.from("candidate_proposals").delete().eq("candidate_id", c.id);
       const { error: e } = await supabase.from("candidate_proposals").upsert(rows, { onConflict: "id" });
       if (e) { console.error(`  ! upsert ${c.full_name}: ${e.message}`); continue; }
     }
-    console.log(`> ${c.full_name} : ${rows.length} proposition(s) depuis ${themeUrls.size} page(s).`);
+    console.log(`> ${c.full_name} : ${rows.length} entrée(s) depuis ${themeUrls.size} page(s).`);
     totalCand++; totalProp += rows.length;
   }
-  console.log(`--- TERMINE. ${totalCand} candidat(s), ${totalProp} proposition(s). ---`);
+  console.log(`--- TERMINE. ${totalCand} candidat(s), ${totalProp} entrée(s). ---`);
   return totalProp;
 }
 
