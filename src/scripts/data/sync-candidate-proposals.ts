@@ -11,8 +11,11 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 // FORCE_PROPOSALS=1 force la régénération.
 const PROGRAMS: Record<string, { base: string; index: string }> = {
   "david lisnard": { base: "https://www.unenouvelleenergie.fr", index: "/notre-programme/" },
-  // NB Mélenchon (L'Avenir en Commun) : programme publié mais site SPA JS + PDF → non scrapable
-  // par simple fetch. À traiter par parsing PDF (avenir_en_commun_2025.pdf) plus tard.
+  "bruno retailleau": { base: "https://www.republicains.fr", index: "/nos-propositions/" },   // programme LR (son parti)
+  "delphine batho": { base: "https://generationecologie.fr", index: "/notre-projet/" },
+  // Programmes PUBLIÉS mais en PDF / site SPA (non scrapables par simple fetch — à faire via PDF) :
+  //  - Mélenchon : « L'Avenir en Commun » (SPA + PDF avenir_en_commun_2025.pdf)
+  //  - Dupont-Aignan : « 100 décisions » de Debout la France (PDF, page = liens de téléchargement)
 };
 const MAX_PAGES = Number(process.env.PROPOSALS_MAX_PAGES || 24);   // borne le coût IA par candidat
 const FRESH_DAYS = Number(process.env.PROPOSALS_FRESH_DAYS || 7);
