@@ -69,7 +69,14 @@ async function main() {
   console.log("--- SYNC COMPTES RENDUS DE COMMISSION (auditions) ---");
   const dir = path.join(process.cwd(), "_crtmp");
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
-  await downloadAndUnzip(AGENDA_URL, dir);
+  // Panne transitoire de l'open data Assemblée : on saute proprement (exit 0) plutôt que de
+  // passer tout le workflow « Legislative data sync » en rouge — le prochain cron réessaiera.
+  try {
+    await downloadAndUnzip(AGENDA_URL, dir);
+  } catch (e: any) {
+    console.warn(`Open data Assemblée indisponible (${e?.message}) — sync des comptes rendus ignoré cette fois.`);
+    return;
+  }
   const rdir = findDir(dir, "reunion");
   if (!rdir) { console.error("dossier reunion introuvable"); return; }
 

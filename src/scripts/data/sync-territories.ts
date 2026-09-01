@@ -19,14 +19,18 @@ await runIngestion({ domain: "territories", jobName: "sync-territories", source 
   const indicators: Record<string, unknown>[] = [];
   for (const [type, records] of Object.entries(files)) for (const [code, record] of Object.entries(records)) {
     if (code === "_meta") continue;
-    territories.push({ code, official_id: `cog:${type}:${code}`, type, name: record.name ?? code, source_id: sourceId, source_updated_at: now, collected_at: now, quality_status: "verified" });
+    // Les codes INSEE de région (11, 24, 75…) collisionnent avec des codes de département (Aude, Dordogne, Paris).
+    // Or `territories.code` est la clé primaire. On préfixe donc les régions par « R » (R11, R75…), convention
+    // déjà attendue par le frontend (comparateur : `codeInsee = R${rawCode}`). Départements et communes inchangés.
+    const storedCode = type === "region" ? `R${code}` : code;
+    territories.push({ code: storedCode, official_id: `cog:${type}:${code}`, type, name: record.name ?? code, source_id: sourceId, source_updated_at: now, collected_at: now, quality_status: "verified" });
     for (const [section, values] of Object.entries(record)) {
       if (!domainBySection[section] || !values || typeof values !== "object") continue;
       for (const [indicator, value] of Object.entries(values as Record<string, unknown>)) {
         if (value === null || typeof value !== "number") continue;
         const provenanceYears = record.provenance?.years ?? {};
         const year = Number(Object.values(provenanceYears).find(Boolean) ?? (type === "commune" ? 2023 : 2024));
-        indicators.push({ territory_code: code, indicator_code: indicator, domain: domainBySection[section], value, unit: unitByIndicator[indicator] ?? "value", reference_year: year, methodology_version: indicator === "qualiteAir" || indicator === "risques" ? "composite-v1" : "official-v1", raw_components: {}, source_id: sourceId, source_urls: [record.provenance?.url ?? source.datasetUrl], source_updated_at: now, collected_at: now, quality_status: "verified" });
+        indicators.push({ territory_code: storedCode, indicator_code: indicator, domain: domainBySection[section], value, unit: unitByIndicator[indicator] ?? "value", reference_year: year, methodology_version: indicator === "qualiteAir" || indicator === "risques" ? "composite-v1" : "official-v1", raw_components: {}, source_id: sourceId, source_urls: [record.provenance?.url ?? source.datasetUrl], source_updated_at: now, collected_at: now, quality_status: "verified" });
       }
     }
   }

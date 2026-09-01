@@ -2,24 +2,42 @@ import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
 
-export async function downloadAndUnzip(url: string, targetDir: string) {
-  console.log(`> Downloading ${url}...`);
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
-  
-  const buffer = await response.arrayBuffer();
-  const tempZip = path.join(targetDir, 'temp.zip');
-  
-  if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
-  
-  fs.writeFileSync(tempZip, Buffer.from(buffer));
-  
-  console.log(`> Unzipping to ${targetDir}...`);
-  const zip = new AdmZip(tempZip);
-  zip.extractAllTo(targetDir, true);
-  
-  fs.unlinkSync(tempZip);
-  console.log(`> Done.`);
+// Télécharge + dézippe, avec timeout et reprises. Les serveurs open data (Assemblée, DILA…)
+// renvoient régulièrement des 5xx/coupures transitoires : sans timeout la requête peut se figer
+// (job CI annulé → échec), et sans reprise un simple blip fait planter tout le workflow.
+export async function downloadAndUnzip(
+  url: string,
+  targetDir: string,
+  opts: { retries?: number; timeoutMs?: number } = {},
+) {
+  const retries = opts.retries ?? 3;
+  const timeoutMs = opts.timeoutMs ?? 60000;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`> Downloading ${url}${attempt > 1 ? ` (tentative ${attempt}/${retries})` : ""}...`);
+      const response = await fetch(url, {
+        headers: { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitique.fr)" },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!response.ok) throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+      const buffer = await response.arrayBuffer();
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+      const tempZip = path.join(targetDir, 'temp.zip');
+      fs.writeFileSync(tempZip, Buffer.from(buffer));
+      console.log(`> Unzipping to ${targetDir}...`);
+      const zip = new AdmZip(tempZip);
+      zip.extractAllTo(targetDir, true);
+      fs.unlinkSync(tempZip);
+      console.log(`> Done.`);
+      return;
+    } catch (e) {
+      lastErr = e;
+      console.warn(`  ! téléchargement échoué (${(e as Error).message})`);
+      if (attempt < retries) await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
+  }
+  throw lastErr;
 }
 
 export function parseFrenchDate(dateStr: string): string {
