@@ -62,11 +62,29 @@ NE PAS PUBLIER (should_publish=false) :
 
 Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "projet" }`;
 
+const REGION_PROMPT = (entityName: string) => `Tu alimentes le fil d'actualité RÉGIONALE de la région « ${entityName} » (France) : ce que fait le CONSEIL RÉGIONAL et ce qui concerne toute la région.
+
+À PUBLIER (should_publish=true) si l'article concerne l'action de la RÉGION (compétences du conseil régional) : lycées, transports/TER, développement économique, formation professionnelle et apprentissage, aides et subventions régionales, budget régional, aménagement du territoire, environnement/énergie à l'échelle régionale, délibération de l'assemblée régionale, grand projet régional.
+
+NE PAS PUBLIER (should_publish=false) :
+- une actualité NATIONALE sans lien avec cette région ;
+- une actu purement LOCALE d'une seule commune (sans dimension régionale) ;
+- une AUTRE région / un homonyme (vérifie que c'est bien cette région-là) ;
+- le fait divers, le sport-résultats, la publicité, le commentaire/polémique.
+
+- "title" : reformulé, factuel, centré sur l'action régionale (max 14 mots).
+- "summary" : 1-2 phrases (40 mots max), le fait/chiffre concret. En français.
+- "news_type" : un parmi delibération | budget | aide | transport | lycee | developpement | formation | decision | actualite.
+
+Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "delibération" }`;
+
 async function summarise(entityName: string, title: string, snippet: string, entityType: string) {
+  const promptFor = entityType === "commune" ? COMMUNE_PROMPT : entityType === "region" ? REGION_PROMPT : MINISTRY_PROMPT;
+  const labelFor = entityType === "commune" ? "Ville" : entityType === "region" ? "Région" : "Institution";
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object",
-    system: entityType === "commune" ? COMMUNE_PROMPT(entityName) : MINISTRY_PROMPT(entityName),
-    messages: [{ role: "user", content: `${entityType === "commune" ? "Ville" : "Institution"} : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
+    system: promptFor(entityName),
+    messages: [{ role: "user", content: `${labelFor} : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
   });
   const text = response.content[0]?.type === "text" ? response.content[0].text : "";
   const m = text.match(/\{[\s\S]*\}/);

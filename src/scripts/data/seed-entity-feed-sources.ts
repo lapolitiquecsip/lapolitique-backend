@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
+import { REGIONS } from "../../lib/dept-region.js";
 
 // Brique #4 — Seed du registre des flux d'actualité par entité (ministères + départements).
 // Génère un flux Google News par entité (gratuit, réutilisable : on ne stocke que titre/lien +
@@ -68,6 +69,17 @@ async function departments(): Promise<Source[]> {
   return out;
 }
 
+// Régions (18) — action du CONSEIL RÉGIONAL (lycées, TER/transports, développement économique,
+// formation, aides, budget régional). entity_id = code INSEE brut de la région (aligné sur le front :
+// territory.id d'une région = code brut, ex. « 76 » pour l'Occitanie).
+async function regions(): Promise<Source[]> {
+  return Object.entries(REGIONS).map(([code, name]) => ({
+    entity_type: "region", entity_id: code, entity_name: name,
+    feed_url: gnews(`("conseil régional" OR "région ${name}") (délibération OR budget OR lycée OR TER OR transport OR aide OR subvention OR développement OR formation)`),
+    source_name: "Google News", kind: "google_news", active: true,
+  }));
+}
+
 // Brique #1 — communes de plus de 20 000 habitants (support = fiches maires). Google News ciblé
 // sur la vie municipale (mairie/conseil municipal/travaux/projet) pour limiter les homonymes.
 async function communesTop(): Promise<Source[]> {
@@ -86,8 +98,8 @@ async function communesTop(): Promise<Source[]> {
 }
 
 async function main() {
-  const sources = [...await ministries(), ...await departments(), ...await communesTop()];
-  console.log(`→ ${sources.length} sources (${sources.filter(s => s.entity_type === "ministry").length} ministères, ${sources.filter(s => s.entity_type === "department").length} départements, ${sources.filter(s => s.entity_type === "commune").length} communes).`);
+  const sources = [...await ministries(), ...await departments(), ...await regions(), ...await communesTop()];
+  console.log(`→ ${sources.length} sources (${sources.filter(s => s.entity_type === "ministry").length} ministères, ${sources.filter(s => s.entity_type === "department").length} départements, ${sources.filter(s => s.entity_type === "region").length} régions, ${sources.filter(s => s.entity_type === "commune").length} communes).`);
   let ok = 0;
   for (let i = 0; i < sources.length; i += 200) {
     const batch = sources.slice(i, i + 200);

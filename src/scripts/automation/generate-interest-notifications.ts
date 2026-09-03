@@ -2,6 +2,7 @@ import "dotenv/config";
 import crypto from "crypto";
 import { supabase } from "../../config/supabase.js";
 import { matchDomains } from "../../lib/interest-domains.js";
+import { regionOfDept } from "../../lib/dept-region.js";
 
 // Notifications PERSONNALISÉES des membres premium.
 // À partir des NOUVEAUX contenus produits par les automatisations du site (flux `entity_feed`),
@@ -101,7 +102,7 @@ async function fetchAll(table: string, select: string, apply: (q: any) => any): 
 // Contenu normalisé, toutes automatisations confondues.
 interface Item {
   title: string; summary: string | null; url: string | null; date: string | null;
-  scope: "local" | "thematic"; deptCode?: string | null; communeCode?: string | null;
+  scope: "local" | "thematic"; deptCode?: string | null; communeCode?: string | null; regionCode?: string | null;
   importance: number; type: string;
 }
 
@@ -109,7 +110,7 @@ interface Item {
 // ville → code INSEE (table territories) → département (2-3 premiers chiffres). Repli sur le
 // département saisi si la ville est absente/introuvable. Corrige aussi une saisie erronée du
 // champ « département » (ex. l'utilisateur y a mis une région).
-async function resolveLocation(city: string | null, department: string | null): Promise<{ communeCode: string | null; deptCode: string | null }> {
+async function resolveLocation(city: string | null, department: string | null): Promise<{ communeCode: string | null; deptCode: string | null; regionCode: string | null }> {
   const c = (city || "").trim();
   if (c) {
     const { data } = await supabase.from("territories").select("code").eq("type", "commune").ilike("name", c).limit(10);
@@ -117,10 +118,12 @@ async function resolveLocation(city: string | null, department: string | null): 
       let code = String(data[0].code);
       const dep = userDeptCode(department);
       if (data.length > 1 && dep) { const m = data.find(d => itemDeptCode("commune", String(d.code)) === dep); if (m) code = String(m.code); }
-      return { communeCode: code, deptCode: itemDeptCode("commune", code) };
+      const dc = itemDeptCode("commune", code);
+      return { communeCode: code, deptCode: dc, regionCode: regionOfDept(dc) };
     }
   }
-  return { communeCode: null, deptCode: userDeptCode(department) };
+  const dc = userDeptCode(department);
+  return { communeCode: null, deptCode: dc, regionCode: regionOfDept(dc) };
 }
 
 // Agrège TOUTES les sources de contenu du site en une seule liste normalisée.
@@ -133,11 +136,13 @@ async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
     const feed = await fetchAll("entity_feed", "entity_type, entity_id, title, summary, url, published_at, news_type",
       q => q.gte("published_at", since));
     for (const it of feed) {
-      const isLocal = it.entity_type === "commune" || it.entity_type === "department";
+      const isLocal = it.entity_type === "commune" || it.entity_type === "department" || it.entity_type === "region";
       out.push({
         title: it.title, summary: it.summary, url: it.url, date: it.published_at,
-        scope: isLocal ? "local" : "thematic", deptCode: isLocal ? itemDeptCode(it.entity_type, it.entity_id) : null,
+        scope: isLocal ? "local" : "thematic",
+        deptCode: (it.entity_type === "commune" || it.entity_type === "department") ? itemDeptCode(it.entity_type, it.entity_id) : null,
         communeCode: it.entity_type === "commune" ? String(it.entity_id) : null,
+        regionCode: it.entity_type === "region" ? String(it.entity_id) : null,
         importance: importanceOf(it.news_type), type: isLocal ? "local" : "info",
       });
     }
@@ -189,9 +194,9 @@ export async function generateInterestNotifications() {
   for (const p of prefs) {
     const loc = await resolveLocation(p.city, p.department);
     const interests = withImplied(p.interests || [], p.profession, p.age_range);
-    if (interests.length > 0 || loc.deptCode || loc.communeCode) users.push({ ...p, ...loc, interests });
+    if (interests.length > 0 || loc.deptCode || loc.communeCode || loc.regionCode) users.push({ ...p, ...loc, interests });
   }
-  if (TEST) users.push({ user_id: "00000000-0000-0000-0000-000000000000", interests: ["economie", "securite", "ecologie", "sante", "logement", "agriculture"], region: null, department: "34", city: null, notify_email: true, email_min_importance: 3, deptCode: "34", communeCode: null } as any);
+  if (TEST) users.push({ user_id: "00000000-0000-0000-0000-000000000000", interests: ["economie", "securite", "ecologie", "sante", "logement", "agriculture"], region: null, department: "34", city: null, notify_email: true, email_min_importance: 3, deptCode: "34", communeCode: null, regionCode: "76" } as any);
   console.log(`> ${users.length} membre(s) avec profil.`);
   if (!users.length) { console.log("--- Aucun profil. Rien à faire. ---"); return 0; }
 
@@ -220,6 +225,9 @@ export async function generateInterestNotifications() {
         // Actu de COMMUNE : uniquement le membre dont la VILLE correspond EXACTEMENT
         // (jamais une autre commune du même département).
         if (!u.communeCode || it.communeCode !== u.communeCode) continue;
+      } else if (it.regionCode) {
+        // Actu RÉGIONALE : concerne toute la région → le membre de cette région.
+        if (!u.regionCode || it.regionCode !== u.regionCode) continue;
       } else {
         // Actu DÉPARTEMENTALE : concerne tout le département → le membre de ce département.
         if (!it.deptCode || u.deptCode !== it.deptCode) continue;
