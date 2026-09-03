@@ -207,28 +207,22 @@ export async function generateInterestNotifications() {
   const rows: any[] = [];
 
   for (const it of items) {
+    // MES ALERTES = GÉO UNIQUEMENT. Le membre veut seulement ce qui concerne SA localité :
+    // sa ville (exactement) et son département (une actu qui concerne tout le département).
+    // On retire donc TOUT le national/thématique par centre d'intérêt (ministères, lois nationales,
+    // candidats, UE…) qui inondait le feed, ET les actus d'AUTRES communes de son département.
+    if (it.scope !== "local") continue;
     const domains = matchDomains(`${it.title || ""} ${it.summary || ""}`);
-    if (!domains.length) continue;                          // rien à quoi rattacher
-    const isLocal = it.scope === "local";
     const dedup = `feed|${crypto.createHash("md5").update(String(it.url || it.title)).digest("hex").slice(0, 16)}`;
 
     for (const u of users) {
-      const inter = domains.filter(d => u.interests.includes(d));
-      if (isLocal) {
-        if (it.communeCode) {
-          // Actu de COMMUNE : si le membre a une ville précise → sa commune EXACTE uniquement
-          // (ex. Orvault, pas les autres communes) ; sinon → tout son département, filtré par intérêt.
-          if (u.communeCode) { if (it.communeCode !== u.communeCode) continue; }
-          else {
-            if (!it.deptCode || u.deptCode !== it.deptCode) continue;
-            if (u.interests.length && !inter.length) continue;
-          }
-        } else {
-          // Actu DÉPARTEMENTALE : tout le département du membre (pas de filtre d'intérêt).
-          if (!it.deptCode || u.deptCode !== it.deptCode) continue;
-        }
+      if (it.communeCode) {
+        // Actu de COMMUNE : uniquement le membre dont la VILLE correspond EXACTEMENT
+        // (jamais une autre commune du même département).
+        if (!u.communeCode || it.communeCode !== u.communeCode) continue;
       } else {
-        if (!inter.length) continue;                                // national/thématique : match par intérêt
+        // Actu DÉPARTEMENTALE : concerne tout le département → le membre de ce département.
+        if (!it.deptCode || u.deptCode !== it.deptCode) continue;
       }
       if ((perUser.get(u.user_id) || 0) >= MAX_PER_USER) continue;
       perUser.set(u.user_id, (perUser.get(u.user_id) || 0) + 1);
@@ -236,7 +230,7 @@ export async function generateInterestNotifications() {
         user_id: u.user_id, type: it.type,
         title: String(it.title || "").slice(0, 300),
         detail: it.summary ? String(it.summary).slice(0, 300) : null,
-        domain: inter[0] || domains[0], importance: it.importance, url: it.url || null,
+        domain: domains[0] || "local", importance: it.importance, url: it.url || null,
         event_at: it.date || null, created_at: now, read: false, dedup_key: dedup,
       });
     }
