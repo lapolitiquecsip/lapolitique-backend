@@ -1,29 +1,49 @@
 import OpenAI from 'openai';
 
-// DeepSeek V4 model identifiers (released April 2026)
-// deepseek-chat / deepseek-reasoner aliases are deprecated after July 24 2026
-export const DEEPSEEK_FLASH = 'deepseek-v4-flash'; // Fast & cheap — default for all summaries
-export const DEEPSEEK_PRO   = 'deepseek-v4-pro';   // Powerful — used as fallback for complex tasks
+// ============================================================================
+// Client LLM multi-provider : GRATUIT d'abord, DeepSeek en SECOURS payant.
+// ----------------------------------------------------------------------------
+// Historiquement ce fichier appelait uniquement DeepSeek. Pour couper le coût,
+// on route désormais TOUT le volume vers un modèle GRATUIT compatible OpenAI
+// (Gemini Flash par défaut) dès qu'une clé gratuite est fournie via
+// LLM_FREE_API_KEY (ou GEMINI_API_KEY). DeepSeek ne sert plus qu'en SECOURS
+// payant si le gratuit échoue/sature. Aucun call-site à modifier : l'interface
+// `resilientDeepSeek.createMessage(...)` est inchangée.
+//
+// Si AUCUNE clé gratuite n'est configurée → comportement historique (DeepSeek
+// primaire, avec sortie propre quand le solde est épuisé).
+// ============================================================================
+
+// Identifiants DeepSeek (secours payant)
+export const DEEPSEEK_FLASH = 'deepseek-v4-flash';
+export const DEEPSEEK_PRO   = 'deepseek-v4-pro';
 
 const MAX_RETRIES = parseInt(process.env.DEEPSEEK_MAX_RETRIES || '3', 10);
-const RPM = parseInt(process.env.DEEPSEEK_REQUESTS_PER_MINUTE || '60', 10);
-const REQUEST_INTERVAL_MS = Math.ceil((60 * 1000) / RPM);
 
-// Basic queue to serialize and throttle requests
+// --- Provider GRATUIT (primaire) ---
+// Endpoint compatible OpenAI. Par défaut : Gemini (Google AI Studio, quota gratuit).
+// Substituable (Groq, Mistral, OpenRouter…) via les variables d'env, sans toucher au code.
+const FREE_KEY = process.env.LLM_FREE_API_KEY || process.env.GEMINI_API_KEY || '';
+const FREE_BASE_URL = process.env.LLM_FREE_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+const FREE_MODEL = process.env.LLM_FREE_MODEL || 'gemini-2.0-flash';
+const FREE_RPM = parseInt(process.env.LLM_FREE_RPM || '15', 10);   // quota gratuit → throttle prudent
+const HAS_FREE = !!FREE_KEY;
+
+// --- Provider DeepSeek (secours payant, ou primaire si pas de clé gratuite) ---
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
+const DEEPSEEK_RPM = parseInt(process.env.DEEPSEEK_REQUESTS_PER_MINUTE || '60', 10);
+
+// File d'attente : sérialise et throttle les requêtes à un débit donné (par provider).
 class RequestQueue {
   private lastRequestTime = 0;
   private queue: (() => Promise<any>)[] = [];
   private processing = false;
+  constructor(private intervalMs: number) {}
 
   async enqueue<T>(requestFn: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       this.queue.push(async () => {
-        try {
-          const res = await requestFn();
-          resolve(res);
-        } catch (err) {
-          reject(err);
-        }
+        try { resolve(await requestFn()); } catch (err) { reject(err); }
       });
       this.process();
     });
@@ -32,58 +52,60 @@ class RequestQueue {
   private async process() {
     if (this.processing) return;
     this.processing = true;
-
     while (this.queue.length > 0) {
-      const now = Date.now();
-      const timeSinceLast = now - this.lastRequestTime;
-      const delay = Math.max(0, REQUEST_INTERVAL_MS - timeSinceLast);
-
-      if (delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-
+      const delay = Math.max(0, this.intervalMs - (Date.now() - this.lastRequestTime));
+      if (delay > 0) await new Promise(r => setTimeout(r, delay));
       const nextTask = this.queue.shift();
-      if (nextTask) {
-        this.lastRequestTime = Date.now();
-        await nextTask();
-      }
+      if (nextTask) { this.lastRequestTime = Date.now(); await nextTask(); }
     }
-
     this.processing = false;
   }
 }
 
-const deepseekQueue = new RequestQueue();
+const freeQueue = new RequestQueue(Math.ceil(60000 / Math.max(1, FREE_RPM)));
+const deepseekQueue = new RequestQueue(Math.ceil(60000 / Math.max(1, DEEPSEEK_RPM)));
 
-// Garde-fou budget GLOBAL : au tout premier appel DeepSeek d'un process, on vérifie le solde du
-// compte. S'il est épuisé (événement de budget attendu, plafond ~10 $/mois — PAS un bug), on sort
-// proprement (exit 0) plutôt que d'enchaîner des 402 « Insufficient Balance » qui font échouer le
-// cron en rouge. Couvre TOUS les scripts qui utilisent DeepSeek, sans toucher aux workflows. Le
-// travail GRATUIT déjà effectué avant le 1er appel IA est préservé.
+// Garde-fou budget DeepSeek : n'a de sens QUE lorsque DeepSeek est le provider PRIMAIRE
+// (aucune clé gratuite). Quand le gratuit est primaire, un solde DeepSeek à 0 n'est plus
+// bloquant : on tourne en gratuit et DeepSeek reste un simple secours optionnel.
 let budgetChecked = false;
 async function ensureBudgetOrExit(): Promise<void> {
   if (budgetChecked) return;
   budgetChecked = true;
-  const key = process.env.DEEPSEEK_API_KEY;
-  if (!key || process.env.DEEPSEEK_SKIP_BUDGET_CHECK === '1') return;
+  if (!DEEPSEEK_KEY || process.env.DEEPSEEK_SKIP_BUDGET_CHECK === '1') return;
   try {
     const res = await fetch('https://api.deepseek.com/user/balance', {
-      headers: { Authorization: `Bearer ${key}` },
+      headers: { Authorization: `Bearer ${DEEPSEEK_KEY}` },
       signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return; // API solde indisponible → on laisse tenter
+    if (!res.ok) return;
     const data = (await res.json()) as { is_available?: boolean; balance_infos?: { total_balance?: string }[] };
     if (data.is_available === false) {
       const bal = data.balance_infos?.[0]?.total_balance ?? '?';
       console.log('='.repeat(72));
       console.log('[BUDGET] Solde DeepSeek epuise (' + bal + ' USD) — etape IA ignoree, sortie propre.');
-      console.log('[BUDGET] Recharger https://platform.deepseek.com/top_up pour reactiver l\'IA.');
+      console.log('[BUDGET] Configurer LLM_FREE_API_KEY (Gemini) pour tourner GRATUITEMENT, ou recharger DeepSeek.');
       console.log('='.repeat(72));
       process.exit(0);
     }
-  } catch {
-    // Erreur reseau sur la verif → on laisse tenter plutot que de bloquer.
-  }
+  } catch { /* réseau : on laisse tenter */ }
+}
+
+// Cache léger de la disponibilité budgétaire DeepSeek pour le SECOURS (ne fait jamais exit).
+let deepseekBudgetOk: boolean | null = null;
+async function deepseekHasBudget(): Promise<boolean> {
+  if (!DEEPSEEK_KEY) return false;
+  if (deepseekBudgetOk !== null) return deepseekBudgetOk;
+  try {
+    const res = await fetch('https://api.deepseek.com/user/balance', {
+      headers: { Authorization: `Bearer ${DEEPSEEK_KEY}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) { deepseekBudgetOk = true; return true; } // solde indispo → on laisse tenter
+    const data = (await res.json()) as { is_available?: boolean };
+    deepseekBudgetOk = data.is_available !== false;
+    return deepseekBudgetOk;
+  } catch { deepseekBudgetOk = true; return true; }
 }
 
 export interface DeepSeekMessageParams {
@@ -99,136 +121,101 @@ export interface DeepSeekMessage {
   usage?: { input_tokens: number; output_tokens: number };
 }
 
-// Robust DeepSeek client wrapper — drop-in replacement for ResilientAnthropic
+// Client robuste multi-provider — drop-in (interface inchangée pour les 57 call-sites).
 export class ResilientDeepSeek {
-  private client: OpenAI;
+  private freeClient: OpenAI | null;
+  private deepseekClient: OpenAI;
 
   constructor() {
-    this.client = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY || 'dummy-key-for-compilation',
+    this.freeClient = HAS_FREE ? new OpenAI({ apiKey: FREE_KEY, baseURL: FREE_BASE_URL }) : null;
+    this.deepseekClient = new OpenAI({
+      apiKey: DEEPSEEK_KEY || 'dummy-key-for-compilation',
       baseURL: 'https://api.deepseek.com',
     });
   }
 
-  /**
-   * Send a message to DeepSeek with rate limiting, timeouts, and exponential backoff retries.
-   * Returns a response shaped like Anthropic's Message for minimal call-site changes.
-   */
-  async createMessage(
-    params: DeepSeekMessageParams,
-    options?: { timeoutMs?: number }
+  async createMessage(params: DeepSeekMessageParams, options?: { timeoutMs?: number }): Promise<DeepSeekMessage> {
+    const timeoutMs = options?.timeoutMs || 45000;
+
+    // 1) GRATUIT d'abord (si configuré).
+    if (this.freeClient) {
+      try {
+        return await this.callProvider(this.freeClient, freeQueue, { ...params, model: FREE_MODEL }, timeoutMs, 'FREE');
+      } catch (err: any) {
+        // 2) SECOURS DeepSeek payant (uniquement si clé présente + solde dispo).
+        if (await deepseekHasBudget()) {
+          console.warn(`[LLM] Provider gratuit indisponible (${err?.message}) → secours DeepSeek payant.`);
+          return await this.callProvider(this.deepseekClient, deepseekQueue, params, timeoutMs, 'DEEPSEEK');
+        }
+        throw err; // ni gratuit ni budget → l'appelant gère (la plupart des scripts try/catch par item)
+      }
+    }
+
+    // Pas de clé gratuite → DeepSeek primaire (comportement historique + sortie propre si solde 0).
+    await ensureBudgetOrExit();
+    return await this.callProvider(this.deepseekClient, deepseekQueue, params, timeoutMs, 'DEEPSEEK');
+  }
+
+  private async callProvider(
+    client: OpenAI, queue: RequestQueue, params: DeepSeekMessageParams, timeoutMs: number, label: string,
   ): Promise<DeepSeekMessage> {
-    await ensureBudgetOrExit(); // sortie propre si solde epuise (couvre tous les crons)
-    const timeoutMs = options?.timeoutMs || 45000; // 45s default timeout
-
-    const executeWithRetryAndTimeout = async (): Promise<DeepSeekMessage> => {
-      let attempt = 0;
-      let delay = 2000; // start with 2s delay
-
+    const exec = async (): Promise<DeepSeekMessage> => {
+      let attempt = 0, delay = 2000;
       while (true) {
         attempt++;
         const startTime = Date.now();
-
         try {
-          console.log(
-            `[DeepSeek] Calling model ${params.model} (Attempt: ${attempt}/${MAX_RETRIES})...`
-          );
-
-          // Build messages array — inject system prompt if provided as top-level param
+          console.log(`[LLM/${label}] Appel ${params.model} (essai ${attempt}/${MAX_RETRIES})...`);
           const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
-          if (params.system) {
-            messages.push({ role: 'system', content: params.system });
-          }
-          for (const m of params.messages) {
-            messages.push({ role: m.role, content: m.content });
-          }
+          if (params.system) messages.push({ role: 'system', content: params.system });
+          for (const m of params.messages) messages.push({ role: m.role, content: m.content });
 
-          const requestPromise = this.client.chat.completions.create({
+          const requestPromise = client.chat.completions.create({
             model: params.model,
             max_tokens: params.max_tokens,
             messages,
             response_format: params.responseFormat ? { type: params.responseFormat } : undefined,
           });
-
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(
-              () => reject(new Error(`API request timed out after ${timeoutMs}ms`)),
-              timeoutMs
-            );
-          });
-
-          const response = (await Promise.race([
-            requestPromise,
-            timeoutPromise,
-          ])) as OpenAI.Chat.ChatCompletion;
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`API request timed out after ${timeoutMs}ms`)), timeoutMs));
+          const response = (await Promise.race([requestPromise, timeoutPromise])) as OpenAI.Chat.ChatCompletion;
 
           const duration = Date.now() - startTime;
           const tokensInput = response.usage?.prompt_tokens || 0;
           const tokensOutput = response.usage?.completion_tokens || 0;
-
-          console.log(
-            `[DeepSeek] ✅ Success. Duration: ${duration}ms, Tokens: In=${tokensInput}/Out=${tokensOutput}`
-          );
-
-          // Shape response like Anthropic's Message for call-site compatibility
+          console.log(`[LLM/${label}] ✅ OK ${duration}ms — In=${tokensInput}/Out=${tokensOutput}`);
           const text = response.choices[0]?.message?.content || '';
-          return {
-            content: [{ type: 'text', text }],
-            usage: { input_tokens: tokensInput, output_tokens: tokensOutput },
-          };
+          return { content: [{ type: 'text', text }], usage: { input_tokens: tokensInput, output_tokens: tokensOutput } };
         } catch (err: any) {
           const duration = Date.now() - startTime;
-          console.warn(
-            `[DeepSeek] ⚠️ Attempt ${attempt} failed after ${duration}ms. Error: ${err.message}`
-          );
-
+          console.warn(`[LLM/${label}] ⚠️ essai ${attempt} échoué (${duration}ms) : ${err.message}`);
           const status = err.status ?? err.response?.status;
           const isRateLimit = status === 429;
           const is4xx = status >= 400 && status < 500;
 
           if (is4xx && !isRateLimit) {
-            // Repli disponibilité : si l'alias non-raisonneur "deepseek-chat" est retiré
-            // (400 modèle inconnu/non supporté), on rebascule sur le modèle supporté et on
-            // réessaie. Permet d'utiliser deepseek-chat partout (moins cher) sans risque.
-            if (params.model === "deepseek-chat" && /model|support|invalid|not found|404|exist/i.test(err.message || "")) {
-              console.warn("[DeepSeek] deepseek-chat indisponible → repli sur deepseek-v4-flash.");
-              params.model = "deepseek-v4-flash";
+            // Repli DeepSeek : alias "deepseek-chat" retiré → bascule sur le modèle supporté.
+            if (label === 'DEEPSEEK' && params.model === 'deepseek-chat' &&
+                /model|support|invalid|not found|404|exist/i.test(err.message || '')) {
+              console.warn('[LLM/DEEPSEEK] deepseek-chat indisponible → repli deepseek-v4-flash.');
+              params.model = 'deepseek-v4-flash';
               continue;
             }
-            console.error(
-              `[DeepSeek] ❌ NON_RETRYABLE_ERROR: ${err.message} (status: ${status})`
-            );
-            throw err;
+            throw err; // 4xx non-429 : erreur définitive (remonte pour permettre le secours)
           }
 
           const isServerError = status >= 500;
           const isTimeout = err.message?.includes('timed out');
           const isNetworkError = !status && err.message?.includes('fetch');
+          if (!(attempt < MAX_RETRIES && (isRateLimit || isServerError || isTimeout || isNetworkError))) throw err;
 
-          const shouldRetry =
-            attempt < MAX_RETRIES &&
-            (isRateLimit || isServerError || isTimeout || isNetworkError);
-
-          if (!shouldRetry) {
-            console.error(
-              `[DeepSeek] ❌ Request failed permanently after ${attempt} attempts.`
-            );
-            throw err;
-          }
-
-          // Backoff delay with some jitter
-          const backoffDelay =
-            delay * Math.pow(2, attempt - 1) + Math.random() * 1000;
-          console.log(
-            `[DeepSeek] Retrying in ${(backoffDelay / 1000).toFixed(1)}s...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+          const backoffDelay = delay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+          console.log(`[LLM/${label}] nouvelle tentative dans ${(backoffDelay / 1000).toFixed(1)}s...`);
+          await new Promise(r => setTimeout(r, backoffDelay));
         }
       }
     };
-
-    // Enqueue the request to honour requests-per-minute constraints
-    return deepseekQueue.enqueue(executeWithRetryAndTimeout);
+    return queue.enqueue(exec);
   }
 }
 

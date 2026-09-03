@@ -91,7 +91,9 @@ export async function summarizeLegislativeDossiers() {
       continue;
     }
     // Exposé des motifs (PDF officiel) : ce que contient le texte et à quel problème il répond.
-    const exposeDesMotifs = await fetchExposeText(dossier.source_urls);
+    // Plafonné à 18 000 caractères : au-delà, coût token élevé sans gain de qualité (et compatible
+    // avec la fenêtre de sortie des modèles gratuits type Gemini Flash).
+    const exposeDesMotifs = (await fetchExposeText(dossier.source_urls) || "").slice(0, 18000);
     // Cap les amendements/scrutins envoyés au LLM (les gros dossiers en ont 100+ → coût token énorme).
     const officialFacts = { dossier, expose_des_motifs: exposeDesMotifs, steps: (stepsResult.data || []).slice(0, 40), amendments: (amendmentsResult.data || []).slice(0, 30), scrutins: (scrutinsResult.data || []).slice(0, 20) };
     const sourceUrls = [...new Set([
@@ -105,7 +107,7 @@ export async function summarizeLegislativeDossiers() {
     if ((count ?? 0) >= 2) continue;
     try {
       const response = await resilientDeepSeek.createMessage({
-        model: "deepseek-chat", max_tokens: 16000,
+        model: "deepseek-chat", max_tokens: 6000,
         responseFormat: "json_object",
         system: `Tu rédiges une analyse éditoriale à partir des faits officiels fournis (métadonnées, étapes, amendements, scrutins et surtout "expose_des_motifs" = le texte officiel expliquant le contenu et l'objectif de la proposition/projet de loi).
 

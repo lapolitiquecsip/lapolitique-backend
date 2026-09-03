@@ -23,6 +23,7 @@ jobs:
         run: npm run automation:budget-check
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       - run: npm run data:sync-elysee
       # Fil video (chaine YouTube officielle de l Elysee)
       - run: npm run data:sync-elysee-videos
@@ -35,15 +36,18 @@ jobs:
         if: steps.budget.outputs.has_budget == 'true'
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       # Seed des engagements figés (programme officiel 2022)
       - run: npm run data:sync-president-program
         if: steps.budget.outputs.has_budget == 'true'
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       # Évaluation ANCRÉE de l'avancement : preuves officielles (scrutins/dossiers) + web
       # (Wikipédia), puis connaissance des faits 2022-2026. C'est CETTE passe qui fixe les statuts.
       - run: npm run data:assess-program
         if: steps.budget.outputs.has_budget == 'true'
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}   # optionnel : recherche web plein-texte

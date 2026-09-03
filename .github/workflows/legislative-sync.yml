@@ -46,12 +46,14 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       # Résumés IA des auditions/travaux de commission (comptes rendus écrits officiels).
       - run: npm run data:sync-commission-reports -- --limit=25
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       # Recalcule le taux de présence des sénateurs après mise à jour des scrutins.
       - run: npm run data:sync-senator-participation
         env:
@@ -71,11 +73,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       - run: npm run data:sync-law-citizen-impact
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       - run: npm run automation:legislative:reconcile
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
