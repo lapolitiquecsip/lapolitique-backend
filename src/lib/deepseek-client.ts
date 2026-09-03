@@ -25,7 +25,10 @@ const MAX_RETRIES = parseInt(process.env.DEEPSEEK_MAX_RETRIES || '3', 10);
 // Substituable (Groq, Mistral, OpenRouter…) via les variables d'env, sans toucher au code.
 const FREE_KEY = process.env.LLM_FREE_API_KEY || process.env.GEMINI_API_KEY || '';
 const FREE_BASE_URL = process.env.LLM_FREE_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-const FREE_MODEL = process.env.LLM_FREE_MODEL || 'gemini-2.0-flash';
+// gemini-flash-lite-latest : alias stable (toujours le flash-lite courant), meilleur quota gratuit,
+// fiable en texte ET JSON. gemini-2.x-flash sont retirés pour les nouveaux comptes ; les modèles
+// « -latest » évitent les dépréciations. Substituable via LLM_FREE_MODEL.
+const FREE_MODEL = process.env.LLM_FREE_MODEL || 'gemini-flash-lite-latest';
 const FREE_RPM = parseInt(process.env.LLM_FREE_RPM || '15', 10);   // quota gratuit → throttle prudent
 const HAS_FREE = !!FREE_KEY;
 
