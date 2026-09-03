@@ -20,6 +20,10 @@ export const DEEPSEEK_PRO   = 'deepseek-v4-pro';
 
 const MAX_RETRIES = parseInt(process.env.DEEPSEEK_MAX_RETRIES || '3', 10);
 
+// Scripts d'écriture non latins jamais légitimes dans le contenu français du site (CJK, kana,
+// hangul, cyrillique, arabe, hébreu). Sert de détecteur de contamination des sorties LLM gratuites.
+const FOREIGN_SCRIPT = /[぀-ヿ㐀-䶿一-鿿가-힯Ѐ-ӿ֐-׿؀-ۿ]/;
+
 // --- Provider GRATUIT (primaire) ---
 // Endpoint compatible OpenAI. Par défaut : Gemini (Google AI Studio, quota gratuit).
 // Substituable (Groq, Mistral, OpenRouter…) via les variables d'env, sans toucher au code.
@@ -188,6 +192,19 @@ export class ResilientDeepSeek {
           const tokensOutput = response.usage?.completion_tokens || 0;
           console.log(`[LLM/${label}] ✅ OK ${duration}ms — In=${tokensInput}/Out=${tokensOutput}`);
           const text = response.choices[0]?.message?.content || '';
+          // Garde-fou QUALITÉ : les LLM laissent parfois fuiter des caractères non latins (idéogrammes
+          // CJK, hangul, cyrillique, arabe) dans un texte français — DeepSeek (modèle chinois) autant
+          // que Gemini Flash-lite. Le contenu du site est 100 % français → toute contamination = défaut.
+          // On réessaie ; si ça persiste on remonte l'erreur : côté FREE → secours DeepSeek ; côté
+          // DEEPSEEK → l'appelant saute l'item (mieux vaut pas de résumé qu'un résumé au charabia).
+          if (FOREIGN_SCRIPT.test(text)) {
+            if (attempt < MAX_RETRIES) {
+              console.warn(`[LLM/${label}] ⚠️ sortie contaminée (caractères non latins) — nouvel essai ${attempt + 1}/${MAX_RETRIES}...`);
+              await new Promise(r => setTimeout(r, 800));
+              continue;
+            }
+            throw new Error('Sortie non-latine persistante');
+          }
           return { content: [{ type: 'text', text }], usage: { input_tokens: tokensInput, output_tokens: tokensOutput } };
         } catch (err: any) {
           const duration = Date.now() - startTime;
