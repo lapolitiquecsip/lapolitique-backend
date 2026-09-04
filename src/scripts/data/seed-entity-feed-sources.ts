@@ -83,13 +83,18 @@ async function regions(): Promise<Source[]> {
 // Partis politiques (fiches parti) — fil d'actualité par parti (Google News ciblé sur la vie du
 // parti : déclarations, congrès, propositions, élections). entity_id = slug (political_parties).
 async function parties(): Promise<Source[]> {
-  const { data, error } = await supabase.from("political_parties").select("slug, name").not("name", "is", null);
+  const { data, error } = await supabase.from("political_parties").select("slug, name, leader").not("name", "is", null);
   if (error) throw error;
-  return (data || []).map((p: any) => ({
-    entity_type: "party", entity_id: p.slug, entity_name: p.name,
-    feed_url: gnews(`"${p.name}" (parti OR déclaration OR annonce OR congrès OR proposition OR meeting OR élection OR dirigeant)`),
-    source_name: "Google News", kind: "google_news", active: true,
-  }));
+  return (data || []).map((p: any) => {
+    // Nom du parti + son dirigeant (désambiguïse les noms ambigus : « Les Patriotes »/Philippot,
+    // « Debout la France »/Dupont-Aignan…). Le tri de pertinence final est fait par l'IA.
+    const who = p.leader ? ` OR "${p.leader}"` : "";
+    return {
+      entity_type: "party", entity_id: p.slug, entity_name: p.name,
+      feed_url: gnews(`"${p.name}" (parti OR déclaration OR congrès OR proposition OR meeting OR élection OR dirigeant${who})`),
+      source_name: "Google News", kind: "google_news", active: true,
+    };
+  });
 }
 
 // Brique #1 — communes de plus de 20 000 habitants (support = fiches maires). Google News ciblé

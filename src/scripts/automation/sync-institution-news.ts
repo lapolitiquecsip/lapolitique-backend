@@ -146,8 +146,9 @@ export async function syncInstitutionNews() {
       const { title: rawTitle } = cleanGoogleTitle(item.title || "");
       if (!rawTitle || rawTitle.length < 12) continue;
 
-      // Filtre heuristique AVANT LLM (surtout pour Google News : désambiguïsation).
-      if (src.kind === "google_news" && !mentionsEntity(rawTitle, src.entity_name)) continue;
+      // Filtre heuristique AVANT LLM (surtout pour Google News : désambiguïsation). Sauté pour les
+      // PARTIS (noms souvent ambigus + articles centrés sur le dirigeant) : l'IA tranche la pertinence.
+      if (src.kind === "google_news" && src.entity_type !== "party" && !mentionsEntity(rawTitle, src.entity_name)) continue;
 
       scanned++;
       const snippet = (item.contentSnippet || item.content || "").slice(0, 500);
