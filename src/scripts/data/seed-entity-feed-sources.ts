@@ -83,15 +83,19 @@ async function regions(): Promise<Source[]> {
 // Partis politiques (fiches parti) — fil d'actualité par parti (Google News ciblé sur la vie du
 // parti : déclarations, congrès, propositions, élections). entity_id = slug (political_parties).
 async function parties(): Promise<Source[]> {
-  const { data, error } = await supabase.from("political_parties").select("slug, name, leader").not("name", "is", null);
+  const { data, error } = await supabase.from("political_parties").select("slug, name, abbrev, leader").not("name", "is", null);
   if (error) throw error;
   return (data || []).map((p: any) => {
-    // Nom du parti + son dirigeant (désambiguïse les noms ambigus : « Les Patriotes »/Philippot,
-    // « Debout la France »/Dupont-Aignan…). Le tri de pertinence final est fait par l'IA.
-    const who = p.leader ? ` OR "${p.leader}"` : "";
+    // Ancrages de recherche : nom NETTOYÉ (sans le « (MoDem) » ou « — EELV » qui casse la phrase
+    // exacte), sigle si ≥3 lettres, et dirigeant (désambiguïse « Les Patriotes »/Philippot). L'IA
+    // tranche la pertinence finale.
+    const cleanName = String(p.name).replace(/\s*[—(].*$/, "").trim();
+    const anchors = [`"${cleanName}"`];
+    if (p.abbrev && /^[A-Za-zÀ-ÿ]{3,}$/.test(p.abbrev)) anchors.push(`"${p.abbrev}"`);
+    if (p.leader) anchors.push(`"${p.leader}"`);
     return {
       entity_type: "party", entity_id: p.slug, entity_name: p.name,
-      feed_url: gnews(`"${p.name}" (parti OR déclaration OR congrès OR proposition OR meeting OR élection OR dirigeant${who})`),
+      feed_url: gnews(`(${anchors.join(" OR ")}) (parti OR déclaration OR congrès OR proposition OR meeting OR élection OR dirigeant OR politique)`),
       source_name: "Google News", kind: "google_news", active: true,
     };
   });
