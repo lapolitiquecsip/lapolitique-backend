@@ -133,6 +133,9 @@ export async function syncInstitutionNews() {
       for (const r of existing || []) known.add(r.url);
     }
 
+    // Les PARTIS font l'actualité moins souvent que les communes/ministères : fenêtre de
+    // fraîcheur élargie (60 j au lieu de 14) pour ne pas les laisser sans fil d'actu.
+    const freshDays = src.entity_type === "party" ? 60 : FRESH_DAYS;
     let perSource = 0;
     for (const item of items) {
       if (perSource >= MAX_ITEMS_PER_SOURCE) break;
@@ -141,7 +144,7 @@ export async function syncInstitutionNews() {
 
       // Fraîcheur
       const pub = item.isoDate ? new Date(item.isoDate) : null;
-      if (pub && (Date.now() - pub.getTime()) / 86400000 > FRESH_DAYS) continue;
+      if (pub && (Date.now() - pub.getTime()) / 86400000 > freshDays) continue;
 
       const { title: rawTitle } = cleanGoogleTitle(item.title || "");
       if (!rawTitle || rawTitle.length < 12) continue;
