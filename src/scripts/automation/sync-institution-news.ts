@@ -78,9 +78,24 @@ NE PAS PUBLIER (should_publish=false) :
 
 Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "delibération" }`;
 
+const PARTY_PROMPT = (entityName: string) => `Tu alimentes le fil d'actualité du PARTI politique français « ${entityName} » : sa vie interne et son action politique.
+
+À PUBLIER (should_publish=true) si l'article concerne CE parti : déclaration ou proposition officielle, position sur un sujet, congrès / élection interne / nomination d'un dirigeant, meeting ou université d'été, ligne stratégique, alliance ou rupture, résultat électoral, campagne, création/scission.
+
+NE PAS PUBLIER (should_publish=false) :
+- un article qui ne parle PAS de ce parti (simple mention en passant) ;
+- un AUTRE parti homonyme ou étranger (vérifie que c'est bien celui-ci) ;
+- le fait divers, le sport, la publicité, le commentaire d'un tiers sans fait nouveau.
+
+- "title" : reformulé, factuel, centré sur le fait (max 14 mots).
+- "summary" : 1-2 phrases (40 mots max), le fait concret. En français.
+- "news_type" : un parmi annonce | proposition | congres | nomination | alliance | campagne | resultat | decision | actualite.
+
+Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "annonce" }`;
+
 async function summarise(entityName: string, title: string, snippet: string, entityType: string) {
-  const promptFor = entityType === "commune" ? COMMUNE_PROMPT : entityType === "region" ? REGION_PROMPT : MINISTRY_PROMPT;
-  const labelFor = entityType === "commune" ? "Ville" : entityType === "region" ? "Région" : "Institution";
+  const promptFor = entityType === "commune" ? COMMUNE_PROMPT : entityType === "region" ? REGION_PROMPT : entityType === "party" ? PARTY_PROMPT : MINISTRY_PROMPT;
+  const labelFor = entityType === "commune" ? "Ville" : entityType === "region" ? "Région" : entityType === "party" ? "Parti" : "Institution";
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object",
     system: promptFor(entityName),

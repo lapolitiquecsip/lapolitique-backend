@@ -27,4 +27,4 @@ jobs:
       # Ministères + départements (les communes ont leur propre cron dédié, plus lourd).
       - run: npm run automation:institution-news
         env:
-          INSTITUTION_NEWS_ONLY_TYPE: "ministry,department,region"
+          INSTITUTION_NEWS_ONLY_TYPE: "ministry,department,region,party"

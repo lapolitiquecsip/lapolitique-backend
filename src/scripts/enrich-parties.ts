@@ -10,7 +10,7 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-const ENRICH_VERSION = 3; // incrémenter pour forcer un ré-enrichissement (v3 = + logo P154)
+const ENRICH_VERSION = 4; // incrémenter pour forcer un ré-enrichissement (v4 = + idéologie & réseaux sociaux)
 
 const WIKI_HEADERS = { 'User-Agent': 'LaPolitiqueBot/1.0 (contact@lapolitique.fr)' };
 
@@ -41,7 +41,7 @@ async function wikipedia(title: string): Promise<{ extract: string; url?: string
 }
 
 // Données structurées Wikidata : fondation (P571), adhérents (P2124), siège (P159), logo (P154).
-async function wikidata(qid: string): Promise<{ founded?: string; members?: string; headquarters?: string; logo?: string }> {
+async function wikidata(qid: string): Promise<{ founded?: string; members?: string; headquarters?: string; logo?: string; twitter?: string; facebook?: string; instagram?: string; youtube?: string; tiktok?: string }> {
   try {
     const res = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`, {
       headers: WIKI_HEADERS, signal: AbortSignal.timeout(15000),
@@ -49,11 +49,20 @@ async function wikidata(qid: string): Promise<{ founded?: string; members?: stri
     if (!res.ok) return {};
     const json: any = await res.json();
     const claims = json?.entities?.[qid]?.claims || {};
-    const out: { founded?: string; members?: string; headquarters?: string; logo?: string } = {};
+    const out: { founded?: string; members?: string; headquarters?: string; logo?: string;
+      twitter?: string; facebook?: string; instagram?: string; youtube?: string; tiktok?: string } = {};
 
     // P154 — logo (fichier Commons) → URL via Special:FilePath
     const logoFile = claims.P154?.[0]?.mainsnak?.datavalue?.value;
     if (logoFile) out.logo = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(logoFile)}?width=240`;
+
+    // Réseaux sociaux officiels (identifiants Wikidata → URL) : pour que l'utilisateur suive le parti.
+    const id = (p: string) => claims[p]?.[0]?.mainsnak?.datavalue?.value as string | undefined;
+    const tw = id('P2002'); if (tw) out.twitter = `https://x.com/${tw}`;
+    const fb = id('P2013'); if (fb) out.facebook = `https://www.facebook.com/${fb}`;
+    const ig = id('P2003'); if (ig) out.instagram = `https://www.instagram.com/${ig}`;
+    const yt = id('P2397'); if (yt) out.youtube = `https://www.youtube.com/channel/${yt}`;
+    const tk = id('P7085'); if (tk) out.tiktok = `https://www.tiktok.com/@${tk.replace(/^@/, '')}`;
 
     // P571 — date de fondation
     const inception = claims.P571?.[0]?.mainsnak?.datavalue?.value?.time;
@@ -95,16 +104,17 @@ async function structure(name: string, reference: string) {
     responseFormat: 'json_object',
     system: `Tu es un documentaliste politique. À partir du TEXTE de référence (Wikipédia) sur un parti politique français, tu extrais des informations factuelles.
 
-Réponds UNIQUEMENT en JSON avec ces clés (chaîne de caractères ; "" si l'info est absente du texte, n'invente RIEN) :
+Réponds UNIQUEMENT en JSON avec ces clés (n'invente RIEN ; "" ou [] si l'info est absente du texte) :
 {
   "summary": "2-3 phrases neutres présentant le parti",
   "founded": "année ou date de fondation (ex. '1972')",
   "members": "nombre d'adhérents avec l'année si connue (ex. 'env. 40 000 (2023)')",
   "budget": "budget ou ressources financières annuelles si mentionné",
   "leader": "dirigeant·e actuel·le (président·e / premier·ère secrétaire)",
-  "orientation": "positionnement politique (ex. 'Extrême droite', 'Gauche', 'Centre')",
+  "orientation": "positionnement sur l'axe politique (ex. 'Extrême droite', 'Gauche', 'Centre')",
   "headquarters": "ville du siège",
-  "website": "site officiel (URL) si mentionné"
+  "website": "site officiel (URL) si mentionné",
+  "ideology": ["liste de 3 à 6 COURANTS ou VALEURS idéologiques du parti tels qu'énoncés dans le texte (ex. 'Écologie politique', 'Souverainisme', 'Social-démocratie', 'Libéralisme économique', 'Féminisme')"]
 }`,
     messages: [{ role: 'user', content: `Parti : ${name}\n\nTEXTE :\n${reference.slice(0, 6000)}` }],
   }, { timeoutMs: 60000 });
@@ -150,6 +160,12 @@ async function main() {
         orientation: info.orientation || null,
         headquarters: wd.headquarters || info.headquarters || null,
         website: info.website || null,
+        ideology: Array.isArray(info.ideology) && info.ideology.length ? info.ideology.slice(0, 6) : null,
+        twitter: wd.twitter || null,
+        facebook: wd.facebook || null,
+        instagram: wd.instagram || null,
+        youtube: wd.youtube || null,
+        tiktok: wd.tiktok || null,
         logo_url: wd.logo || wiki.logo || null,
         source_url: wiki.url || null,
         bio: { _v: ENRICH_VERSION },

@@ -80,6 +80,18 @@ async function regions(): Promise<Source[]> {
   }));
 }
 
+// Partis politiques (fiches parti) — fil d'actualité par parti (Google News ciblé sur la vie du
+// parti : déclarations, congrès, propositions, élections). entity_id = slug (political_parties).
+async function parties(): Promise<Source[]> {
+  const { data, error } = await supabase.from("political_parties").select("slug, name").not("name", "is", null);
+  if (error) throw error;
+  return (data || []).map((p: any) => ({
+    entity_type: "party", entity_id: p.slug, entity_name: p.name,
+    feed_url: gnews(`"${p.name}" (parti OR déclaration OR annonce OR congrès OR proposition OR meeting OR élection OR dirigeant)`),
+    source_name: "Google News", kind: "google_news", active: true,
+  }));
+}
+
 // Brique #1 — communes de plus de 20 000 habitants (support = fiches maires). Google News ciblé
 // sur la vie municipale (mairie/conseil municipal/travaux/projet) pour limiter les homonymes.
 async function communesTop(): Promise<Source[]> {
@@ -98,8 +110,8 @@ async function communesTop(): Promise<Source[]> {
 }
 
 async function main() {
-  const sources = [...await ministries(), ...await departments(), ...await regions(), ...await communesTop()];
-  console.log(`→ ${sources.length} sources (${sources.filter(s => s.entity_type === "ministry").length} ministères, ${sources.filter(s => s.entity_type === "department").length} départements, ${sources.filter(s => s.entity_type === "region").length} régions, ${sources.filter(s => s.entity_type === "commune").length} communes).`);
+  const sources = [...await ministries(), ...await departments(), ...await regions(), ...await parties(), ...await communesTop()];
+  console.log(`→ ${sources.length} sources (${sources.filter(s => s.entity_type === "ministry").length} ministères, ${sources.filter(s => s.entity_type === "department").length} départements, ${sources.filter(s => s.entity_type === "region").length} régions, ${sources.filter(s => s.entity_type === "party").length} partis, ${sources.filter(s => s.entity_type === "commune").length} communes).`);
   let ok = 0;
   for (let i = 0; i < sources.length; i += 200) {
     const batch = sources.slice(i, i + 200);
