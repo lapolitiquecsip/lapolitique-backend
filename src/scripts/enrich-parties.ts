@@ -114,7 +114,7 @@ Réponds UNIQUEMENT en JSON avec ces clés (n'invente RIEN ; "" ou [] si l'info 
   "orientation": "positionnement sur l'axe politique (ex. 'Extrême droite', 'Gauche', 'Centre')",
   "headquarters": "ville du siège",
   "website": "site officiel (URL) si mentionné",
-  "ideology": ["liste de 3 à 6 COURANTS ou VALEURS idéologiques du parti tels qu'énoncés dans le texte (ex. 'Écologie politique', 'Souverainisme', 'Social-démocratie', 'Libéralisme économique', 'Féminisme')"]
+  "ideology": ["liste de 3 à 6 COURANTS ou VALEURS idéologiques du parti tels qu'énoncés dans le texte (ex. 'Écologie politique', 'Souverainisme', 'Social-démocratie', 'Libéralisme économique', 'Féminisme'). NEUTRE : n'inclus PAS de qualificatif péjoratif ou attribué par des adversaires (ex. 'xénophobie', 'racisme', 'extrémisme', 'complotisme'), ni de simples THÈMES qui ne sont pas des idéologies (ex. 'Europe', 'Démocratie', 'Environnement', 'Démographie', 'Technologie', 'Géopolitique')."]
 }`,
     messages: [{ role: 'user', content: `Parti : ${name}\n\nTEXTE :\n${reference.slice(0, 6000)}` }],
   }, { timeoutMs: 60000 });
