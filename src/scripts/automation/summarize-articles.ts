@@ -55,8 +55,16 @@ Réponse :`
             });
 
             const content = response.content[0];
-            const summary = content.type === 'text' ? content.text.trim().replace(/^"/, '').replace(/"$/, '') : '';
-            
+            const raw = content.type === 'text' ? content.text.trim().replace(/^"/, '').replace(/"$/, '') : '';
+
+            // Garde-fou : le modèle refuse parfois (« je ne peux pas… », « contenu non fourni… »)
+            // au lieu de la phrase de repli demandée. On normalise TOUT refus/placeholder vers le
+            // repli neutre, pour ne jamais afficher un « je ne peux pas » au citoyen.
+            const REFUSAL = /(n'?a pas été fourni|je ne peux pas|impossible|fournir (le|un) (texte|contenu|résumé)|contenu (complet|spécifique)|veuillez fournir|pas (sûr|certain))/i;
+            const summary = (!raw || raw.length < 8 || REFUSAL.test(raw))
+              ? "Détail technique du texte non disponible."
+              : raw;
+
             console.log(`=> Summary: ${summary}`);
 
             const { error: uError } = await supabase

@@ -18,7 +18,7 @@ export async function summarizeScrutins() {
     // Fetch scrutins without summary (strictly empty to respect user's "don't change already done" wish)
     const { data: scrutins, error } = await supabase
       .from('scrutins')
-      .select('id, objet')
+      .select('id, objet, title')
       .in('type', ['LOI']) // Focus on Laws as requested
       .is('summary', null)
       .ilike('title', "l'ensemble%") // votes solennels sur l'ensemble d'un texte (les vraies « lois »)
@@ -47,19 +47,23 @@ export async function summarizeScrutins() {
               messages: [
                 {
                   role: 'user',
-                  content: `Résume cette loi de l'Assemblée Nationale pour un citoyen.
-                  Sois simple, neutre et pédagogique.
-                  
-                  Loi : ${s.objet}
-                  
+                  content: `Tu expliques à un citoyen le SUJET d'un texte voté à l'Assemblée nationale, à partir de son INTITULÉ officiel (souvent procédural, ex. « l'ensemble du projet de loi relatif à … »).
+
+                  Intitulé : ${s.objet || s.title}
+
+                  Consignes IMPÉRATIVES :
+                  - L'intitulé SUFFIT : identifie le sujet de fond et explique-le. Ne refuse JAMAIS, ne réclame jamais « le texte complet », ne dis jamais qu'il « n'a pas été fourni ».
+                  - Reste neutre, factuel, pédagogique. Aucun jugement de valeur ni orientation politique.
+                  - N'INVENTE PAS de chiffres : ne cite un budget, une somme ou une date QUE s'ils figurent dans l'intitulé. Sinon, parle des objectifs et mesures en termes généraux.
+
                   Réponds au format JSON STRICT :
                   {
-                    "summary": "Résumé en 2-3 phrases",
-                    "why_it_matters": "Pourquoi c'est important pour le citoyen",
-                    "detailed_summary": "Un résumé long et exhaustif (mini 4 phrases) des mesures concrètes proposées par la loi. INCLUS OBLIGATOIREMENT : les budgets prévus, les sommes d'argent exactes, les organismes ou outils créés, et les dates d'application cibles. Pousse le détail au maximum pour une analyse 'premium'.",
+                    "summary": "Résumé en 2-3 phrases du sujet du texte",
+                    "why_it_matters": "Pourquoi ce sujet compte concrètement pour le citoyen",
+                    "detailed_summary": "Résumé plus détaillé (min. 4 phrases) de ce que vise le texte et des mesures qu'il porte, déduites du sujet ; factuel, sans chiffres inventés.",
                     "category": "Choisir STRICTEMENT parmi: Économie, Social, Santé, Éducation, Environnement, Sécurité"
                   }
-                  
+
                   RENVOIE UNIQUEMENT LE JSON.`
                 }
               ],
@@ -67,12 +71,21 @@ export async function summarizeScrutins() {
 
             const content = response.content[0];
             const responseBody = content.type === 'text' ? content.text : '';
-            
+
             // Robust JSON extraction
             const jsonMatch = responseBody.match(/\{[\s\S]*\}/);
             if (!jsonMatch) throw new Error('No JSON found in response');
-            
+
             const result = JSON.parse(jsonMatch[0]);
+
+            // Garde-fou anti-refus : si le modèle répond « je ne peux pas / texte non fourni… »,
+            // on NE stocke PAS ce placeholder (on tente le modèle suivant, sinon on laisse null →
+            // re-tenté au prochain passage). Évite d'afficher un faux résumé au citoyen.
+            const REFUSAL = /(n'?a pas été fourni|je ne peux pas|impossible d'expliquer|fournir (le|un) (texte|contenu|résumé)|contenu (complet|spécifique)|veuillez fournir|sans le (texte|contenu))/i;
+            if (!result.summary || result.summary.trim().length < 15
+                || REFUSAL.test(result.summary) || REFUSAL.test(result.why_it_matters || '')) {
+              throw new Error('Réponse de refus/placeholder — non stockée');
+            }
 
             const { error: uError } = await supabase
               .from('scrutins')
