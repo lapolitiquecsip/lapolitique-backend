@@ -40,21 +40,19 @@ export async function downloadAndUnzip(
   throw lastErr;
 }
 
+const deaccent = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const MONTHS: [string, string][] = [
+  ['janvier', '01'], ['fevrier', '02'], ['mars', '03'], ['avril', '04'], ['mai', '05'], ['juin', '06'],
+  ['juillet', '07'], ['aout', '08'], ['septembre', '09'], ['octobre', '10'], ['novembre', '11'], ['decembre', '12'],
+];
+// Reconnaît un mois depuis une abréviation quelconque, traitée comme préfixe du nom complet
+// (« sept »→09, « fév »→02, « juil »→07…). Robuste aux abréviations variables (elysee : « sept »).
+function monthFromPart(part: string): string | undefined {
+  const p = deaccent(part).replace(/\.$/, '');
+  return p.length >= 3 ? MONTHS.find(([name]) => name.startsWith(p))?.[1] : undefined;
+}
+
 export function parseFrenchDate(dateStr: string): string {
-  const months: Record<string, string> = {
-    'janvier': '01', 'jan': '01',
-    'février': '02', 'fév': '02',
-    'mars': '03', 'mar': '03',
-    'avril': '04', 'avr': '04',
-    'mai': '05',
-    'juin': '06', 'jui': '06',
-    'juillet': '07', 'juil': '07',
-    'août': '08', 'aoû': '08',
-    'septembre': '09', 'sep': '09',
-    'octobre': '10', 'oct': '10',
-    'novembre': '11', 'nov': '11',
-    'décembre': '12', 'déc': '12'
-  };
 
   // Replace non-breaking spaces and multiple spaces with a single space, then split
   const normalizedStr = dateStr.toLowerCase().replace(/\s+/g, ' ').replace(/\u00A0/g, ' ');
@@ -67,15 +65,15 @@ export function parseFrenchDate(dateStr: string): string {
   // We need to be careful not to remove 'mar' if it's actually the month.
   // Usually the format is "DayOfWeek Day Number Month Year".
   // So the day of week is the FIRST part. Let's just skip the first part if it's a day of the week.
-  if (daysOfWeek.includes(parts[0])) {
+  if (daysOfWeek.includes(deaccent(parts[0]))) {
     parts.shift();
   }
 
   // Extract just the digits for the day
   const dayMatch = parts.find(p => /^\d+(er)?$/.test(p));
   const day = dayMatch ? dayMatch.replace('er', '').padStart(2, '0') : null;
-  
-  const month = months[parts.find(p => months[p]) || ''];
+
+  const month = parts.map(monthFromPart).find(Boolean);
   const year = parts.find(p => /^\d{4}$/.test(p));
 
   if (day && month && year) {
