@@ -96,7 +96,10 @@ export async function syncJorf(options: { year?: number } = {}) {
       const { data: page, error: dossierError } = await supabase
         .from("legislative_dossiers")
         .select("*")
-        .eq("legislature", 17)
+        // 16 ET 17 : des propositions déposées en 16e législature ont été promulguées sous la
+        // 17e (frelon asiatique, PFAS…). En n'examinant que la 17e, ces lois ne trouvaient
+        // aucun dossier et n'apparaissaient jamais dans « Publiées au Journal officiel ».
+        .in("legislature", [16, 17])
         .order("id")
         .range(offset, offset + pageSize - 1);
       if (dossierError) throw dossierError;
