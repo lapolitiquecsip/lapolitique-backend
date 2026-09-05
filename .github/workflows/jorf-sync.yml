@@ -2,7 +2,11 @@ name: JORF promulgation sync
 
 on:
   schedule:
-    - cron: "30 6 * * *"
+    # Le JO du jour paraît sur Légifrance/DILA le matin (édition parfois tardive). Pour que la
+    # loi soit inscrite « dès sa parution », on passe d'1×/jour à toutes les 2 h sur la fenêtre
+    # 06 h–22 h (Paris). Chaque run ne télécharge QUE la dernière archive JORFSIMPLE du jour
+    # (léger, idempotent) → aucun risque pour le flux DILA.
+    - cron: "0 4-20/2 * * *"
   workflow_dispatch:
 
 jobs:
