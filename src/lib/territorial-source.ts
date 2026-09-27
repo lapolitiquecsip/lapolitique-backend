@@ -6,14 +6,44 @@ import { upsertInChunks } from "./data-platform.js";
 
 export interface CatalogResource { id: string; title: string; format: string; url: string; last_modified?: string; filesize?: number; }
 
+/**
+ * Un téléchargement qui retente avant d'abandonner.
+ *
+ * data.gouv.fr et les hébergeurs de fichiers ouverts coupent de temps en temps,
+ * une poignée de secondes. Sans reprise, la moindre coupure faisait échouer tout
+ * l'import — « Daily environmental indicators » tombait ainsi un jour sur trois,
+ * alors que le même script repassait au vert en le relançant à la main. Trois
+ * essais espacés suffisent : au-delà, la panne est réelle et doit se voir.
+ */
+async function fetchAvecReprise(url: string, timeoutMs: number, essais = 3): Promise<Response> {
+  let derniere: unknown;
+  for (let essai = 1; essai <= essais; essai++) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+      // Un 5xx est passager par nature ; un 4xx ne le sera jamais.
+      if (!response.ok && response.status >= 500 && essai < essais) {
+        derniere = new Error(`HTTP ${response.status}`);
+      } else {
+        return response;
+      }
+    } catch (err) {
+      derniere = err;
+      if (essai === essais) break;
+    }
+    await new Promise(r => setTimeout(r, 3_000 * essai));
+    console.warn(`  ! téléchargement retenté (${essai + 1}/${essais}) : ${url.slice(0, 90)}`);
+  }
+  throw new Error(`téléchargement impossible après ${essais} essais : ${url} — ${(derniere as Error)?.message ?? derniere}`);
+}
+
 export async function getDataGouvDataset(idOrSlug: string) {
-  const response = await fetch(`https://www.data.gouv.fr/api/1/datasets/${idOrSlug}/`, { signal: AbortSignal.timeout(30_000) });
+  const response = await fetchAvecReprise(`https://www.data.gouv.fr/api/1/datasets/${idOrSlug}/`, 30_000);
   if (!response.ok) throw new Error(`data.gouv.fr dataset ${idOrSlug} failed: HTTP ${response.status}`);
   return response.json() as Promise<{ id: string; title: string; last_modified?: string; resources: CatalogResource[] }>;
 }
 
 export async function streamCsv(url: string, options: { delimiter?: string; gzip?: boolean } = {}) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(10 * 60_000) });
+  const response = await fetchAvecReprise(url, 10 * 60_000);
   if (!response.ok || !response.body) throw new Error(`CSV download failed: HTTP ${response.status} for ${url}`);
   let input: NodeJS.ReadableStream = Readable.fromWeb(response.body as any);
   if (options.gzip || url.endsWith(".gz")) input = input.pipe(createGunzip());

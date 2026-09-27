@@ -29,10 +29,28 @@ const FOREIGN_SCRIPT = /[぀-ヿ㐀-䶿一-鿿가-힯Ѐ-ӿ֐-׿؀-ۿ]/;
 // Substituable (Groq, Mistral, OpenRouter…) via les variables d'env, sans toucher au code.
 const FREE_KEY = process.env.LLM_FREE_API_KEY || process.env.GEMINI_API_KEY || '';
 const FREE_BASE_URL = process.env.LLM_FREE_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-// gemini-flash-lite-latest : alias stable (toujours le flash-lite courant), meilleur quota gratuit,
-// fiable en texte ET JSON. gemini-2.x-flash sont retirés pour les nouveaux comptes ; les modèles
-// « -latest » évitent les dépréciations. Substituable via LLM_FREE_MODEL.
-const FREE_MODEL = process.env.LLM_FREE_MODEL || 'gemini-flash-lite-latest';
+// Modèles gratuits essayés DANS L'ORDRE, et non un seul.
+//
+// Les quotas du palier gratuit sont comptés PAR LIGNÉE, pas par compte : 3.6 et
+// 3.7 puisent au même seau, 3.5 au sien, la gamme « lite » au sien. Quand une
+// lignée sature, elle répond 429 pendant que les autres servent normalement —
+// changer de lignée est donc la bonne réponse, et attendre la mauvaise.
+//
+// C'est exactement ce qui faisait échouer « Votes des élus » et « Présidentielles
+// 2027 » chaque nuit : le client était épinglé sur gemini-flash-lite-latest, seul
+// modèle en 429 au moment du diagnostic, réessayait trois fois en six secondes,
+// puis se rabattait sur un compte DeepSeek à découvert (-0,50 $).
+//
+// LLM_FREE_MODEL impose un modèle unique ; LLM_FREE_MODELS redéfinit la liste.
+const FREE_MODELS = (
+  process.env.LLM_FREE_MODEL ||
+  process.env.LLM_FREE_MODELS ||
+  'gemini-3.6-flash,gemini-3.5-flash,gemini-3.1-flash-lite,gemini-flash-latest,gemini-flash-lite-latest'
+).split(',').map(m => m.trim()).filter(Boolean);
+// Un modèle qui répond 429 est mis de côté le temps que son quota se reconstitue,
+// plutôt que d'être représenté à chaque appel du même passage.
+const FREE_PAUSE_MS = parseInt(process.env.LLM_FREE_PAUSE_MS || '300000', 10);
+const freePausedUntil = new Map<string, number>();
 const FREE_RPM = parseInt(process.env.LLM_FREE_RPM || '15', 10);   // quota gratuit → throttle prudent
 const HAS_FREE = !!FREE_KEY;
 
@@ -144,18 +162,35 @@ export class ResilientDeepSeek {
   async createMessage(params: DeepSeekMessageParams, options?: { timeoutMs?: number }): Promise<DeepSeekMessage> {
     const timeoutMs = options?.timeoutMs || 45000;
 
-    // 1) GRATUIT d'abord (si configuré).
+    // 1) GRATUIT d'abord (si configuré) : on descend la cascade de lignées.
     if (this.freeClient) {
-      try {
-        return await this.callProvider(this.freeClient, freeQueue, { ...params, model: FREE_MODEL }, timeoutMs, 'FREE');
-      } catch (err: any) {
-        // 2) SECOURS DeepSeek payant (uniquement si clé présente + solde dispo).
-        if (await deepseekHasBudget()) {
-          console.warn(`[LLM] Provider gratuit indisponible (${err?.message}) → secours DeepSeek payant.`);
-          return await this.callProvider(this.deepseekClient, deepseekQueue, params, timeoutMs, 'DEEPSEEK');
+      let derniere: any = null;
+      let tente = 0;
+      for (const modele of FREE_MODELS) {
+        if (Date.now() < (freePausedUntil.get(modele) || 0)) continue;   // lignée encore saturée
+        tente++;
+        try {
+          return await this.callProvider(this.freeClient, freeQueue, { ...params, model: modele }, timeoutMs, 'FREE');
+        } catch (err: any) {
+          derniere = err;
+          const status = err?.status ?? err?.response?.status;
+          if (status === 429) {
+            freePausedUntil.set(modele, Date.now() + FREE_PAUSE_MS);
+            console.warn(`[LLM/FREE] ${modele} saturé (429) — écarté ${Math.round(FREE_PAUSE_MS / 60000)} min, on passe à la lignée suivante.`);
+            continue;
+          }
+          break;   // panne qui n'a rien à voir avec le quota : changer de modèle n'y ferait rien
         }
-        throw err; // ni gratuit ni budget → l'appelant gère (la plupart des scripts try/catch par item)
       }
+      if (!tente) console.warn('[LLM/FREE] toutes les lignées gratuites sont en pause.');
+
+      // 2) SECOURS DeepSeek payant (uniquement si clé présente + solde dispo).
+      if (await deepseekHasBudget()) {
+        console.warn(`[LLM] Gratuit indisponible (${derniere?.message ?? 'toutes lignées en pause'}) → secours DeepSeek payant.`);
+        return await this.callProvider(this.deepseekClient, deepseekQueue, params, timeoutMs, 'DEEPSEEK');
+      }
+      // ni gratuit ni budget → l'appelant gère (la plupart des scripts try/catch par item)
+      throw derniere ?? new Error('Aucun modèle gratuit disponible et solde DeepSeek épuisé.');
     }
 
     // Pas de clé gratuite → DeepSeek primaire (comportement historique + sortie propre si solde 0).
@@ -211,6 +246,10 @@ export class ResilientDeepSeek {
           console.warn(`[LLM/${label}] ⚠️ essai ${attempt} échoué (${duration}ms) : ${err.message}`);
           const status = err.status ?? err.response?.status;
           const isRateLimit = status === 429;
+          // Côté gratuit, un 429 vient du quota de la LIGNÉE : le retenter six
+          // secondes plus tard échoue pareil. On remonte tout de suite pour que
+          // l'appelant passe à la lignée suivante.
+          if (isRateLimit && label === 'FREE') throw err;
           const is4xx = status >= 400 && status < 500;
 
           if (is4xx && !isRateLimit) {
