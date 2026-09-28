@@ -15,7 +15,11 @@ import { regionOfDept } from "../../lib/dept-region.js";
 // Options : `--dry` = n'insère rien, journalise seulement. `--test` = ajoute un profil synthétique
 // (tous intérêts, dept 34) pour valider le matching quand aucun membre n'a encore de profil.
 
-const LOOKBACK_DAYS = Number(process.env.INTEREST_NOTIF_LOOKBACK_DAYS || 3);
+// Sept jours, et non trois. La fenêtre courte supposait un cron qui ne saute
+// jamais un passage ; il en a sauté dix-huit d’affilée, et tout ce qui datait
+// de plus de trois jours a été perdu DÉFINITIVEMENT. Les doublons étant
+// écartés à l’écriture, élargir ne coute rien et rattrape les trous.
+const LOOKBACK_DAYS = Number(process.env.INTEREST_NOTIF_LOOKBACK_DAYS || 7);
 const MAX_PER_USER = Number(process.env.INTEREST_NOTIF_MAX_PER_USER || 25);
 const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
 const DRY = process.argv.includes("--dry");

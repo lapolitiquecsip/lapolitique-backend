@@ -141,10 +141,31 @@ async function main() {
   const preview: string[] = [];
   const rows: any[] = [];
 
+  // Le modèle peut être indisponible (quota gratuit saturé, compte payant à sec).
+  // Ce n'est PAS une raison d'abandonner : le tagage déterministe fonctionne sans
+  // lui, et surtout ce script est suivi dans le workflow par la génération des
+  // ALERTES. Une exception ici les faisait sauter, et les abonnés n'ont plus rien
+  // reçu pendant dix-huit jours sans que rien ne le signale.
+  let echecsLlm = 0;
+  const PLAFOND_ECHECS = 5;
+
   for (const g of targets) {
     stats.laws++;
     let tags = phraseTags(`${g.subject} ${g.summary}`);
-    if (!tags.length) tags = await llmTags(g.subject, g.summary);
+    if (!tags.length && echecsLlm < PLAFOND_ECHECS) {
+      try {
+        tags = await llmTags(g.subject, g.summary);
+      } catch (e: any) {
+        echecsLlm++;
+        // Au-delà de quelques échecs d'affilée, la cause est générale : on cesse
+        // d'appeler pour ne pas passer le reste du passage à collectionner des
+        // erreurs, et on garde ce que le déterministe a trouvé.
+        if (echecsLlm === PLAFOND_ECHECS) {
+          console.warn(`  ! modèle indisponible (${e?.message}) — suite du passage en tagage déterministe seul.`);
+        }
+        tags = [];
+      }
+    }
     if (!tags.length) {
       if (sample > 0 && preview.length < 80) preview.push(`• ${g.subject.slice(0, 100)}\n    → (aucun enjeu)`);
       continue;
@@ -170,6 +191,8 @@ async function main() {
     console.log("\n(mode à sec : rien n'a été écrit)");
     return;
   }
+
+  if (echecsLlm) console.warn(`  ! ${echecsLlm} appel(s) au modèle en échec sur ce passage.`);
 
   if (write && rows.length) {
     for (let i = 0; i < rows.length; i += 500) {

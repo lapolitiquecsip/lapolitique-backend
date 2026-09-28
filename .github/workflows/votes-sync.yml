@@ -32,13 +32,20 @@ jobs:
       - run: npm run automation:fetch-votes
       # 2) Résume/explique les nouveaux scrutins (IA, heures creuses)
       - run: npm run automation:summarize
+        continue-on-error: true
         if: steps.budget.outputs.has_budget == 'true'
       # 3) Tague par ENJEU les nouveaux scrutins (fondation #3, incrémental → quasi gratuit)
       - run: npm run data:seed-issues
+      # continue-on-error : le tagage est un ENRICHISSEMENT. Les étapes qui le
+      # suivent — alertes, courriels — sont la promesse faite aux abonnés. Quand
+      # il échouait, GitHub sautait tout le reste du job : plus une seule alerte
+      # pendant dix-huit jours, pour une cause qui n'avait rien à voir.
       - run: npm run data:tag-scrutins   # AN (table scrutins)
+        continue-on-error: true
         env:
           SCRUTIN_TAG_WRITE: "1"
       - run: npm run data:tag-scrutins   # Sénat (legislative_scrutins)
+        continue-on-error: true
         env:
           SCRUTIN_TAG_WRITE: "1"
           TAG_SOURCE: senate

@@ -11,9 +11,19 @@ const key = process.env.DEEPSEEK_API_KEY;
 let hasBudget = false;
 let detail = "";
 
+// Une clé gratuite suffit : depuis que le client LLM est « gratuit d'abord », le
+// solde DeepSeek ne dit plus rien de la capacité à travailler. Ce garde-fou
+// continuait pourtant à le lire seul, si bien qu'un compte à zéro désactivait
+// TOUTES les étapes IA de tous les workflows alors que Gemini répondait
+// normalement — les résumés de scrutins ont cessé pour cette seule raison.
+const cleGratuite = process.env.LLM_FREE_API_KEY || process.env.GEMINI_API_KEY;
+
 try {
-  if (!key) {
-    detail = "DEEPSEEK_API_KEY absente";
+  if (cleGratuite) {
+    hasBudget = true;
+    detail = "clé gratuite présente (LLM_FREE_API_KEY) — le solde DeepSeek n'entre pas en compte";
+  } else if (!key) {
+    detail = "ni clé gratuite ni DEEPSEEK_API_KEY";
   } else {
     const res = await fetch("https://api.deepseek.com/user/balance", {
       headers: { Authorization: `Bearer ${key}` },
