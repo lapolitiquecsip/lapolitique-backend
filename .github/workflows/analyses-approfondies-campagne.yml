@@ -8,8 +8,10 @@ name: Analyses approfondies (campagne DeepSeek)
 # pleines sont 01-04 h et 06-10 h UTC en semaine) ; 6 $ au plus par passage ; arrêt
 # immédiat, sans rien télécharger, si le solde DeepSeek est épuisé.
 on:
-  schedule:
-    - cron: '15 10,12,14,16,18,20,22 * * *'
+  # Passages automatiques SUSPENDUS : l'utilisateur teste d'abord une seule loi
+  # (recharge de 2 $). Rétablir le calendrier après son feu vert :
+  # schedule:
+  #   - cron: '15 10,12,14,16,18,20,22 * * *'
   workflow_dispatch:
     inputs:
       depuis_jours:
