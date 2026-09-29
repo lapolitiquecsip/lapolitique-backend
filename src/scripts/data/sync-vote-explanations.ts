@@ -23,7 +23,7 @@ async function getJson(url: string, tries = 4): Promise<any> {
   }
 }
 
-async function explain(v: any): Promise<{ subject: string; explanation: string; stakes: string } | null> {
+async function explain(v: any): Promise<{ title_fr: string; subject: string; explanation: string; stakes: string } | null> {
   const ctx = [
     `Titre : ${v.display_title || v.title || ""}`,
     v.reference ? `Référence : ${v.reference}` : "",
@@ -48,6 +48,7 @@ Sois clair, concret et FACTUEL. N'invente aucun CHIFFRE précis ni détail chiff
 
 Réponds en JSON strict :
 {
+  "title_fr": "L'intitulé du texte traduit en français, court (14 mots au plus), qui NOMME le texte : garde les codes et références (ex. « Objection à l'autorisation du maïs génétiquement modifié MON 87460 »).",
   "subject": "En UNE phrase, de quoi traite ce texte (le sujet concret).",
   "explanation": "3 à 5 phrases : explique l'enjeu concret et le contexte, en langage accessible. Ce que le texte propose/vise, pourquoi ça compte pour les citoyens. Pas de jargon non expliqué.",
   "stakes": "1 à 2 phrases : ce que l'adoption (ou le rejet) de ce texte change concrètement."
@@ -57,11 +58,53 @@ Réponds en JSON strict :
   const text = resp.content?.[0]?.text ?? "";
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;
-  try { const j = JSON.parse(m[0]); return { subject: j.subject || "", explanation: j.explanation || "", stakes: j.stakes || "" }; }
+  try { const j = JSON.parse(m[0]); return { title_fr: j.title_fr || "", subject: j.subject || "", explanation: j.explanation || "", stakes: j.stakes || "" }; }
   catch { return null; }
 }
 
+/**
+ * Rattrapage : traduit en français l'intitulé des votes déjà expliqués.
+ *
+ * Une alerte de vote doit NOMMER le texte avant d'en donner le résumé ; or
+ * l'intitulé officiel est en anglais. On traduit par lots de quarante, sans
+ * régénérer les explications, qui restent justes.
+ */
+async function titresFr() {
+  const lignes: { vote_id: string; title: string }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from("vote_explanations").select("vote_id, title").is("title_fr", null).range(from, from + 999);
+    if (error) throw error;
+    lignes.push(...((data as any[]) || []).filter(r => r.title));
+    if (!data || data.length < 1000) break;
+  }
+  console.log(`--- INTITULÉS FRANÇAIS : ${lignes.length} à traduire ---`);
+  let ok = 0;
+  for (let i = 0; i < lignes.length; i += 40) {
+    const lot = lignes.slice(i, i + 40);
+    try {
+      const resp = await resilientDeepSeek.createMessage({
+        model: "deepseek-chat", max_tokens: 6000, responseFormat: "json_object",
+        system: `Tu traduis en français des intitulés officiels de votes du Parlement européen, pour les afficher à des citoyens.
+Pour chacun : un titre court (14 mots au plus) qui NOMME le texte, fidèle à l'original, sans rien ajouter. Garde les codes et références tels quels (MON 87460, 2024/0123(COD)). « Objection pursuant to Rule 115 » devient « Objection à … » ; « Motion for a resolution » devient « Résolution sur … ».
+Réponds en JSON strict : { "titres": [ { "i": 1, "fr": "…" } ] }`,
+        messages: [{ role: "user", content: lot.map((r, k) => `${k + 1}. ${r.title}`).join("\n") }],
+      }, { timeoutMs: 90000 });
+      const texte = resp.content?.[0]?.text ?? "";
+      const j = JSON.parse(texte.match(/\{[\s\S]*\}/)?.[0] || "{}");
+      for (const t of j.titres || []) {
+        const r = lot[Number(t.i) - 1];
+        if (!r || typeof t.fr !== "string" || t.fr.trim().length < 4) continue;
+        const { error } = await supabase.from("vote_explanations").update({ title_fr: t.fr.trim().slice(0, 200) }).eq("vote_id", r.vote_id);
+        if (!error) ok++;
+      }
+      console.log(`  … ${ok} traduits`);
+    } catch (e: any) { console.warn(`  ! lot ${i / 40 + 1} : ${e.message}`); }
+  }
+  console.log(`--- TERMINE. ${ok} intitulés traduits. ---`);
+}
+
 async function main() {
+  if (process.argv.includes("--titres-fr")) return titresFr();
   const all = process.argv.includes("--all");
   const limit = Number(process.argv.find(a => a.startsWith("--limit="))?.split("=")[1] || 0);
   console.log(`--- EXPLICATIONS DE VOTES (${all ? "tous" : "principaux"}) ---`);
@@ -106,6 +149,7 @@ async function main() {
         vote_id: id,
         title: (v.display_title || ids.get(id)!.title || "").slice(0, 400),
         reference: v.reference || ids.get(id)!.reference || null,
+        title_fr: ex.title_fr ? ex.title_fr.slice(0, 200) : null,
         subject: ex.subject, explanation: ex.explanation, stakes: ex.stakes,
         bio_v: BIO_V, generated_at: new Date().toISOString(),
       }, { onConflict: "vote_id" });
