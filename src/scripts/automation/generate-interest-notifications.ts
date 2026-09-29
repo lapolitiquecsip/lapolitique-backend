@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { supabase } from "../../config/supabase.js";
 import { matchDomains } from "../../lib/interest-domains.js";
 import { regionOfDept } from "../../lib/dept-region.js";
+import { quasiDoublon } from "../../lib/quasi-doublon.js";
 
 // Notifications PERSONNALISÉES des membres premium.
 // À partir des NOUVEAUX contenus produits par les automatisations du site (flux `entity_feed`),
@@ -240,6 +241,18 @@ export async function generateInterestNotifications() {
   const perUser = new Map<string, number>();
   const rows: any[] = [];
 
+  // Titres des alertes locales déjà reçues (30 jours), par membre : un même fait
+  // repris par deux journaux arrivait deux fois (« Lancement d'un chantier décennal
+  // pour le canal de Nantes à Brest » / « La Loire-Atlantique lance un chantier
+  // décennal sur le canal… »), la déduplication par adresse ne pouvant pas le voir.
+  const dejaRecus = new Map<string, string[]>();
+  const realIds = users.map(u => u.user_id).filter(id => !id.startsWith("00000000"));
+  if (realIds.length) {
+    const anciennes = await fetchAll("user_notifications", "user_id, title",
+      q => q.eq("type", "local").in("user_id", realIds).gte("created_at", new Date(Date.now() - 30 * 86400000).toISOString()));
+    for (const a of anciennes) dejaRecus.set(a.user_id, [...(dejaRecus.get(a.user_id) || []), a.title]);
+  }
+
   for (const it of items) {
     // MES ALERTES = GÉO UNIQUEMENT. Le membre veut seulement ce qui concerne SA localité :
     // sa ville (exactement) et son département (une actu qui concerne tout le département).
@@ -270,6 +283,9 @@ export async function generateInterestNotifications() {
         if (!it.deptCode || u.deptCode !== it.deptCode) continue;
       }
       if ((perUser.get(u.user_id) || 0) >= MAX_PER_USER) continue;
+      const recus = dejaRecus.get(u.user_id) || [];
+      if (recus.some(t => quasiDoublon(t, it.title, it.place || ""))) continue;   // même fait, déjà reçu
+      dejaRecus.set(u.user_id, [...recus, it.title]);
       perUser.set(u.user_id, (perUser.get(u.user_id) || 0) + 1);
       rows.push({
         user_id: u.user_id, type: it.type,

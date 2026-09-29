@@ -2,6 +2,7 @@ import "dotenv/config";
 import Parser from "rss-parser";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
+import { quasiDoublon } from "../../lib/quasi-doublon.js";
 
 // Brique #4 — Fil d'actualité par institution (ministères, départements).
 // Flux gratuits (RSS officiels + Google News) → filtre heuristique (AVANT LLM, pour économiser
@@ -146,6 +147,12 @@ export async function syncInstitutionNews() {
         .select("url").eq("entity_type", src.entity_type).eq("entity_id", src.entity_id).in("url", urls);
       for (const r of existing || []) known.add(r.url);
     }
+    // Titres récents de cette entité, toutes sources confondues : un même fait
+    // repris par deux journaux (donc deux adresses) ne doit entrer qu'une fois.
+    const { data: recents } = await supabase.from("entity_feed").select("title")
+      .eq("entity_type", src.entity_type).eq("entity_id", src.entity_id)
+      .gte("created_at", new Date(Date.now() - 10 * 86400000).toISOString()).limit(300);
+    const titresRecents: string[] = (recents || []).map((r: any) => r.title).filter(Boolean);
 
     // Les PARTIS font l'actualité moins souvent que les communes/ministères : fenêtre de
     // fraîcheur élargie (60 j au lieu de 14) pour ne pas les laisser sans fil d'actu.
@@ -173,6 +180,10 @@ export async function syncInstitutionNews() {
       try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); }
       catch { await sleep(500); continue; }
       if (!ai || ai.should_publish === false || !ai.title || !ai.summary) continue;
+      // Même fait, autre journal. Pas pour les ministères : leurs actes du Journal
+      // officiel ont des intitulés récurrents (« Nomination … ») qui se ressemblent
+      // sans se répéter.
+      if (src.entity_type !== "ministry" && titresRecents.some(t => quasiDoublon(t, ai.title, src.entity_name))) continue;
 
       // Le lieu : la commune elle-même pour un fil de commune ; pour un fil de
       // département ou de région, la commune que l'IA a lue dans l'article, ou le
@@ -196,6 +207,7 @@ export async function syncInstitutionNews() {
       };
       const { error: upErr } = await supabase.from("entity_feed").upsert(row, { onConflict: "entity_type,entity_id,url" });
       if (upErr) { console.warn("upsert:", upErr.message); continue; }
+      titresRecents.push(ai.title);
       inserted++; perSource++;
     }
   }
