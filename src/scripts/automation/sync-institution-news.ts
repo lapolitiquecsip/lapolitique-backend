@@ -132,8 +132,12 @@ export async function syncInstitutionNews() {
   const sources = maxSources > 0 ? (sourcesAll || []).slice(0, maxSources) : (sourcesAll || []);
   console.log(`[Institution-News] ${sources.length} source(s) traitée(s)${maxSources > 0 ? ` (plafond ${maxSources})` : ""}.`);
 
-  let inserted = 0, scanned = 0;
+  // Échecs de l'IA comptés, et non plus avalés : pendant deux semaines de septembre,
+  // le quota gratuit du jour était épuisé à l'heure du passage, chaque résumé échouait
+  // en silence et le fil des communes ne recevait plus rien, passage « réussi ».
+  let inserted = 0, scanned = 0, echecs = 0, quotaVide = 0, arret = false;
   for (const src of sources || []) {
+    if (arret) break;
     let feed;
     try { feed = await parser.parseURL(src.feed_url); }
     catch { continue; }
@@ -177,8 +181,18 @@ export async function syncInstitutionNews() {
       scanned++;
       const snippet = (item.contentSnippet || item.content || "").slice(0, 500);
       let ai;
-      try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); }
-      catch { await sleep(500); continue; }
+      try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); quotaVide = 0; }
+      catch (e: any) {
+        echecs++;
+        // Toutes les lignées gratuites refusent : on laisse passer les pauses de 5 min
+        // une fois ; si ça refuse encore, c'est le quota du JOUR — inutile d'insister.
+        if (/Aucun modèle gratuit disponible/.test(String(e?.message))) {
+          if (++quotaVide >= 2) { arret = true; break; }
+          console.warn("[Institution-News] Modèles gratuits tous saturés — pause de 5 min.");
+          await sleep(300000);
+        } else await sleep(500);
+        continue;
+      }
       if (!ai || ai.should_publish === false || !ai.title || !ai.summary) continue;
       // Même fait, autre journal. Pas pour les ministères : leurs actes du Journal
       // officiel ont des intitulés récurrents (« Nomination … ») qui se ressemblent
@@ -211,7 +225,9 @@ export async function syncInstitutionNews() {
       inserted++; perSource++;
     }
   }
-  console.log(`[Institution-News] Terminé. ${scanned} items analysés (LLM), ${inserted} publiés.`);
+  console.log(`[Institution-News] Terminé. ${scanned} items analysés (LLM), ${inserted} publiés, ${echecs} échec(s) de l'IA.`);
+  if (arret) console.log("::warning::Quota gratuit du jour épuisé : passage interrompu, reprise au prochain.");
+  else if (scanned >= 10 && echecs > scanned / 2) console.log(`::warning::${echecs} résumés sur ${scanned} ont échoué : le fil est à l'arrêt.`);
   return inserted;
 }
 

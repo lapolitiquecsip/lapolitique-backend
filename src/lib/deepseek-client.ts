@@ -143,7 +143,9 @@ export interface DeepSeekMessageParams {
 
 export interface DeepSeekMessage {
   content: Array<{ type: 'text'; text: string }>;
-  usage?: { input_tokens: number; output_tokens: number };
+  // cache_hit_tokens : part de l'entrée déjà vue, facturée ~50× moins cher (DeepSeek) ;
+  // reasoning_tokens : réflexion du modèle, comprise dans output_tokens et facturée.
+  usage?: { input_tokens: number; output_tokens: number; cache_hit_tokens?: number; reasoning_tokens?: number };
 }
 
 // Client robuste multi-provider — drop-in (interface inchangée pour les 57 call-sites).
@@ -234,7 +236,10 @@ export class ResilientDeepSeek {
           const duration = Date.now() - startTime;
           const tokensInput = response.usage?.prompt_tokens || 0;
           const tokensOutput = response.usage?.completion_tokens || 0;
-          console.log(`[LLM/${label}] ✅ OK ${duration}ms — In=${tokensInput}/Out=${tokensOutput}`);
+          const u: any = response.usage || {};
+          const cacheHit = Number(u.prompt_cache_hit_tokens || u.prompt_tokens_details?.cached_tokens || 0);
+          const reasoning = Number(u.completion_tokens_details?.reasoning_tokens || 0);
+          console.log(`[LLM/${label}] ✅ OK ${duration}ms — In=${tokensInput}${cacheHit ? ` (cache ${cacheHit})` : ''}/Out=${tokensOutput}${reasoning ? ` (raisonnement ${reasoning})` : ''}`);
           const text = response.choices[0]?.message?.content || '';
           // Garde-fou QUALITÉ : les LLM laissent parfois fuiter des caractères non latins (idéogrammes
           // CJK, hangul, cyrillique, arabe) dans un texte français — DeepSeek (modèle chinois) autant
@@ -249,7 +254,7 @@ export class ResilientDeepSeek {
             }
             throw new Error('Sortie non-latine persistante');
           }
-          return { content: [{ type: 'text', text }], usage: { input_tokens: tokensInput, output_tokens: tokensOutput } };
+          return { content: [{ type: 'text', text }], usage: { input_tokens: tokensInput, output_tokens: tokensOutput, cache_hit_tokens: cacheHit, reasoning_tokens: reasoning } };
         } catch (err: any) {
           const duration = Date.now() - startTime;
           console.warn(`[LLM/${label}] ⚠️ essai ${attempt} échoué (${duration}ms) : ${err.message}`);

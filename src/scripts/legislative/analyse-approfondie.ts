@@ -37,12 +37,13 @@ const PARALLELE = Math.max(1, Number(opt("parallele") || 1));
 // heures pleines (01-04 h et 06-10 h UTC, du lundi au vendredi).
 const PRIX_ENTREE = Number(process.env.DEEPSEEK_PRIX_ENTREE || 0.15);
 const PRIX_SORTIE = Number(process.env.DEEPSEEK_PRIX_SORTIE || 0.6);
+const PRIX_CACHE = Number(process.env.DEEPSEEK_PRIX_CACHE || 0.003);   // entrée déjà en cache
 function heuresPleines(d = new Date()) {
   const j = d.getUTCDay(), h = d.getUTCHours();
   return j >= 1 && j <= 5 && ((h >= 1 && h < 4) || (h >= 6 && h < 10));
 }
-const coutAppel = (entree: number, sortie: number) =>
-  ((entree * PRIX_ENTREE + sortie * PRIX_SORTIE) / 1e6) * (heuresPleines() ? 2 : 1);
+const coutAppel = (entree: number, sortie: number, cache = 0) =>
+  (((entree - cache) * PRIX_ENTREE + cache * PRIX_CACHE + sortie * PRIX_SORTIE) / 1e6) * (heuresPleines() ? 2 : 1);
 const UA = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitiquecestsimple.fr)" };
 const AN = "https://www.assemblee-nationale.fr";
 // Version de la méthode : une analyse écrite par une méthode plus ancienne est refaite.
@@ -188,7 +189,8 @@ const ARRET = /Aucun modèle gratuit disponible|Solde DeepSeek épuisé|Insuffic
  * Les plafonds de sortie sont larges : le modèle raisonne avant de répondre, et un
  * plafond trop bas donne une réponse VIDE sans erreur. On ne paie que l'utilisé.
  */
-async function demanderJson(systeme: string, contenu: string, maxTokens: number, cout: { usd: number }): Promise<any> {
+type Cout = { usd: number; entree?: number; cache?: number; sortie?: number };
+async function demanderJson(systeme: string, contenu: string, maxTokens: number, cout: Cout): Promise<any> {
   let derniere: any;
   for (let essai = 1; essai <= 4; essai++) {
     try {
@@ -196,7 +198,12 @@ async function demanderJson(systeme: string, contenu: string, maxTokens: number,
         model: PAYANT ? DEEPSEEK_FLASH : "deepseek-chat", max_tokens: PAYANT ? maxTokens * 2 : maxTokens,
         responseFormat: "json_object", system: systeme, messages: [{ role: "user", content: contenu }],
       }, { timeoutMs: PAYANT ? 420000 : 240000, payant: PAYANT });
-      if (PAYANT) cout.usd += coutAppel(r.usage?.input_tokens || 0, r.usage?.output_tokens || 0);
+      if (PAYANT) {
+        cout.usd += coutAppel(r.usage?.input_tokens || 0, r.usage?.output_tokens || 0, r.usage?.cache_hit_tokens || 0);
+        cout.entree = (cout.entree || 0) + (r.usage?.input_tokens || 0);
+        cout.cache = (cout.cache || 0) + (r.usage?.cache_hit_tokens || 0);
+        cout.sortie = (cout.sortie || 0) + (r.usage?.output_tokens || 0);
+      }
       const texte = r.content?.[0]?.type === "text" ? r.content[0].text : "";
       const m = texte.match(/\{[\s\S]*\}/);
       if (!m) throw new Error("réponse sans JSON");
@@ -269,7 +276,7 @@ FORMAT — un objet JSON :
 
 /** Rend le coût de l'analyse en dollars (0 en gratuit), ou null si rien n'a été écrit. */
 async function analyser(d: { id: string; title: string; short_title: string | null; source_urls: string[] }): Promise<number | null> {
-  const cout = { usd: 0 };
+  const cout: Cout = { usd: 0 };
   const docs = await documents(d.source_urls || []);
   if (!docs?.final) {
     console.log(`  · ${d.short_title || d.title} : aucun texte lisible à l'Assemblée`);
@@ -328,7 +335,7 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
     model: VERSION, generated_at: new Date().toISOString(), cout_usd: PAYANT ? Number(cout.usd.toFixed(5)) : null,
   }, { onConflict: "dossier_id" });
   if (error) throw error;
-  console.log(`    ✓ ${(analyse.mesures || []).length} mesures, ${(analyse.chiffres_cles || []).length} chiffres${cadre ? `, cadre : ${(cadre.dispositifs || []).length} dispositifs` : ""}${PAYANT ? ` · ${cout.usd.toFixed(4)} $` : ""}`);
+  console.log(`    ✓ ${(analyse.mesures || []).length} mesures, ${(analyse.chiffres_cles || []).length} chiffres${cadre ? `, cadre : ${(cadre.dispositifs || []).length} dispositifs` : ""}${PAYANT ? ` · ${cout.usd.toFixed(4)} $ (entrée ${cout.entree} tokens dont ${cout.cache} en cache, sortie ${cout.sortie})` : ""}`);
   return cout.usd;
 }
 

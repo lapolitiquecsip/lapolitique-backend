@@ -1,7 +1,10 @@
 name: Commune news feed (#1)
 on:
   schedule:
-    - cron: '37 19 * * *'   # chaque jour ~21h37 Paris (heures creuses DeepSeek)
+    # 7 h 20 UTC, juste après la remise à zéro du quota Gemini gratuit (minuit, heure
+    # du Pacifique). Le soir, les autres tâches d'IA l'ont déjà vidé : de mi-septembre
+    # au 29, ce fil ne recevait presque plus rien.
+    - cron: '20 7 * * *'
   workflow_dispatch:
 concurrency:
   group: commune-news
@@ -11,7 +14,7 @@ permissions:
 jobs:
   commune-news:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
