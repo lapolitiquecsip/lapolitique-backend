@@ -32,7 +32,13 @@ jobs:
       - uses: ./.github/actions/setup-data-job
       # 1) Dossiers récents actifs + promulgués (fenêtre standard).
       - run: npm run automation:legislative:summaries
-      # 2) Comble le RETARD : dossiers sans analyse (anciens, Sénat…), par lots, jusqu'à épuisement.
+      # 2) ANALYSES APPROFONDIES (Premium / Pro) : lues dans le texte officiel (texte adopté,
+      #    exposé des motifs, étude d'impact). Quelques dossiers par passage, les textes votés
+      #    d'abord, AVANT le rattrapage (qui épuise le quota gratuit du jour) ; un dossier dont le texte n'a pas changé n'est pas refait.
+      - run: npm run automation:legislative:deep -- --max=3
+        continue-on-error: true
+        timeout-minutes: 25
+      # 3) Comble le RETARD : dossiers sans analyse (anciens, Sénat…), par lots, jusqu'à épuisement.
       - run: npm run automation:legislative:summaries
         env:
           SUMMARY_FILL_MISSING: "1"

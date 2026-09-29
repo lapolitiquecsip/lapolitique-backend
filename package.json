@@ -24,6 +24,7 @@
     "automation:agenda": "tsx src/scripts/automation/fetch-an-agenda.ts && tsx src/scripts/automation/fetch-senat-agenda.ts && tsx src/scripts/automation/fetch-elysee-agenda.ts && npm run automation:senat-summary",
     "automation:laws": "tsx src/scripts/legislative/sync-assemblee.ts",
     "automation:jorf": "tsx src/scripts/legislative/sync-jorf.ts",
+    "automation:legislative:deep": "tsx src/scripts/legislative/analyse-approfondie.ts",
     "automation:legislative:reconcile": "tsx src/scripts/legislative/reconcile.ts",
     "automation:link-companions": "tsx src/scripts/legislative/link-companions.ts",
     "automation:senate": "tsx src/scripts/legislative/sync-senate.ts",
