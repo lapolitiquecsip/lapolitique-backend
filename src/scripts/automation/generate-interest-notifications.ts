@@ -108,6 +108,24 @@ interface Item {
   title: string; summary: string | null; url: string | null; date: string | null;
   scope: "local" | "thematic"; deptCode?: string | null; communeCode?: string | null; regionCode?: string | null;
   importance: number; type: string;
+  // Le lieu affiché sur la carte d'alerte (commune, sinon département ou région).
+  place?: string | null;
+  // Article d'un fil de département ou de région qui ne concerne qu'UNE commune.
+  singleCommune?: boolean;
+}
+
+// Nom lisible d'un territoire : la carte d'alerte doit dire OÙ, sans quoi « la
+// municipalité acte la démolition de l'église » ne se rattache à rien.
+// Les codes de région portent un « R » dans `territories` (R52), pas dans le fil (52).
+async function territoryNames(keys: { type: string; id: string }[]): Promise<Map<string, string>> {
+  const codeOf = (k: { type: string; id: string }) => (k.type === "region" ? `R${k.id}` : k.id);
+  const codes = [...new Set(keys.map(codeOf))];
+  const names = new Map<string, string>();
+  for (let i = 0; i < codes.length; i += 300) {
+    const { data } = await supabase.from("territories").select("code, name").in("code", codes.slice(i, i + 300));
+    for (const t of data || []) names.set(String(t.code), t.name);
+  }
+  return new Map(keys.map(k => [`${k.type}:${k.id}`, names.get(codeOf(k)) || ""]));
 }
 
 // Résout la localisation du membre à partir de sa VILLE (prioritaire, la plus précise) :
@@ -137,10 +155,13 @@ async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
 
   // a) entity_feed — actus institutions (national/ministères) + local (communes/départements), décrets.
   try {
-    const feed = await fetchAll("entity_feed", "entity_type, entity_id, title, summary, url, published_at, news_type",
+    const feed = await fetchAll("entity_feed", "entity_type, entity_id, title, summary, url, published_at, news_type, place, place_scope",
       q => q.gte("published_at", since));
+    const locaux = feed.filter(it => ["commune", "department", "region"].includes(it.entity_type));
+    const noms = await territoryNames(locaux.map(it => ({ type: it.entity_type, id: String(it.entity_id) })));
     for (const it of feed) {
       const isLocal = it.entity_type === "commune" || it.entity_type === "department" || it.entity_type === "region";
+      const singleCommune = (it.entity_type === "department" || it.entity_type === "region") && it.place_scope === "commune";
       out.push({
         title: it.title, summary: it.summary, url: it.url, date: it.published_at,
         scope: isLocal ? "local" : "thematic",
@@ -148,6 +169,10 @@ async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
         communeCode: it.entity_type === "commune" ? String(it.entity_id) : null,
         regionCode: it.entity_type === "region" ? String(it.entity_id) : null,
         importance: importanceOf(it.news_type), type: isLocal ? "local" : "info",
+        // Une commune nommée par l'article passe devant le nom du fil ; une commune
+        // qu'il ne nomme pas n'a pas de lieu affichable (et ne sera pas envoyée).
+        place: isLocal ? (singleCommune ? it.place || null : it.place || noms.get(`${it.entity_type}:${it.entity_id}`) || null) : null,
+        singleCommune,
       });
     }
     console.log(`  · entity_feed : ${feed.length}`);
@@ -225,7 +250,15 @@ export async function generateInterestNotifications() {
     const dedup = `feed|${crypto.createHash("md5").update(String(it.url || it.title)).digest("hex").slice(0, 16)}`;
 
     for (const u of users) {
-      if (it.communeCode) {
+      if (it.singleCommune) {
+        // Article d'un fil de département ou de région qui ne parle que d'UNE
+        // commune : même règle qu'une actu de commune — seulement ses habitants.
+        // Commune non nommée (« dans cette commune… ») : personne ne peut savoir
+        // si c'est la sienne, on n'envoie pas.
+        if (!it.place || !u.city || norm(u.city) !== norm(it.place)) continue;
+        if (it.deptCode && u.deptCode !== it.deptCode) continue;
+        if (it.regionCode && u.regionCode !== it.regionCode) continue;
+      } else if (it.communeCode) {
         // Actu de COMMUNE : uniquement le membre dont la VILLE correspond EXACTEMENT
         // (jamais une autre commune du même département).
         if (!u.communeCode || it.communeCode !== u.communeCode) continue;
@@ -244,6 +277,7 @@ export async function generateInterestNotifications() {
         detail: it.summary ? String(it.summary).slice(0, 300) : null,
         domain: domains[0] || "local", importance: it.importance, url: it.url || null,
         event_at: it.date || null, created_at: now, read: false, dedup_key: dedup,
+        place: it.place || null,
       });
     }
   }

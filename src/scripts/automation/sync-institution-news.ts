@@ -93,12 +93,26 @@ NE PAS PUBLIER (should_publish=false) :
 
 Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "annonce" }`;
 
+// Complément des fils de DÉPARTEMENT et de RÉGION. Ces fils ramassent aussi des
+// articles sur UNE commune (« Dans cette commune de Loire-Atlantique, les élus
+// actent la démolition de l'église ») ; réécrit sans lieu, le titre devenait « La
+// municipalité acte la démolition de l'église communale », et l'alerte partait à
+// tout le département sans que personne puisse savoir de quelle ville il s'agissait.
+const LIEU_PROMPT = (entityName: string) => `
+
+LIEU — obligatoire :
+- "portee" : "territoire" pour toute DÉCISION de la préfecture, du conseil départemental ou régional (arrêté, restriction d'eau ou sécheresse sur un secteur, fermeture d'une route départementale, budget, subvention), pour une mesure générale ou qui touche plusieurs communes — MÊME si un lieu est cité ; "commune" seulement pour un fait de la vie d'UNE commune (conseil municipal, chantier municipal, église, école, commerce fermé, événement local).
+- "lieu" : le nom de la commune citée dans le titre ou l'extrait, quelle que soit la portée ; null s'il n'y est pas nommé. N'invente jamais un nom de commune.
+- Le "title" NOMME la commune quand elle est connue (« Saint-Nazaire : … »). Si l'article parle d'une commune sans la nommer, écris « Une commune de ${entityName} … » — jamais « la municipalité », « la commune » ou « la mairie » seules, qui laissent croire au lecteur qu'il s'agit de la sienne.
+Ajoute ces deux champs au JSON : "portee" et "lieu".`;
+
 async function summarise(entityName: string, title: string, snippet: string, entityType: string) {
   const promptFor = entityType === "commune" ? COMMUNE_PROMPT : entityType === "region" ? REGION_PROMPT : entityType === "party" ? PARTY_PROMPT : MINISTRY_PROMPT;
   const labelFor = entityType === "commune" ? "Ville" : entityType === "region" ? "Région" : entityType === "party" ? "Parti" : "Institution";
+  const territorial = entityType === "department" || entityType === "region";
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object",
-    system: promptFor(entityName),
+    system: promptFor(entityName) + (territorial ? LIEU_PROMPT(entityName) : ""),
     messages: [{ role: "user", content: `${labelFor} : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
   });
   const text = response.content[0]?.type === "text" ? response.content[0].text : "";
@@ -160,12 +174,25 @@ export async function syncInstitutionNews() {
       catch { await sleep(500); continue; }
       if (!ai || ai.should_publish === false || !ai.title || !ai.summary) continue;
 
+      // Le lieu : la commune elle-même pour un fil de commune ; pour un fil de
+      // département ou de région, la commune que l'IA a lue dans l'article, ou le
+      // territoire — précédé de la commune citée, « Mâcon (Saône-et-Loire) »,
+      // quand une décision départementale vise un lieu précis.
+      const territorial = src.entity_type === "department" || src.entity_type === "region";
+      const surUneCommune = territorial && ai.portee === "commune";
+      const lieu = typeof ai.lieu === "string" && ai.lieu.trim() ? ai.lieu.trim().slice(0, 80) : null;
+      const place = src.entity_type === "commune" ? src.entity_name
+        : !territorial ? null
+        : surUneCommune ? lieu
+        : lieu && lieu !== src.entity_name ? `${lieu} (${src.entity_name})` : src.entity_name;
       const row = {
         entity_type: src.entity_type, entity_id: src.entity_id,
         source_name: src.source_name, source_kind: src.kind,
         url: link, title: ai.title, summary: ai.summary,
         news_type: ai.news_type || "actualite", topic: null,
         published_at: pub ? pub.toISOString() : null,
+        place,
+        place_scope: src.entity_type === "commune" || surUneCommune ? "commune" : territorial ? "territoire" : null,
       };
       const { error: upErr } = await supabase.from("entity_feed").upsert(row, { onConflict: "entity_type,entity_id,url" });
       if (upErr) { console.warn("upsert:", upErr.message); continue; }
