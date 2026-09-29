@@ -27,6 +27,8 @@ const MAX = Number(opt("max") || 6);
 const UN_DOSSIER = opt("dossier");
 const UA = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitiquecestsimple.fr)" };
 const AN = "https://www.assemblee-nationale.fr";
+// Version de la méthode : une analyse écrite par une méthode plus ancienne est refaite.
+const VERSION = "approfondie-v2 (tranches d'articles)";
 
 const propre = (t: string) => t
   .replace(/ /g, " ")
@@ -223,8 +225,8 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
   if (!docs?.final) { console.log(`  · ${d.short_title || d.title} : aucun texte lisible à l'Assemblée`); return false; }
 
   if (!FORCE) {
-    const { data: deja } = await supabase.from("dossier_analyses_approfondies").select("texte_version").eq("dossier_id", d.id).maybeSingle();
-    if (deja?.texte_version === docs.version) { console.log(`  · déjà à jour (${docs.version}) : ${d.short_title || d.title}`); return false; }
+    const { data: deja } = await supabase.from("dossier_analyses_approfondies").select("texte_version, model").eq("dossier_id", d.id).maybeSingle();
+    if (deja?.texte_version === docs.version && deja?.model === VERSION) { console.log(`  · déjà à jour (${docs.version}) : ${d.short_title || d.title}`); return false; }
   }
 
   const titre = d.short_title || d.title;
@@ -268,7 +270,7 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
   const sources = [docs.final, docs.initial, docs.etude].filter(Boolean).map(x => ({ titre: x!.titre, url: x!.url }));
   const { error } = await supabase.from("dossier_analyses_approfondies").upsert({
     dossier_id: d.id, analyse_loi: analyse, cadre, sources, texte_version: docs.version,
-    model: "gemini (client gratuit)", generated_at: new Date().toISOString(),
+    model: VERSION, generated_at: new Date().toISOString(),
   }, { onConflict: "dossier_id" });
   if (error) throw error;
   console.log(`    ✓ ${(analyse.mesures || []).length} mesures, ${(analyse.chiffres_cles || []).length} chiffres${cadre ? `, cadre : ${(cadre.dispositifs || []).length} dispositifs` : ""}`);
