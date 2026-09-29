@@ -60,7 +60,16 @@ type Documents = {
  * document) ou « l17t0338_texte-adopte-seance » (texte adopté, numéro de TA).
  */
 async function documents(sourceUrls: string[]): Promise<Documents | null> {
-  const page = sourceUrls.find(u => /assemblee-nationale\.fr\/dyn\/\d+\/dossiers\//.test(u));
+  let page = sourceUrls.find(u => /assemblee-nationale\.fr\/dyn\/\d+\/dossiers\//.test(u));
+  // Texte venu du Sénat : sa page renvoie vers le dossier de l'Assemblée, parfois
+  // sous l'ancienne adresse « /17/dossiers/<nom>.asp », que l'on convertit.
+  if (!page) {
+    for (const s of sourceUrls.filter(u => /senat\.fr\/dossier-legislatif\//.test(u))) {
+      const html = await fetch(s, { headers: UA, signal: AbortSignal.timeout(30000) }).then(r => (r.ok ? r.text() : "")).catch(() => "");
+      const m = html.match(/assemblee-nationale\.fr\/(?:dyn\/)?(\d+)\/dossiers\/([A-Za-z0-9_-]+?)(?:\.asp)?["#?]/);
+      if (m) { page = `${AN}/dyn/${m[1]}/dossiers/${m[2]}`; break; }
+    }
+  }
   if (!page) return null;
   const html = await fetch(page, { headers: UA, signal: AbortSignal.timeout(30000) }).then(r => (r.ok ? r.text() : "")).catch(() => "");
   const ids = [...new Set([...html.matchAll(/\/dyn\/(\d+)\/textes\/(l\d+[bt]\d+_[a-z-]+)/g)].map(m => `${m[1]}|${m[2]}`))]
@@ -69,14 +78,23 @@ async function documents(sourceUrls: string[]): Promise<Documents | null> {
   const pdfUrl = (x: { leg: string; id: string }) => `${AN}/dyn/${x.leg}/textes/${x.id}.pdf`;
 
   const par = (re: RegExp) => ids.filter(x => re.test(x.id)).sort((a, b) => b.num - a.num);
-  const final = par(/_texte-adopte-seance$|_texte-adopte$/)[0] || par(/_texte-adopte-commission$/)[0]
-    || par(/_(projet|proposition)-loi(-organique)?$/)[0];
+  // Du plus abouti au texte déposé : le PDF d'un texte de commission tout juste
+  // adopté n'est souvent pas encore publié, on prend alors le suivant. Le texte
+  // réellement lu fait la version : quand le PDF paraît, l'analyse est refaite.
+  const candidats = [
+    ...par(/_texte-adopte-seance$|_texte-adopte$/), ...par(/_texte-adopte-commission$/),
+    ...par(/_(projet|proposition)-loi(-organique)?$/),
+  ];
   const initial = par(/_(projet|proposition)-loi(-organique)?$/).slice(-1)[0];
   const etude = par(/_etude-impact$/).slice(-1)[0];
+  let final: (typeof ids)[number] | undefined, tf: string | null = null;
+  for (const c of candidats.slice(0, 4)) {
+    tf = await lirePdf(pdfUrl(c));
+    if (tf) { final = c; break; }
+  }
   if (!final) return null;
 
-  const [tf, ti, te] = await Promise.all([
-    lirePdf(pdfUrl(final)),
+  const [ti, te] = await Promise.all([
     initial && initial.id !== final.id ? lirePdf(pdfUrl(initial)) : Promise.resolve(null),
     etude ? lirePdf(pdfUrl(etude)) : Promise.resolve(null),
   ]);
@@ -292,8 +310,36 @@ async function prioritaires(): Promise<string[]> {
   return [...new Set([...(liens || []).map((l: any) => l.dossier_id), ...(recents || []).map((r: any) => r.id)].filter(Boolean))];
 }
 
+/**
+ * --mesurer : lit les vrais documents SANS appeler le modèle, et compte le volume
+ * que chaque dossier enverrait (entrée) et recevrait (sortie, estimée large : le
+ * modèle raisonne avant de répondre). Sert à chiffrer une campagne avant de payer.
+ */
+async function mesurer(ids: string[]) {
+  const TOK = 3.3; // caractères par token, français
+  let n = 0, lisibles = 0, entree = 0, sortie = 0;
+  for (const id of ids) {
+    const { data: d } = await supabase.from("legislative_dossiers").select("title, short_title, source_urls").eq("id", id).maybeSingle();
+    if (!d) continue;
+    n++;
+    const docs = await documents(d.source_urls || []);
+    if (!docs?.final) { console.log(`  —  illisible : ${(d.short_title || d.title).slice(0, 60)}`); continue; }
+    lisibles++;
+    const E = (docs.initial ? exposeDesMotifs(docs.initial.texte) : exposeDesMotifs(docs.final.texte)).length;
+    const parts = tranches(docs.final.texte);
+    const inChars = parts.reduce((s, p) => s + Math.min(E, 15000) + p.length + 3000, 0)
+      + E + Math.min(docs.final.texte.length, 250000) + 3000
+      + (docs.etude ? droitExistant(docs.etude.texte).length : 0) + Math.min(E, 15000) + 17500 + 2000;
+    const inTok = inChars / TOK, outTok = parts.length * 6000 + 6000 + 4000;
+    entree += inTok; sortie += outTok;
+    console.log(`  ${String(Math.round(docs.final.texte.length / 1000)).padStart(4)}k car. · ${parts.length} tranche(s) · étude ${docs.etude ? "oui" : "non"} · ≈${Math.round(inTok / 1000)}k tok entrée : ${(d.short_title || d.title).slice(0, 55)}`);
+  }
+  console.log(`\n${lisibles}/${n} lisibles · moyenne par dossier lisible : ${Math.round(entree / lisibles / 1000)}k tokens entrée, ${Math.round(sortie / lisibles / 1000)}k sortie`);
+}
+
 async function main() {
   const ids = UN_DOSSIER ? [UN_DOSSIER] : await prioritaires();
+  if (args.includes("--mesurer")) return mesurer(ids);
   console.log(`--- ANALYSES APPROFONDIES : ${ids.length} dossier(s) candidat(s), ${MAX} au plus ---`);
   let faits = 0;
   for (const id of ids) {
