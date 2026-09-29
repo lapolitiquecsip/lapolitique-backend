@@ -1,7 +1,7 @@
 import "dotenv/config";
 import pdf from "pdf-parse/lib/pdf-parse.js";
 import { supabase } from "../../config/supabase.js";
-import { resilientDeepSeek } from "../../lib/deepseek-client.js";
+import { resilientDeepSeek, DEEPSEEK_FLASH } from "../../lib/deepseek-client.js";
 
 // ANALYSE APPROFONDIE d'un texte de loi (offre Premium / Pro).
 //
@@ -19,12 +19,30 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 //   npx tsx src/scripts/legislative/analyse-approfondie.ts                 # dossiers prioritaires
 //   npx tsx src/scripts/legislative/analyse-approfondie.ts --dossier=<uuid> [--force]
 //   npx tsx src/scripts/legislative/analyse-approfondie.ts --max=5
+//   Campagne payante (DeepSeek), dossiers actifs depuis un an, 6 $ au plus par passage :
+//   npx tsx src/scripts/legislative/analyse-approfondie.ts --payant --depuis=365 --max=300 --parallele=5 --budget=6
+//   Chiffrage sans appel au modèle : ajouter --mesurer
 
 const args = process.argv.slice(2);
 const opt = (n: string) => args.find(a => a.startsWith(`--${n}=`))?.split("=")[1];
 const FORCE = args.includes("--force");
 const MAX = Number(opt("max") || 6);
 const UN_DOSSIER = opt("dossier");
+const PAYANT = args.includes("--payant");
+const DEPUIS = Number(opt("depuis") || 0);          // jours ; 0 = dossiers prioritaires seulement
+const BUDGET = Number(opt("budget") || 0);          // dollars par passage ; 0 = sans plafond
+const PARALLELE = Math.max(1, Number(opt("parallele") || 1));
+
+// Tarif DeepSeek flash (dollars par million de tokens), heures creuses ; doublé en
+// heures pleines (01-04 h et 06-10 h UTC, du lundi au vendredi).
+const PRIX_ENTREE = Number(process.env.DEEPSEEK_PRIX_ENTREE || 0.15);
+const PRIX_SORTIE = Number(process.env.DEEPSEEK_PRIX_SORTIE || 0.6);
+function heuresPleines(d = new Date()) {
+  const j = d.getUTCDay(), h = d.getUTCHours();
+  return j >= 1 && j <= 5 && ((h >= 1 && h < 4) || (h >= 6 && h < 10));
+}
+const coutAppel = (entree: number, sortie: number) =>
+  ((entree * PRIX_ENTREE + sortie * PRIX_SORTIE) / 1e6) * (heuresPleines() ? 2 : 1);
 const UA = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitiquecestsimple.fr)" };
 const AN = "https://www.assemblee-nationale.fr";
 // Version de la méthode : une analyse écrite par une méthode plus ancienne est refaite.
@@ -159,25 +177,36 @@ function tranches(texte: string, taille = 45000): string[] {
 
 const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-/** Un appel au modèle qui doit rendre du JSON ; un JSON mal formé est redemandé ; un quota saturé attend que les modèles écartés 5 min reviennent. */
-async function demanderJson(systeme: string, contenu: string, maxTokens: number): Promise<any> {
+// Plus rien à faire dans ce passage : quota gratuit du jour ou solde payant épuisé.
+// En payant, « 402 Insufficient Balance » = solde vidé en cours de passage.
+const ARRET = /Aucun modèle gratuit disponible|Solde DeepSeek épuisé|Insufficient Balance|\b402\b/;
+
+/**
+ * Un appel au modèle qui doit rendre du JSON ; un JSON mal formé est redemandé.
+ * En gratuit, un quota saturé attend que les modèles écartés 5 min reviennent.
+ * En payant, chaque appel ajoute son coût réel (tokens facturés) à `cout`.
+ * Les plafonds de sortie sont larges : le modèle raisonne avant de répondre, et un
+ * plafond trop bas donne une réponse VIDE sans erreur. On ne paie que l'utilisé.
+ */
+async function demanderJson(systeme: string, contenu: string, maxTokens: number, cout: { usd: number }): Promise<any> {
   let derniere: any;
   for (let essai = 1; essai <= 4; essai++) {
     try {
       const r = await resilientDeepSeek.createMessage({
-        model: "deepseek-chat", max_tokens: maxTokens, responseFormat: "json_object",
-        system: systeme, messages: [{ role: "user", content: contenu }],
-      }, { timeoutMs: 240000 });
+        model: PAYANT ? DEEPSEEK_FLASH : "deepseek-chat", max_tokens: PAYANT ? maxTokens * 2 : maxTokens,
+        responseFormat: "json_object", system: systeme, messages: [{ role: "user", content: contenu }],
+      }, { timeoutMs: PAYANT ? 420000 : 240000, payant: PAYANT });
+      if (PAYANT) cout.usd += coutAppel(r.usage?.input_tokens || 0, r.usage?.output_tokens || 0);
       const texte = r.content?.[0]?.type === "text" ? r.content[0].text : "";
       const m = texte.match(/\{[\s\S]*\}/);
       if (!m) throw new Error("réponse sans JSON");
       return JSON.parse(m[0]);
     } catch (e) {
       derniere = e;
-      // Plus aucun modèle disponible : quota du JOUR épuisé, inutile d'attendre.
-      if (/Aucun modèle gratuit disponible/.test(String((e as Error).message))) throw e;
+      if (ARRET.test(String((e as Error).message))) throw e;
       console.warn(`    ! essai ${essai}/4 : ${(e as Error).message}`);
-      await pause(essai === 1 && !/JSON/.test(String((e as Error).message)) ? 330000 : 30000 * essai);
+      const quota = !PAYANT && essai === 1 && !/JSON/.test(String((e as Error).message));
+      await pause(quota ? 330000 : (PAYANT ? 10000 : 30000) * essai);
     }
   }
   throw derniere;
@@ -238,13 +267,20 @@ FORMAT — un objet JSON :
   "lacunes": "ce que la situation actuelle ne règle pas, selon les documents"
 }`;
 
-async function analyser(d: { id: string; title: string; short_title: string | null; source_urls: string[] }) {
+/** Rend le coût de l'analyse en dollars (0 en gratuit), ou null si rien n'a été écrit. */
+async function analyser(d: { id: string; title: string; short_title: string | null; source_urls: string[] }): Promise<number | null> {
+  const cout = { usd: 0 };
   const docs = await documents(d.source_urls || []);
-  if (!docs?.final) { console.log(`  · ${d.short_title || d.title} : aucun texte lisible à l'Assemblée`); return false; }
+  if (!docs?.final) {
+    console.log(`  · ${d.short_title || d.title} : aucun texte lisible à l'Assemblée`);
+    await supabase.from("dossier_analyses_tentatives")
+      .upsert({ dossier_id: d.id, raison: "aucun texte lisible", tente_le: new Date().toISOString() }, { onConflict: "dossier_id" });
+    return null;
+  }
 
   if (!FORCE) {
     const { data: deja } = await supabase.from("dossier_analyses_approfondies").select("texte_version, model").eq("dossier_id", d.id).maybeSingle();
-    if (deja?.texte_version === docs.version && deja?.model === VERSION) { console.log(`  · déjà à jour (${docs.version}) : ${d.short_title || d.title}`); return false; }
+    if (deja?.texte_version === docs.version && deja?.model === VERSION) { console.log(`  · déjà à jour (${docs.version}) : ${d.short_title || d.title}`); return null; }
   }
 
   const titre = d.short_title || d.title;
@@ -256,14 +292,14 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
   const mesures: any[] = [];
   for (const [k, part] of parts.entries()) {
     const r = await demanderJson(SYSTEME_MESURES,
-      `LOI : ${d.title}\n\nEXPOSÉ DES MOTIFS (pour le contexte) :\n${expose.slice(0, 15000)}\n\nEXTRAIT ${k + 1}/${parts.length} DU TEXTE ADOPTÉ :\n${part}`, 16000);
+      `LOI : ${d.title}\n\nEXPOSÉ DES MOTIFS (pour le contexte) :\n${expose.slice(0, 15000)}\n\nEXTRAIT ${k + 1}/${parts.length} DU TEXTE ADOPTÉ :\n${part}`, 16000, cout);
     mesures.push(...(Array.isArray(r.mesures) ? r.mesures : []));
     console.log(`    tranche ${k + 1}/${parts.length} : ${(r.mesures || []).length} mesures`);
-    await pause(15000); // quotas par minute des modèles gratuits
+    if (!PAYANT) await pause(15000); // quotas par minute des modèles gratuits
   }
   // 2. La vue d'ensemble, sur le texte entier.
   const analyse = await demanderJson(SYSTEME_ANALYSE,
-    `LOI : ${d.title}\n\nEXPOSÉ DES MOTIFS :\n${expose}\n\nTEXTE ADOPTÉ (${docs.final.titre}) :\n${docs.final.texte.slice(0, 250000)}`, 12000);
+    `LOI : ${d.title}\n\nEXPOSÉ DES MOTIFS :\n${expose}\n\nTEXTE ADOPTÉ (${docs.final.titre}) :\n${docs.final.texte.slice(0, 250000)}`, 12000, cout);
   analyse.mesures = mesures;
 
   // Fiches pratiques du même domaine : ce que le droit prévoit déjà, en clair.
@@ -274,7 +310,7 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
   let cadre: any = null;
   try {
     cadre = await demanderJson(SYSTEME_CADRE,
-      `LOI : ${d.title}\n\n${docs.etude ? `ÉTUDE D'IMPACT — état du droit :\n${droitExistant(docs.etude.texte)}\n\n` : ""}EXPOSÉ DES MOTIFS :\n${expose.slice(0, 15000)}\n\nFICHES PRATIQUES :\n${fichesTexte || "(aucune)"}`, 6000);
+      `LOI : ${d.title}\n\n${docs.etude ? `ÉTUDE D'IMPACT — état du droit :\n${droitExistant(docs.etude.texte)}\n\n` : ""}EXPOSÉ DES MOTIFS :\n${expose.slice(0, 15000)}\n\nFICHES PRATIQUES :\n${fichesTexte || "(aucune)"}`, 6000, cout);
     // Les liens, eux, viennent des fiches et jamais du modèle.
     cadre.fiches = (fiches || []).map((f: any) => ({ titre: f.title, url: f.url }));
     const vus = new Set<string>();
@@ -282,17 +318,18 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
       .filter((r: any) => r.url && !vus.has(r.url) && vus.add(r.url))
       .slice(0, 12).map((r: any) => ({ titre: r.titre, url: r.url }));
   } catch (e: any) {
+    if (ARRET.test(e.message)) throw e;
     console.warn(`    ! cadre existant : ${e.message}`);
   }
 
   const sources = [docs.final, docs.initial, docs.etude].filter(Boolean).map(x => ({ titre: x!.titre, url: x!.url }));
   const { error } = await supabase.from("dossier_analyses_approfondies").upsert({
     dossier_id: d.id, analyse_loi: analyse, cadre, sources, texte_version: docs.version,
-    model: VERSION, generated_at: new Date().toISOString(),
+    model: VERSION, generated_at: new Date().toISOString(), cout_usd: PAYANT ? Number(cout.usd.toFixed(5)) : null,
   }, { onConflict: "dossier_id" });
   if (error) throw error;
-  console.log(`    ✓ ${(analyse.mesures || []).length} mesures, ${(analyse.chiffres_cles || []).length} chiffres${cadre ? `, cadre : ${(cadre.dispositifs || []).length} dispositifs` : ""}`);
-  return true;
+  console.log(`    ✓ ${(analyse.mesures || []).length} mesures, ${(analyse.chiffres_cles || []).length} chiffres${cadre ? `, cadre : ${(cadre.dispositifs || []).length} dispositifs` : ""}${PAYANT ? ` · ${cout.usd.toFixed(4)} $` : ""}`);
+  return cout.usd;
 }
 
 /**
@@ -337,22 +374,87 @@ async function mesurer(ids: string[]) {
   console.log(`\n${lisibles}/${n} lisibles · moyenne par dossier lisible : ${Math.round(entree / lisibles / 1000)}k tokens entrée, ${Math.round(sortie / lisibles / 1000)}k sortie`);
 }
 
-async function main() {
-  const ids = UN_DOSSIER ? [UN_DOSSIER] : await prioritaires();
-  if (args.includes("--mesurer")) return mesurer(ids);
-  console.log(`--- ANALYSES APPROFONDIES : ${ids.length} dossier(s) candidat(s), ${MAX} au plus ---`);
-  let faits = 0;
-  for (const id of ids) {
-    if (faits >= MAX) break;
-    const { data: d } = await supabase.from("legislative_dossiers").select("id, title, short_title, source_urls").eq("id", id).maybeSingle();
-    if (!d) continue;
-    try { if (await analyser(d as any)) faits++; }
-    catch (e: any) {
-      console.warn(`  ! ${d.short_title || d.title} : ${e.message}`);
-      if (/Aucun modèle gratuit disponible/.test(e.message)) { console.warn("  Quota gratuit du jour épuisé : reprise au prochain passage."); break; }
-    }
+/** Toutes les lignes d'une requête, par pages de 1 000. */
+async function toutes<T>(requete: (de: number, a: number) => PromiseLike<{ data: T[] | null }>): Promise<T[]> {
+  const sortie: T[] = [];
+  for (let de = 0; ; de += 1000) {
+    const { data } = await requete(de, de + 999);
+    if (!data?.length) break;
+    sortie.push(...data);
+    if (data.length < 1000) break;
   }
-  console.log(`--- TERMINÉ : ${faits} analyse(s) écrite(s) ---`);
+  return sortie;
+}
+
+/**
+ * Les dossiers à traiter : les prioritaires d'abord, puis (--depuis) tous ceux qui
+ * ont bougé dans la période, du plus récent au plus ancien. On écarte ceux déjà
+ * analysés par la méthode actuelle et ceux sans texte lisible essayés il y a moins
+ * de 7 jours : une campagne reprend là où la précédente s'est arrêtée.
+ */
+async function candidats(): Promise<string[]> {
+  let ids = await prioritaires();
+  if (DEPUIS > 0) {
+    const depuis = new Date(Date.now() - DEPUIS * 86400000).toISOString();
+    const periode = await toutes<{ id: string }>((de, a) => supabase.from("legislative_dossiers").select("id")
+      .gte("latest_step_at", depuis).order("latest_step_at", { ascending: false }).range(de, a));
+    ids = [...new Set([...ids, ...periode.map(p => p.id)])];
+  }
+  if (FORCE) return ids;
+  const faits = new Set((await toutes<{ dossier_id: string }>((de, a) => supabase.from("dossier_analyses_approfondies")
+    .select("dossier_id").eq("model", VERSION).range(de, a))).map(r => r.dossier_id));
+  const recemment = new Date(Date.now() - 7 * 86400000).toISOString();
+  const essayes = new Set((await toutes<{ dossier_id: string }>((de, a) => supabase.from("dossier_analyses_tentatives")
+    .select("dossier_id").gte("tente_le", recemment).range(de, a))).map(r => r.dossier_id));
+  // En campagne, un dossier déjà fait est sauté sans relire ses PDF. Hors campagne, les
+  // prioritaires sont revus : leur texte a pu changer (commission, séance, Sénat).
+  return ids.filter(id => !essayes.has(id) && (DEPUIS === 0 || !faits.has(id)));
+}
+
+async function soldeDeepSeek(): Promise<boolean> {
+  try {
+    const r = await fetch("https://api.deepseek.com/user/balance", {
+      headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` }, signal: AbortSignal.timeout(15000),
+    });
+    const j = (await r.json()) as { is_available?: boolean; balance_infos?: { total_balance?: string }[] };
+    console.log(`  Solde DeepSeek : ${j.balance_infos?.[0]?.total_balance ?? "?"} $`);
+    return j.is_available !== false;
+  } catch { return true; }
+}
+
+async function main() {
+  const ids = UN_DOSSIER ? [UN_DOSSIER] : await candidats();
+  if (args.includes("--mesurer")) return mesurer(ids);
+  console.log(`  ${ids.length} dossier(s) à analyser${DEPUIS ? ` (actifs depuis ${DEPUIS} jours, hors déjà faits)` : ""}`);
+  if (PAYANT && !(await soldeDeepSeek())) {
+    console.log("--- Solde DeepSeek épuisé : campagne en attente d'une recharge (platform.deepseek.com/top_up). ---");
+    return;
+  }
+  console.log(`--- ANALYSES APPROFONDIES${PAYANT ? " (DeepSeek payant)" : ""} : ${ids.length} dossier(s) à voir, ${MAX} au plus${BUDGET ? `, ${BUDGET} $ au plus` : ""}, ${PARALLELE} en parallèle ---`);
+
+  // Plusieurs dossiers à la fois : chacun passe une à deux minutes à attendre le
+  // modèle. Les plafonds (nombre, budget) sont vérifiés avant chaque dossier.
+  let faits = 0, depense = 0, suivant = 0, arret = "";
+  const travailleur = async () => {
+    while (!arret && suivant < ids.length && faits < MAX && (!BUDGET || depense < BUDGET)) {
+      const id = ids[suivant++];
+      const { data: d } = await supabase.from("legislative_dossiers").select("id, title, short_title, source_urls").eq("id", id).maybeSingle();
+      if (!d) continue;
+      try {
+        const cout = await analyser(d as any);
+        if (cout !== null) { faits++; depense += cout; }
+      } catch (e: any) {
+        console.warn(`  ! ${d.short_title || d.title} : ${e.message}`);
+        if (ARRET.test(e.message)) arret = e.message;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: PARALLELE }, travailleur));
+
+  if (arret) console.warn(`  Arrêt : ${arret} Reprise au prochain passage.`);
+  if (BUDGET && depense >= BUDGET) console.log(`  Plafond du passage atteint (${BUDGET} $).`);
+  const reste = Math.max(0, ids.length - suivant);
+  console.log(`--- TERMINÉ : ${faits} analyse(s) écrite(s)${PAYANT ? `, ${depense.toFixed(3)} $ dépensés` : ""}, ${reste} dossier(s) restant(s) ---`);
 }
 
 main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });

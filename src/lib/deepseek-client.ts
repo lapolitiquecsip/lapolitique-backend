@@ -159,8 +159,15 @@ export class ResilientDeepSeek {
     });
   }
 
-  async createMessage(params: DeepSeekMessageParams, options?: { timeoutMs?: number }): Promise<DeepSeekMessage> {
+  async createMessage(params: DeepSeekMessageParams, options?: { timeoutMs?: number; payant?: boolean }): Promise<DeepSeekMessage> {
     const timeoutMs = options?.timeoutMs || 45000;
+
+    // 0) PAYANT demandé explicitement (campagne budgétée) : DeepSeek directement,
+    //    sans passer par le gratuit. Solde épuisé = erreur, jamais de sortie du process.
+    if (options?.payant) {
+      if (!(await deepseekHasBudget())) throw new Error('Solde DeepSeek épuisé.');
+      return await this.callProvider(this.deepseekClient, deepseekQueue, params, timeoutMs, 'DEEPSEEK');
+    }
 
     // 1) GRATUIT d'abord (si configuré) : on descend la cascade de lignées.
     if (this.freeClient) {
@@ -184,8 +191,10 @@ export class ResilientDeepSeek {
       }
       if (!tente) console.warn('[LLM/FREE] toutes les lignées gratuites sont en pause.');
 
-      // 2) SECOURS DeepSeek payant (uniquement si clé présente + solde dispo).
-      if (await deepseekHasBudget()) {
+      // 2) SECOURS DeepSeek payant : seulement si LLM_SECOURS_PAYANT=1. Le solde
+      //    DeepSeek est rechargé pour des campagnes précises (analyses approfondies) :
+      //    sans ce verrou, n'importe quel cron à court de quota gratuit le vidait.
+      if (process.env.LLM_SECOURS_PAYANT === '1' && await deepseekHasBudget()) {
         console.warn(`[LLM] Gratuit indisponible (${derniere?.message ?? 'toutes lignées en pause'}) → secours DeepSeek payant.`);
         return await this.callProvider(this.deepseekClient, deepseekQueue, params, timeoutMs, 'DEEPSEEK');
       }

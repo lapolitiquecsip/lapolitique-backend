@@ -1,0 +1,42 @@
+name: Analyses approfondies (campagne DeepSeek)
+# Analyse détaillée complète (Premium / Pro) de toutes les lois actives depuis un an,
+# lue dans le texte officiel, par DeepSeek (payant). La campagne reprend là où elle
+# s'est arrêtée : un dossier déjà analysé n'est pas refait. Une fois le rattrapage fini,
+# chaque passage ne traite plus que les nouveaux textes.
+#
+# Garde-fous : passages en HEURES CREUSES DeepSeek uniquement (tarif ÷ 2 ; les heures
+# pleines sont 01-04 h et 06-10 h UTC en semaine) ; 6 $ au plus par passage ; arrêt
+# immédiat, sans rien télécharger, si le solde DeepSeek est épuisé.
+on:
+  schedule:
+    - cron: '15 10,12,14,16,18,20,22 * * *'
+  workflow_dispatch:
+    inputs:
+      depuis_jours:
+        type: number
+        default: 365
+      budget_usd:
+        type: number
+        default: 6
+concurrency:
+  group: analyses-approfondies-campagne
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  campagne:
+    runs-on: ubuntu-latest
+    timeout-minutes: 115
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: >
+          npm run automation:legislative:deep --
+          --payant --depuis=${{ inputs.depuis_jours || 365 }} --max=300 --parallele=5
+          --budget=${{ inputs.budget_usd || 6 }}
+        timeout-minutes: 105
