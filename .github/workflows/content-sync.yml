@@ -1,7 +1,10 @@
 name: Content feed (média)
 on:
   schedule:
-    - cron: '23 17,19,21,23 * * *'   # toutes les 2h, en heures creuses DeepSeek (16h30-00h30 UTC)
+    # En journée, après 07:00 UTC (remise à zéro du quota Gemini gratuit). Le soir, ce
+    # passage « réussissait » sans rien publier : quota déjà vidé par les autres tâches,
+    # le fil d'accueil ne recevait plus que 1 à 15 articles par jour.
+    - cron: '23 9,13,17 * * *'
   workflow_dispatch:
 concurrency:
   group: content-sync
