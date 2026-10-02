@@ -1,7 +1,9 @@
 name: Présidentielles 2027
 on:
   schedule:
-    - cron: '35 23 * * *'   # chaque jour ~01h35 Paris (heures creuses DeepSeek)
+    # 08:35 UTC, après la remise à zéro du quota Gemini gratuit (07:00 UTC). À 23:35 UTC
+    # (exécuté vers 02:30 par GitHub), le quota du jour était vide et le passage échouait.
+    - cron: '35 8 * * *'
   workflow_dispatch:
 concurrency:
   group: presidentielles-sync

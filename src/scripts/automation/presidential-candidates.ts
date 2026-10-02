@@ -403,5 +403,13 @@ export async function syncPresidentialCandidates() {
 }
 
 if (process.argv[1] && process.argv[1].endsWith("presidential-candidates.ts")) {
-  syncPresidentialCandidates().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); });
+  syncPresidentialCandidates().then(() => process.exit(0)).catch(err => {
+    // Quota gratuit du jour épuisé : rien de cassé, le passage suivant reprendra. Un
+    // échec ici envoyait chaque nuit un e-mail « Run failed » pour une simple attente.
+    if (/Aucun modèle gratuit disponible|429|quota/i.test(String(err?.message))) {
+      console.log(`::warning::IA gratuite indisponible (${err.message}) : détection reportée au prochain passage.`);
+      process.exit(0);
+    }
+    console.error(err); process.exit(1);
+  });
 }
