@@ -139,6 +139,12 @@ export interface DeepSeekMessageParams {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   system?: string;
   responseFormat?: 'json_object';
+  /**
+   * DeepSeek seulement : coupe le raisonnement interne (« thinking »). Il est facturé
+   * comme du texte produit — la moitié du coût d'une analyse — et n'apporte guère à
+   * un travail de rédaction à partir d'un document fourni.
+   */
+  sansReflexion?: boolean;
 }
 
 export interface DeepSeekMessage {
@@ -228,7 +234,8 @@ export class ResilientDeepSeek {
             max_tokens: params.max_tokens,
             messages,
             response_format: params.responseFormat ? { type: params.responseFormat } : undefined,
-          });
+            ...(params.sansReflexion && label === 'DEEPSEEK' ? { thinking: { type: 'disabled' } } : {}),
+          } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`API request timed out after ${timeoutMs}ms`)), timeoutMs));
           const response = (await Promise.race([requestPromise, timeoutPromise])) as OpenAI.Chat.ChatCompletion;

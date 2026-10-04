@@ -47,7 +47,7 @@ const coutAppel = (entree: number, sortie: number, cache = 0) =>
 const UA = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitiquecestsimple.fr)" };
 const AN = "https://www.assemblee-nationale.fr";
 // Version de la méthode : une analyse écrite par une méthode plus ancienne est refaite.
-const VERSION = "approfondie-v2 (tranches d'articles)";
+const VERSION = "approfondie-v3 (mesures regroupées, sans raisonnement)";
 
 const propre = (t: string) => t
   .replace(/ /g, " ")
@@ -57,10 +57,26 @@ const propre = (t: string) => t
   .replace(/\n{2,}/g, "\n")
   .trim();
 
+/**
+ * Une page de l'Assemblée, avec deux nouveaux essais : un raté réseau passager
+ * faisait passer une loi pour « sans texte lisible » (et la mettait de côté 7 jours).
+ * Une vraie absence (404) répond tout de suite, sans nouvel essai.
+ */
+async function recuperer(url: string, delai: number): Promise<Response | null> {
+  for (let essai = 1; essai <= 3; essai++) {
+    try {
+      const r = await fetch(url, { headers: UA, redirect: "follow", signal: AbortSignal.timeout(delai) });
+      if (r.ok || r.status === 404) return r;
+    } catch { /* réseau : on réessaie */ }
+    await pause(3000 * essai);
+  }
+  return null;
+}
+
 async function lirePdf(url: string): Promise<string | null> {
   try {
-    const r = await fetch(url, { headers: UA, redirect: "follow", signal: AbortSignal.timeout(60000) });
-    if (!r.ok || !/pdf/i.test(r.headers.get("content-type") || "")) return null;
+    const r = await recuperer(url, 60000);
+    if (!r?.ok || !/pdf/i.test(r.headers.get("content-type") || "")) return null;
     const d = await pdf(Buffer.from(await r.arrayBuffer()));
     return d.text ? propre(d.text) : null;
   } catch { return null; }
@@ -90,7 +106,7 @@ async function documents(sourceUrls: string[]): Promise<Documents | null> {
     }
   }
   if (!page) return null;
-  const html = await fetch(page, { headers: UA, signal: AbortSignal.timeout(30000) }).then(r => (r.ok ? r.text() : "")).catch(() => "");
+  const html = await recuperer(page, 30000).then(r => (r?.ok ? r.text() : "")).catch(() => "");
   const ids = [...new Set([...html.matchAll(/\/dyn\/(\d+)\/textes\/(l\d+[bt]\d+_[a-z-]+)/g)].map(m => `${m[1]}|${m[2]}`))]
     .map(x => { const [leg, id] = x.split("|"); return { leg, id, num: Number(id.match(/l\d+[bt](\d+)/)?.[1] || 0), t: id.includes("t") && /^l\d+t/.test(id) }; });
   if (!ids.length) return null;
@@ -190,16 +206,22 @@ const ARRET = /Aucun modèle gratuit disponible|Solde DeepSeek épuisé|Insuffic
  * plafond trop bas donne une réponse VIDE sans erreur. On ne paie que l'utilisé.
  */
 type Cout = { usd: number; entree?: number; cache?: number; sortie?: number };
-async function demanderJson(systeme: string, contenu: string, maxTokens: number, cout: Cout): Promise<any> {
+/** Tout ce qui a été facturé dans ce passage, échecs compris (le solde en témoigne). */
+let DEPENSE_TOTALE = 0;
+async function demanderJson(systeme: string, contenu: string, maxTokens: number, cout: Cout, essais = 4): Promise<any> {
   let derniere: any;
-  for (let essai = 1; essai <= 4; essai++) {
+  for (let essai = 1; essai <= essais; essai++) {
     try {
       const r = await resilientDeepSeek.createMessage({
-        model: PAYANT ? DEEPSEEK_FLASH : "deepseek-chat", max_tokens: PAYANT ? maxTokens * 2 : maxTokens,
+        // En payant, plafond large : le modèle raisonne d'abord, et 25 000 tokens de
+        // réflexion avaient suffi à tronquer une réponse plafonnée à 32 000.
+        model: PAYANT ? DEEPSEEK_FLASH : "deepseek-chat", max_tokens: PAYANT ? maxTokens * 4 : maxTokens,
         responseFormat: "json_object", system: systeme, messages: [{ role: "user", content: contenu }],
+        sansReflexion: PAYANT,
       }, { timeoutMs: PAYANT ? 420000 : 240000, payant: PAYANT });
       if (PAYANT) {
-        cout.usd += coutAppel(r.usage?.input_tokens || 0, r.usage?.output_tokens || 0, r.usage?.cache_hit_tokens || 0);
+        const c = coutAppel(r.usage?.input_tokens || 0, r.usage?.output_tokens || 0, r.usage?.cache_hit_tokens || 0);
+        cout.usd += c; DEPENSE_TOTALE += c;
         cout.entree = (cout.entree || 0) + (r.usage?.input_tokens || 0);
         cout.cache = (cout.cache || 0) + (r.usage?.cache_hit_tokens || 0);
         cout.sortie = (cout.sortie || 0) + (r.usage?.output_tokens || 0);
@@ -211,7 +233,8 @@ async function demanderJson(systeme: string, contenu: string, maxTokens: number,
     } catch (e) {
       derniere = e;
       if (ARRET.test(String((e as Error).message))) throw e;
-      console.warn(`    ! essai ${essai}/4 : ${(e as Error).message}`);
+      console.warn(`    ! essai ${essai}/${essais} : ${(e as Error).message}`);
+      if (essai === essais) break;
       const quota = !PAYANT && essai === 1 && !/JSON/.test(String((e as Error).message));
       await pause(quota ? 330000 : (PAYANT ? 10000 : 30000) * essai);
     }
@@ -220,18 +243,30 @@ async function demanderJson(systeme: string, contenu: string, maxTokens: number,
 }
 
 const SYSTEME_MESURES = `Tu es juriste et pédagogue. On te donne UN EXTRAIT du texte d'une loi (une suite d'articles complets) et son exposé des motifs.
-Décris TOUTES les mesures contenues dans CET EXTRAIT, en français clair : après t'avoir lu, le lecteur sait exactement ce que ces articles changent, sans ouvrir le texte.
+Explique ce que CET EXTRAIT change concrètement, pour un lecteur qui n'est pas juriste : après t'avoir lu, il sait exactement ce qui change, pour qui et à partir de quand, sans ouvrir le texte.
 
-RÈGLES
+CE QU'EST UNE MESURE
+- Une mesure = UN changement concret pour quelqu'un (une personne, une famille, un professionnel, une entreprise, une administration).
+- REGROUPE en une seule mesure les modifications techniques qui servent la même règle. Exemple : si l'extrait étend un contrôle à vingt professions en modifiant vingt codes, c'est UNE mesure qui énumère ces professions — pas vingt.
+- IGNORE les coordinations rédactionnelles, renumérotations, renvois et corrections de références.
+- En général 4 à 15 mesures par extrait ; davantage seulement si l'extrait contient vraiment plus de changements distincts.
+
+COMMENT L'ÉCRIRE
 - Uniquement ce que disent les documents. Aucune information extérieure, aucun chiffre inventé.
-- EXHAUSTIVITÉ : un article long contient souvent plusieurs mesures distinctes (un I, un II, des 1°, 2°…) : fais une mesure par changement réel. Ne saute aucune disposition qui change quelque chose pour quelqu'un. Seules les coordinations purement rédactionnelles peuvent être ignorées.
-- "article" : le numéro EXACTEMENT tel qu'il figure dans l'extrait (« Art. 5 », « Art. 5, II »). N'invente pas de « bis ».
-- "avant" : ce qui s'appliquait jusqu'ici, UNIQUEMENT si l'extrait ou l'exposé des motifs le dit ; sinon chaîne vide.
-- "apres" et "detail" : le nouveau droit, avec TOUS les chiffres exacts (âges, durées, délais, montants, seuils, peines), les conditions et les exceptions.
-- Français courant ; un terme juridique inévitable s'explique entre parenthèses. Aucun jugement de valeur.
+- Français courant. Ne recopie pas le texte de loi et n'écris pas « le 3° de l'article 375-3 » : dis de quoi il s'agit (« le placement de l'enfant hors de sa famille »). Un terme juridique inévitable s'explique entre parenthèses.
+- Tous les chiffres exacts : âges, durées, délais, montants, seuils, peines, dates.
+- Aucun jugement de valeur.
+
+LES CHAMPS
+- "titre" : court et concret (« Le placement d'un enfant limité à 2 ans, renouvelable sur décision motivée »).
+- "article" : le ou les numéros EXACTEMENT tels qu'ils figurent dans l'extrait (« Art. 5 », « Art. 5 et 6 »). N'invente pas de « bis ».
+- "avant" : la règle qui s'appliquait jusqu'ici. Quand le texte REMPLACE des mots ou des chiffres (« les mots « deux ans » sont remplacés par « trois ans » »), l'ancienne règle est connue : décris-la. Sinon, si l'exposé des motifs la décrit, reprends-la. Sinon, chaîne vide.
+- "apres" : la nouvelle règle, en une ou deux phrases.
+- "detail" : 2 à 5 phrases concrètes — conditions, exceptions, chiffres, qui décide.
+- "qui" : qui est concerné.
 
 FORMAT — un objet JSON :
-{ "mesures": [{"titre": "titre court et concret", "article": "Art. 3", "avant": "…", "apres": "…", "detail": "2 à 6 phrases concrètes, chiffres compris", "qui": "qui est concerné"}] }`;
+{ "mesures": [{"titre": "…", "article": "Art. 3", "avant": "…", "apres": "…", "detail": "…", "qui": "…"}] }`;
 
 const SYSTEME_ANALYSE = `Tu es juriste et pédagogue. On te donne le TEXTE D'UNE LOI (sa dernière version adoptée) et son exposé des motifs.
 Ses mesures, article par article, sont décrites ailleurs : toi, tu rédiges la VUE D'ENSEMBLE, en français clair.
@@ -295,13 +330,35 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
   console.log(`  · ${titre} — texte ${docs.version} : ${docs.final.texte.length} car.${docs.etude ? `, étude d'impact ${docs.etude.texte.length} car.` : ""}`);
 
   // 1. Les mesures, tranche d'articles par tranche : rien n'est coupé.
-  const parts = tranches(docs.final.texte);
+  // En payant, des tranches plus petites : une tranche de 45 000 caractères a produit
+  // une réponse trop longue (tronquée) ; 20 000 restent sous le plafond.
+  const parts = tranches(docs.final.texte, PAYANT ? 20000 : 45000);
   const mesures: any[] = [];
+  /**
+   * Les mesures d'un extrait. Une réponse tronquée ne se répare pas en reposant la
+   * même question (trois essais identiques avaient été payés pour rien) : en payant,
+   * on coupe l'extrait en deux et on analyse chaque moitié.
+   */
+  const mesuresDe = async (part: string, etiquette: string, profondeur = 0): Promise<any[]> => {
+    try {
+      const r = await demanderJson(SYSTEME_MESURES,
+        `LOI : ${d.title}\n\nEXPOSÉ DES MOTIFS (pour le contexte) :\n${expose.slice(0, 15000)}\n\nEXTRAIT ${etiquette} DU TEXTE ADOPTÉ :\n${part}`,
+        16000, cout, PAYANT ? 1 : 4);
+      return Array.isArray(r.mesures) ? r.mesures : [];
+    } catch (e: any) {
+      if (!PAYANT || ARRET.test(e.message) || profondeur >= 3 || part.length < 6000) throw e;
+      const moities = tranches(part, Math.ceil(part.length / 2));
+      const morceaux = moities.length > 1 ? moities : [part.slice(0, part.length / 2), part.slice(part.length / 2)];
+      console.warn(`    ↳ extrait ${etiquette} trop long : coupé en ${morceaux.length}`);
+      const sortie: any[] = [];
+      for (const [i, m] of morceaux.entries()) sortie.push(...await mesuresDe(m, `${etiquette}.${i + 1}`, profondeur + 1));
+      return sortie;
+    }
+  };
   for (const [k, part] of parts.entries()) {
-    const r = await demanderJson(SYSTEME_MESURES,
-      `LOI : ${d.title}\n\nEXPOSÉ DES MOTIFS (pour le contexte) :\n${expose.slice(0, 15000)}\n\nEXTRAIT ${k + 1}/${parts.length} DU TEXTE ADOPTÉ :\n${part}`, 16000, cout);
-    mesures.push(...(Array.isArray(r.mesures) ? r.mesures : []));
-    console.log(`    tranche ${k + 1}/${parts.length} : ${(r.mesures || []).length} mesures`);
+    const liste = await mesuresDe(part, `${k + 1}/${parts.length}`);
+    mesures.push(...liste);
+    console.log(`    tranche ${k + 1}/${parts.length} : ${liste.length} mesures`);
     if (!PAYANT) await pause(15000); // quotas par minute des modèles gratuits
   }
   // 2. La vue d'ensemble, sur le texte entier.
@@ -461,7 +518,7 @@ async function main() {
   if (arret) console.warn(`  Arrêt : ${arret} Reprise au prochain passage.`);
   if (BUDGET && depense >= BUDGET) console.log(`  Plafond du passage atteint (${BUDGET} $).`);
   const reste = Math.max(0, ids.length - suivant);
-  console.log(`--- TERMINÉ : ${faits} analyse(s) écrite(s)${PAYANT ? `, ${depense.toFixed(3)} $ dépensés` : ""}, ${reste} dossier(s) restant(s) ---`);
+  console.log(`--- TERMINÉ : ${faits} analyse(s) écrite(s)${PAYANT ? `, ${DEPENSE_TOTALE.toFixed(3)} $ facturés (échecs compris)` : ""}, ${reste} dossier(s) restant(s) ---`);
 }
 
 main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
