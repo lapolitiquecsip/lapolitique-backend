@@ -47,7 +47,7 @@ const coutAppel = (entree: number, sortie: number, cache = 0) =>
 const UA = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitiquecestsimple.fr)" };
 const AN = "https://www.assemblee-nationale.fr";
 // Version de la méthode : une analyse écrite par une méthode plus ancienne est refaite.
-const VERSION = "approfondie-v3 (mesures regroupées, sans raisonnement)";
+const VERSION = "approfondie-v4 (mesures regroupées, sans références, 8-15 chiffres)";
 
 const propre = (t: string) => t
   .replace(/ /g, " ")
@@ -253,14 +253,14 @@ CE QU'EST UNE MESURE
 
 COMMENT L'ÉCRIRE
 - Uniquement ce que disent les documents. Aucune information extérieure, aucun chiffre inventé.
-- Français courant. Ne recopie pas le texte de loi et n'écris pas « le 3° de l'article 375-3 » : dis de quoi il s'agit (« le placement de l'enfant hors de sa famille »). Un terme juridique inévitable s'explique entre parenthèses.
+- Français courant. Ne recopie pas le texte de loi. Aucune référence d'article ou de code dans "titre", "avant", "apres" ni "detail" : n'écris pas « le 3° de l'article 375-3 » ni « la section 3 du chapitre II du titre II du livre II du code pénal », dis de quoi il s'agit (« le placement de l'enfant hors de sa famille », « les viols sur mineurs »). Les références vont dans "article" seulement. Un terme juridique inévitable s'explique entre parenthèses.
 - Tous les chiffres exacts : âges, durées, délais, montants, seuils, peines, dates.
 - Aucun jugement de valeur.
 
 LES CHAMPS
 - "titre" : court et concret (« Le placement d'un enfant limité à 2 ans, renouvelable sur décision motivée »).
 - "article" : le ou les numéros EXACTEMENT tels qu'ils figurent dans l'extrait (« Art. 5 », « Art. 5 et 6 »). N'invente pas de « bis ».
-- "avant" : la règle qui s'appliquait jusqu'ici. Quand le texte REMPLACE des mots ou des chiffres (« les mots « deux ans » sont remplacés par « trois ans » »), l'ancienne règle est connue : décris-la. Sinon, si l'exposé des motifs la décrit, reprends-la. Sinon, chaîne vide.
+- "avant" : la règle qui s'appliquait jusqu'ici, SEULEMENT si elle est connue : quand le texte REMPLACE des mots ou des chiffres (« les mots « deux ans » sont remplacés par « trois ans » »), ou quand l'exposé des motifs la décrit. Ne la déduis jamais du seul fait qu'une règle est ajoutée : dans ce cas, chaîne vide (l'interface affichera seulement « ce que change la loi »).
 - "apres" : la nouvelle règle, en une ou deux phrases.
 - "detail" : 2 à 5 phrases concrètes — conditions, exceptions, chiffres, qui décide.
 - "qui" : qui est concerné.
@@ -282,7 +282,7 @@ FORMAT — un objet JSON :
 {
   "en_une_phrase": "ce que fait la loi, en une phrase",
   "contexte": "4 à 6 phrases : le problème visé, avec les chiffres donnés par l'exposé des motifs",
-  "chiffres_cles": [{"valeur": "…", "libelle": "…"}],
+  "chiffres_cles": [{"valeur": "…", "libelle": "…"}]   (8 à 15 : durées, âges, délais, montants, seuils, peines du texte, et chiffres de la situation donnés par l'exposé des motifs),
   "concernes": [{"public": "…", "effet": "ce que ça change pour eux"}],
   "calendrier": [{"quand": "date, délai ou « au lendemain de la publication »", "quoi": "…"}],
   "sanctions": ["…"],
