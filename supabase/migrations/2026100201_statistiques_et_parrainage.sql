@@ -28,7 +28,7 @@ $$;
 grant execute on function public.est_administrateur() to authenticated;
 
 insert into public.administrateurs (user_id)
-select id from auth.users where lower(email) in ('mathurin.ache@free.fr', 'lapolitiquecsimple@gmail.com')
+select id from auth.users where lower(email) = 'lapolitiquecsimple@gmail.com'   -- seul administrateur du site
 on conflict do nothing;
 
 /* ═══════════════════════════ Mesure d'audience ═════════════════════════════ */
