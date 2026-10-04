@@ -84,6 +84,8 @@ declare
 begin
   if not est_administrateur() then raise exception 'Réservé aux administrateurs du site'; end if;
   return jsonb_build_object(
+    -- Début de l'historique : une période plus longue que lui affiche les mêmes chiffres.
+    'debut_mesure', (select min(at) from site_events),
     'en_ligne', (select count(distinct visiteur) from site_events where at > now() - interval '5 minutes'),
     'en_ligne_pages', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
         select path, count(distinct visiteur) as n from site_events
