@@ -54,7 +54,7 @@ const CANDIDATE_SEED: Detected[] = [
   { full_name: "Édouard Philippe", party: "Horizons", political_side: "centre", declared_at: "2024-09-03", confidence: 1 },
   { full_name: "Gabriel Attal", party: "Renaissance", political_side: "centre", declared_at: "2026-05-22", confidence: 1 },
   { full_name: "Bruno Retailleau", party: "Les Républicains", political_side: "droite", declared_at: "2026-04-19", confidence: 1 },
-  { full_name: "Xavier Bertrand", party: "Les Républicains", political_side: "droite", declared_at: "2024-02-03", confidence: 1 },
+  { full_name: "Xavier Bertrand", party: "Divers droite (indépendant)", political_side: "droite", declared_at: "2024-02-03", category: "Candidat indépendant", confidence: 1 },
   { full_name: "Nicolas Dupont-Aignan", party: "Debout la France", political_side: "droite", declared_at: "2025-03-08", confidence: 1 },
   { full_name: "Florian Philippot", party: "Les Patriotes", political_side: "extreme-droite", declared_at: "2026-05-09", confidence: 1 },
   { full_name: "François Asselineau", party: "Union populaire républicaine", political_side: "autre", declared_at: "2023-08-31", confidence: 1 },
@@ -62,7 +62,7 @@ const CANDIDATE_SEED: Detected[] = [
   { full_name: "Delphine Batho", party: "Génération écologie", political_side: "gauche", declared_at: "2025-11-25", confidence: 1 },
   { full_name: "Jérôme Guedj", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-02-05", confidence: 1 },
   { full_name: "Raphaël Glucksmann", party: "Place publique", political_side: "gauche", declared_at: "2026-08-23", confidence: 1 },
-  { full_name: "Karim Bouamrane", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-06-09", confidence: 1 },
+  { full_name: "Karim Bouamrane", party: "Parti Socialiste", political_side: "gauche", declared_at: "2026-06-09", category: "Hors primaire", confidence: 1 },
   { full_name: "Nathalie Arthaud", party: "Lutte ouvrière", political_side: "extreme-gauche", declared_at: "2025-12-08", confidence: 1 },
   { full_name: "Anasse Kazib", party: "Révolution permanente", political_side: "extreme-gauche", declared_at: "2026-06-01", confidence: 1 },
   { full_name: "Selma Labib", party: "NPA – Révolutionnaires", political_side: "extreme-gauche", declared_at: "2026-06-17", confidence: 1,
@@ -78,14 +78,23 @@ const PRIMARY_SEED: Detected[] = [
   { full_name: "François Ruffin", party: "Debout !", political_side: "gauche", category: "Primaire de la gauche unitaire", declared_at: null, confidence: 1 },
   { full_name: "Lydie Massard", party: "Union démocratique bretonne", political_side: "gauche", category: "Primaire de la gauche unitaire", declared_at: null, confidence: 1,
     fallback_summary: "Lydie Massard, responsable de l'Union démocratique bretonne (UDB), est candidate à la primaire de la gauche unitaire en vue de l'élection présidentielle de 2027." },
-  { full_name: "Ségolène Royal", party: "Parti socialiste", political_side: "gauche", category: "Primaire socialiste", declared_at: null, confidence: 1 },
-  { full_name: "Philippe Brun", party: "Parti socialiste", political_side: "gauche", category: "Primaire socialiste", declared_at: null, confidence: 1 },
+  { full_name: "Ségolène Royal", party: "Parti socialiste", political_side: "gauche", category: "Primaire Choisir 2027", declared_at: "2026-07-10", confidence: 1 },
   { full_name: "David Lisnard", party: "Nouvelle Énergie", political_side: "droite", category: "Primaire de la droite", declared_at: null, confidence: 1 },
 ];
 
 // Personnes à EXCLURE : faux positifs de la détection presse. (Les candidat·e·s de primaire ne
 // sont plus exclu·e·s : ils/elles sont désormais intégré·e·s via PRIMARY_SEED avec un label.)
 const EXCLUDED_NAMES = new Set<string>([]);
+
+/**
+ * Personnes que la presse a données pour candidates et qui NE le sont PAS. Leur fiche
+ * reste (actualités, vidéos), mais passe en « non_candidat », donc invisible du site,
+ * à chaque passage — y compris si une détection la relance.
+ * Vérifié le 05/10/2026 : Jordan Bardella (le RN présente Marine Le Pen, qui en fera
+ * son Premier ministre) ; François Hollande (décision annoncée pour décembre) ;
+ * Philippe Brun (écarté de la primaire socialiste par son parti).
+ */
+const NON_CANDIDATS = new Set<string>(["jordan bardella", "francois hollande", "philippe brun"]);
 
 // ---- 1. Rassembler les extraits d'actualité récents -----------------------
 async function gatherHeadlines(): Promise<string> {
@@ -337,6 +346,11 @@ export async function syncPresidentialCandidates() {
       console.log(`[Presidential] ✗ Retiré : ${row.full_name}`);
     }
   }
+  for (const row of allExisting ?? []) {
+    if (NON_CANDIDATS.has(row.normalized_name)) {
+      await supabase.from("presidential_candidates").update({ status: "non_candidat" }).eq("id", row.id).neq("status", "non_candidat");
+    }
+  }
   {
     const desiredCat = new Map([...CANDIDATE_SEED, ...PRIMARY_SEED].filter(c => c.category).map(c => [normalizeName(c.full_name), c.category!]));
     const { data: existingCat } = await supabase.from("presidential_candidates").select("id, normalized_name, category");
@@ -375,7 +389,7 @@ export async function syncPresidentialCandidates() {
   const detectedRaw = await detectCandidates(headlines);
   for (const candidate of detectedRaw) {
     const normalized = normalizeName(candidate.full_name);
-    if (!normalized || known.has(normalized) || EXCLUDED_NAMES.has(normalized)) continue;
+    if (!normalized || known.has(normalized) || EXCLUDED_NAMES.has(normalized) || NON_CANDIDATS.has(normalized)) continue;
     const wiki = await wikipediaData(candidate.full_name);
     if (!wiki.extract && !candidate.fallback_summary) {
       console.warn(`[Presidential] Ni Wikipédia ni résumé pour ${candidate.full_name}, ignoré.`);
@@ -386,7 +400,12 @@ export async function syncPresidentialCandidates() {
     const { error } = await supabase.from("presidential_candidates").insert({
       slug: slugify(candidate.full_name), full_name: candidate.full_name, normalized_name: normalized,
       party: candidate.party ?? null, political_side: candidate.political_side ?? null,
-      category: candidate.category ?? "Chef de file", status: "declared", declared_at: candidate.declared_at || null,
+      // La presse spécule (« X pourrait être candidat ») : une détection n'est publiée que
+      // sur une déclaration claire ET datée. Sinon « pressenti », invisible, à vérifier.
+      // (Jordan Bardella était entré ainsi, avec une confiance de 0,6 et sans date.)
+      category: candidate.category ?? "Chef de file",
+      status: candidate.confidence >= 0.9 && candidate.declared_at ? "declared" : "pressenti",
+      declared_at: candidate.declared_at || null,
       photo_url: wiki.photo ?? candidate.fallback_photo ?? null,
       photo_credit: wiki.photo ? "Wikimedia Commons" : (candidate.fallback_photo ? (candidate.fallback_photo_credit ?? "Wikimedia Commons") : null),
       summary: bio?.summary ?? candidate.fallback_summary ?? shortSummary(wiki.extract),
