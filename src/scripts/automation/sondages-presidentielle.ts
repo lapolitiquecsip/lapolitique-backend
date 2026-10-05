@@ -39,6 +39,8 @@ function grille($: cheerio.CheerioAPI, table: any): string[][] {
       while (g[r][c] !== undefined) c++;
       const $c = $(cell);
       $c.find("sup.reference, .reference, style").remove();
+      // Plusieurs candidats dans une même cellule (colonne « Autres ») : séparés par un filet.
+      $c.find("hr").replaceWith(" ¦ ");
       const texte = $c.text().replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
       const rs = Math.max(1, parseInt($c.attr("rowspan") || "1", 10) || 1);
       const cs = Math.max(1, parseInt($c.attr("colspan") || "1", 10) || 1);
@@ -188,17 +190,22 @@ async function main() {
       const vus = new Map<string, Resultat>();
       for (let c = 3; c < entete.length; c++) {
         const col = libelle(entete[c] || "");
-        if (!col || /^autres?$/i.test(col) || /^(blanc|abst|nsp)/i.test(norm(col))) continue;
-        const brut = row[c] || "";
-        const pct = nombre(brut);
-        if (pct == null) continue;
-        // « 36Bardella » : la colonne (CandidatRN) porte le nom du candidat testé.
-        const nomCellule = libelle(brut.replace(/^<?\s*[\d.,]+\s*%?/, ""));
-        const nom = (nomCellule && /^[A-ZÉ]/.test(nomCellule) ? nomCellule : col).replace(/^Candidat(?=[A-Z])/, "Candidat ");
-        const cle = norm(nom);
-        if (vus.has(cle)) continue;   // colonne fusionnée (colspan) : même candidat
-        const f = /^Candidat /.test(nom) ? null : ficheDe(nom) ?? horsFiches.get(norm(nom)) ?? null;
-        vus.set(cle, { nom, slug: f?.slug ?? null, pct, ...(f ? { complet: f.complet, photo: f.photo } : {}) });
+        if (!col || /^(blanc|abst|nsp)/i.test(norm(col))) continue;
+        // « Autres » regroupe des petits candidats nommés dans la cellule (Lisnard, Ruffin…).
+        const autres = /^autres?$/i.test(col);
+        for (const brut of (row[c] || "").split("¦").map(x => x.trim())) {
+          const pct = nombre(brut);
+          if (pct == null) continue;
+          // « 36Bardella » : la colonne (CandidatRN) porte le nom du candidat testé.
+          const nomCellule = libelle(brut.replace(/^<?\s*[\d.,]+\s*%?/, ""));
+          const nomme = !!nomCellule && /^[A-ZÉ]/.test(nomCellule);
+          if (autres && !nomme) continue;   // total des « autres » sans nom : pas un candidat
+          const nom = (nomme ? nomCellule : col).replace(/^Candidat(?=[A-Z])/, "Candidat ");
+          const cle = norm(nom);
+          if (vus.has(cle)) continue;   // colonne fusionnée (colspan) : même candidat
+          const f = /^Candidat /.test(nom) ? null : ficheDe(nom) ?? horsFiches.get(norm(nom)) ?? null;
+          vus.set(cle, { nom, slug: f?.slug ?? null, pct, ...(f ? { complet: f.complet, photo: f.photo } : {}) });
+        }
       }
       const resultats = [...vus.values()].sort((a, b) => b.pct - a.pct);
       if (resultats.length < 2) continue;
