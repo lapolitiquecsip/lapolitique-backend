@@ -26,7 +26,7 @@ const MOIS: Record<string, number> = {
   juillet: 7, juil: 7, aout: 8, septembre: 9, sept: 9, sep: 9, octobre: 10, oct: 10, novembre: 11, nov: 11, decembre: 12, dec: 12,
 };
 
-type Resultat = { nom: string; slug: string | null; pct: number };
+type Resultat = { nom: string; slug: string | null; pct: number; complet?: string; photo?: string | null };
 type Ligne = { cle: string; tour: 1 | 2; institut: string; date_debut: string | null; date_fin: string; echantillon: number | null; hypothese: number; resultats: Resultat[] };
 
 /** Tableau HTML → grille, rowspan et colspan dépliés. */
@@ -78,18 +78,63 @@ const nombre = (s: string): number | null => {
   return m ? parseFloat(m[1].replace(",", ".")) : null;
 };
 
-async function candidats() {
-  const { data } = await supabase.from("presidential_candidates").select("slug, full_name");
-  const parNom = new Map<string, string>();
-  for (const c of data || []) {
-    const n = norm(c.full_name);
-    parNom.set(n, c.slug);
-    // Nom de famille seul (« Le Pen », « Dupont-Aignan », « Mélenchon ») : c'est ce
-    // qu'affichent les en-têtes des tableaux.
-    const mots = n.split(" ");
-    for (let i = 1; i < mots.length; i++) { const fam = mots.slice(i).join(" "); if (!parNom.has(fam)) parNom.set(fam, c.slug); }
+type Fiche = { slug: string | null; complet: string; photo: string | null };
+
+/**
+ * Reconnaît une personne testée dans un sondage d'après le nom affiché (souvent le
+ * seul nom de famille). D'abord les fiches candidats, quel que soit leur statut
+ * (Hollande ou Bardella ne sont pas candidats mais sont testés) ; ensuite les autres
+ * fiches d'élus et de ministres, pour le nom complet et la photo — à condition
+ * qu'un seul élu porte ce nom, faute de quoi on ne devine pas.
+ */
+async function personnes() {
+  const parNom = new Map<string, Fiche>();
+  const ajouter = (complet: string, fiche: Fiche, ecraser: boolean) => {
+    const n = norm(complet); const mots = n.split(" ");
+    const cles = [n, ...mots.slice(1).map((_, i) => mots.slice(i + 1).join(" "))];
+    for (const k of cles) if (ecraser || !parNom.has(k)) parNom.set(k, fiche);
+  };
+  const { data: cands } = await supabase.from("presidential_candidates").select("slug, full_name, photo_url");
+  for (const c of cands || []) ajouter(c.full_name, { slug: c.slug, complet: c.full_name, photo: c.photo_url }, false);
+
+  // Autres fiches : un nom de famille porté par deux personnes différentes est écarté.
+  const autres = new Map<string, Fiche | null>();
+  const proposer = (complet: string, photo: string | null) => {
+    if (!complet) return;
+    const n = norm(complet); const mots = n.split(" ");
+    for (const k of [n, ...mots.slice(1).map((_, i) => mots.slice(i + 1).join(" "))]) {
+      const deja = autres.get(k);
+      if (deja === undefined) autres.set(k, { slug: null, complet, photo });
+      else if (deja && norm(deja.complet) !== n) autres.set(k, null);
+    }
+  };
+  for (const [table, champs] of [["minister_profiles", "full_name, photo_url"], ["meps", "full_name, photo_url"], ["presidents", "full_name, photo_url"]] as const) {
+    const { data } = await supabase.from(table).select(champs);
+    for (const r of (data || []) as any[]) proposer(r.full_name, r.photo_url);
   }
-  return (nom: string) => parNom.get(norm(nom)) ?? null;
+  for (const table of ["deputies", "senators"]) {
+    const { data } = await supabase.from(table).select("first_name, last_name, photo_url").limit(2000);
+    for (const r of (data || []) as any[]) proposer(`${r.first_name} ${r.last_name}`, r.photo_url);
+  }
+  for (const [k, f] of autres) if (f && !parNom.has(k)) parNom.set(k, f);
+  return (nom: string): Fiche | null => parNom.get(norm(nom)) ?? null;
+}
+
+/**
+ * Personnalités testées sans fiche sur le site : nom complet donné ici (un nom de
+ * famille seul ne suffit pas à chercher sans risque — « Rousseau »), photo prise
+ * sur leur article Wikipédia.
+ */
+const HORS_FICHES: Record<string, string> = {
+  "villepin": "Dominique de Villepin", "le maire": "Bruno Le Maire", "villiers": "Philippe de Villiers",
+  "delga": "Carole Delga", "lassalle": "Jean Lassalle", "poutou": "Philippe Poutou", "rousseau": "Sandrine Rousseau",
+};
+async function photoWikipedia(titre: string): Promise<string | null> {
+  try {
+    const r = await fetch(`https://fr.wikipedia.org/w/api.php?action=query&prop=pageimages&piprop=thumbnail&pithumbsize=250&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(titre)}`, { headers: { "User-Agent": UA } });
+    const j: any = await r.json();
+    return j?.query?.pages?.[0]?.thumbnail?.source ?? null;
+  } catch { return null; }
 }
 
 /** « Glucksmann(PP) », « CandidatRN » → nom affichable. */
@@ -100,7 +145,9 @@ async function main() {
   if (!rep.ok) throw new Error(`Wikipédia : HTTP ${rep.status}`);
   const j: any = await rep.json();
   const $ = cheerio.load(j.parse.text);
-  const slugDe = await candidats();
+  const ficheDe = await personnes();
+  const horsFiches = new Map<string, Fiche>();
+  for (const [k, complet] of Object.entries(HORS_FICHES)) horsFiches.set(k, { slug: null, complet, photo: await photoWikipedia(complet) });
   const maintenant = new Date();
 
   const lignes: Ligne[] = [];
@@ -150,7 +197,8 @@ async function main() {
         const nom = (nomCellule && /^[A-ZÉ]/.test(nomCellule) ? nomCellule : col).replace(/^Candidat(?=[A-Z])/, "Candidat ");
         const cle = norm(nom);
         if (vus.has(cle)) continue;   // colonne fusionnée (colspan) : même candidat
-        vus.set(cle, { nom, slug: slugDe(nom), pct });
+        const f = /^Candidat /.test(nom) ? null : ficheDe(nom) ?? horsFiches.get(norm(nom)) ?? null;
+        vus.set(cle, { nom, slug: f?.slug ?? null, pct, ...(f ? { complet: f.complet, photo: f.photo } : {}) });
       }
       const resultats = [...vus.values()].sort((a, b) => b.pct - a.pct);
       if (resultats.length < 2) continue;
