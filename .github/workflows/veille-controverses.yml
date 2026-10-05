@@ -1,0 +1,36 @@
+name: Veille des controverses
+on:
+  schedule:
+    # Personnalités de premier plan (candidats, gouvernement, eurodéputés) : toutes les
+    # 3 heures en journée, après la remise à zéro du quota Gemini gratuit (07:00 UTC).
+    - cron: '15 10,13,16,19,22 * * *'
+    # Tous les élus (députés, sénateurs, départements, grandes villes) : une fois par jour.
+    - cron: '15 7 * * *'
+  workflow_dispatch:
+    inputs:
+      perimetre:
+        description: "prioritaire ou complet"
+        default: prioritaire
+      personne:
+        description: "Une seule personne (facultatif), ex. Jordan Bardella"
+        default: ""
+concurrency:
+  group: veille-controverses
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  veille:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+      VEILLE_PERIMETRE: ${{ github.event.schedule == '15 7 * * *' && 'complet' || inputs.perimetre || 'prioritaire' }}
+      VEILLE_PERSONNE: ${{ inputs.personne }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run automation:veille-controverses

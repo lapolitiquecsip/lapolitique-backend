@@ -100,6 +100,7 @@
     "data:tag-scrutins": "tsx src/scripts/data/tag-scrutins-issues.ts",
     "data:sync-ministry-decrees": "tsx src/scripts/data/sync-ministry-decrees.ts",
     "automation:institution-news": "tsx src/scripts/automation/sync-institution-news.ts",
+    "automation:veille-controverses": "tsx src/scripts/automation/veille-controverses.ts",
     "data:sync-deputy-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts deputies",
     "data:sync-senator-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts senators",
     "push:send": "tsx src/scripts/push/send-push.ts",
