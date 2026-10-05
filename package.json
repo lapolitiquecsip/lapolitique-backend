@@ -105,6 +105,7 @@
     "automation:veille-presse": "tsx src/scripts/automation/veille-presse-candidats.ts",
     "automation:arcom": "tsx src/scripts/automation/arcom-temps-parole.ts",
     "data:sync-deputy-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts deputies",
+    "data:sync-senateurs-senatfr": "tsx src/scripts/data/sync-senateurs-senatfr.ts",
     "data:sync-senator-bios": "tsx src/scripts/data/sync-elected-bios-structured.ts senators",
     "push:send": "tsx src/scripts/push/send-push.ts",
     "data:sync-senat-videos": "tsx src/scripts/data/sync-senat-videos.ts",

@@ -1,12 +1,14 @@
-name: Bios sénateurs (Wikipédia + IA)
+name: Sénateurs — groupes, commissions et bios
 on:
   schedule:
-    - cron: '50 22 * * 0'   # HEBDO (dimanche ~00h50 Paris, heures creuses DeepSeek). Les bios ne
-                            # changent quasi jamais → hebdo suffit et divise le coût DeepSeek par ~7.
+    # Tous les jours, juste après la remise à zéro du quota IA gratuit (07:00 UTC) :
+    # le passage hebdomadaire du dimanche soir trouvait le quota vide et n'écrivait rien.
+    # Sans bio à faire, le passage se limite à relire les fiches senat.fr.
+    - cron: '10 7 * * *'
   workflow_dispatch:
     inputs:
       force:
-        description: "Retraiter toutes les bios (sinon seulement les génériques)"
+        description: "Retraiter toutes les bios (sinon seulement les manquantes)"
         type: boolean
         default: false
 concurrency:
@@ -26,6 +28,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
-      # Par défaut : par lots de 60/jour (heures creuses), reprenable — ne (re)traite que les bios
-      # manquantes/anciennes. force=true retraite tout.
-      - run: npm run data:sync-senator-bios -- ${{ inputs.force && '--force' || '--limit=60' }}
+      # 1) Groupe et commission lus sur les fiches senat.fr (plus à jour que l'open data ODSEN).
+      - run: npm run data:sync-senateurs-senatfr
+        continue-on-error: true
+      # 2) Bios structurées : fiche officielle senat.fr + Wikipédia. Nouveaux élus d'abord,
+      #    sénateurs sortis ignorés ; s'arrête proprement si le quota IA est épuisé.
+      - run: npm run data:sync-senator-bios -- ${{ inputs.force && '--force' || '--limit=80' }}

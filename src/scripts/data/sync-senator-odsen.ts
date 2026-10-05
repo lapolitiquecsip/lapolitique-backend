@@ -85,10 +85,13 @@ export async function syncSenatorOdsen() {
       birth_date: cleanDate(r[iNai]),
       profession: (r[iProf] || "").trim() || null,
       csp: (r[iCsp] || "").trim() || null,
-      senate_group: (r[iGrp] || "").trim() || null,
-      committee: (r[iCom] || "").trim() || null,
       email: (r[iMail] || "").trim() || null,
     };
+    // « Aucun » / « Aucune » : le Sénat n'a pas encore reporté groupe et commission
+    // (après un renouvellement). On garde alors la valeur lue sur senat.fr.
+    const grp = (r[iGrp] || "").trim(), com = (r[iCom] || "").trim();
+    if (grp && !/^aucun/i.test(grp)) payload.senate_group = grp;
+    if (com && !/^aucune?/i.test(com)) payload.committee = com;
     // Rattrapage photo : sénateur sans photo → on tente senat.fr (utile pour les nouveaux entrants
     // dont la photo est mise en ligne après leur arrivée, ex. Anne Camerac).
     if (!s.photo_url) { const p = await findPhoto(r[iNom] || "", r[iPrenom] || "", r[iMat] || ""); if (p) { payload.photo_url = p; photos++; } }

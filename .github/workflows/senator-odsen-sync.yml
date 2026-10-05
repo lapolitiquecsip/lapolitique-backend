@@ -1,7 +1,7 @@
 name: Données officielles sénateurs (ODSEN)
 on:
   schedule:
-    - cron: '10 2 6 * *'   # mensuel (le 6, 02h10 UTC)
+    - cron: '10 2 * * *'   # quotidien (02h10 UTC) : roster, sortants, photos
   workflow_dispatch:
 concurrency:
   group: senator-odsen-sync

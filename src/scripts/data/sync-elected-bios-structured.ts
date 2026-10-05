@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
+import { annuaireSenat, lireFicheSenat } from "../../lib/senat-fiche.js";
 
 // Bio STRUCTURÉE des DÉPUTÉS et SÉNATEURS (mêmes rubriques que les candidats/eurodéputés).
 // Ancrage Wikipédia strict, garde-fou anti-homonyme (fonction ou parti). Idempotent et
@@ -81,7 +82,7 @@ async function structureBio(name: string, reference: string): Promise<any | null
     model: "deepseek-chat",
     max_tokens: 24000,   // modèle à raisonnement : grande marge pour ne pas tronquer le JSON des bios les plus longues (Rossignol…)
     responseFormat: "json_object",
-    system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE d'un ${CFG.roleLabel}, UNIQUEMENT à partir du texte de référence Wikipédia fourni. N'invente RIEN.
+    system: `Tu produis une biographie TRÈS DÉTAILLÉE et rigoureusement FACTUELLE d'un ${CFG.roleLabel}, UNIQUEMENT à partir des textes de référence fournis (fiche officielle de l'assemblée et/ou article Wikipédia). N'invente RIEN ; une rubrique sans information reste vide.
 
 NEUTRALITÉ ABSOLUE : aucun jugement de valeur, aucun qualificatif idéologique, aucun adjectif évaluatif. Faits, dates, fonctions, chiffres.
 
@@ -120,25 +121,44 @@ async function main() {
   console.log(`--- BIOS STRUCTURÉES ${CFG.table.toUpperCase()} ---`);
   const rows: any[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from(CFG.table).select("id, first_name, last_name, party, bio").range(from, from + 999);
+    const { data, error } = await supabase.from(CFG.table).select("id, first_name, last_name, party, bio, sitting, senate_matricule").range(from, from + 999);
     if (error) throw error;
     if (!data?.length) break;
     rows.push(...data);
     if (data.length < 1000) break;
   }
-  const todo = rows.filter(m => force || !m.bio || (m.bio as any)?._v !== CFG.version);
+  // Élus en fonction seulement, et ceux qui n'ont aucune bio d'abord : les nouveaux
+  // sénateurs passaient après les anciens et n'étaient jamais atteints.
+  const todo = rows.filter(m => m.sitting !== false && (force || !m.bio || (m.bio as any)?._v !== CFG.version))
+    .sort((a, b) => Number(!!a.bio) - Number(!!b.bio));
+  // Sénateurs : la fiche officielle senat.fr (état civil, mandats, fonctions antérieures)
+  // complète Wikipédia, et suffit seule pour un élu sans article.
+  const annuaire = which === "senators" ? await annuaireSenat() : new Map<string, string>();
   console.log(`> ${todo.length}/${rows.length} à (re)structurer${LIMIT ? ` (limite ${LIMIT})` : ""}.`);
 
-  let ok = 0, skip = 0;
+  let ok = 0, skip = 0, quotaVide = 0;
   for (const m of todo) {
     if (LIMIT && ok >= LIMIT) break;
     const name = `${m.first_name || ""} ${m.last_name || ""}`.trim();
     try {
-      const ref = await wikipedia(name);
-      const okRole = CFG.guard.test(ref);
-      const okParty = m.party && norm(ref).includes(norm(m.party));
-      if (ref.length < 250 || (!okRole && !okParty)) { skip++; console.log(`  · ${name} : pas d'article fiable.`); await sleep(300); continue; }
-      const bio = await structureBio(name, ref);
+      const wiki = await wikipedia(name);
+      const okRole = CFG.guard.test(wiki);
+      const okParty = m.party && norm(wiki).includes(norm(m.party));
+      const wikiFiable = wiki.length >= 250 && (okRole || okParty);
+      const urlSenat = m.senate_matricule ? annuaire.get(String(m.senate_matricule).toLowerCase()) : undefined;
+      const officiel = urlSenat ? (await lireFicheSenat(urlSenat))?.texte ?? "" : "";
+      if (!wikiFiable && officiel.length < 150) { skip++; console.log(`  · ${name} : ni article fiable ni fiche officielle.`); await sleep(300); continue; }
+      const ref = [officiel && `FICHE OFFICIELLE DU SÉNAT (senat.fr) :\n${officiel}`, wikiFiable && `ARTICLE WIKIPÉDIA :\n${wiki}`].filter(Boolean).join("\n\n");
+      let bio;
+      try { bio = await structureBio(name, ref); quotaVide = 0; }
+      catch (e: any) {
+        // Toutes les lignées gratuites refusent deux fois de suite : quota du jour épuisé.
+        if (/Aucun modèle gratuit disponible/.test(String(e?.message)) && ++quotaVide >= 2) {
+          console.log("::warning::Quota IA gratuit épuisé : passage interrompu, reprise au prochain.");
+          break;
+        }
+        throw e;
+      }
       if (!bio) { skip++; console.log(`  · ${name} : structuration échouée.`); await sleep(300); continue; }
       await supabase.from(CFG.table).update({ bio: { ...bio, _v: CFG.version } }).eq("id", m.id);
       ok++; if (ok % 25 === 0) console.log(`  … ${ok} faites`);
