@@ -1,0 +1,32 @@
+name: Présidentielle — sondages, veille presse, temps de parole
+on:
+  schedule:
+    # Sondages (Wikipédia) et panel presse : toutes les deux heures. Sans IA, donc
+    # sans dépendre du quota gratuit.
+    - cron: '25 */2 * * *'
+    # Temps de parole Arcom : publication mensuelle, relue chaque lundi.
+    - cron: '50 6 * * 1'
+  workflow_dispatch:
+concurrency:
+  group: dynamiques-presidentielle
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  dynamiques:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # Chaque source échoue seule : une panne de Wikipédia n'arrête pas la veille presse.
+      - run: npm run automation:sondages
+        continue-on-error: true
+      - run: npm run automation:veille-presse
+        continue-on-error: true
+      - run: npm run automation:arcom
+        if: github.event.schedule == '50 6 * * 1' || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
