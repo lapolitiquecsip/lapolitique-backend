@@ -86,6 +86,43 @@ begin
   return jsonb_build_object(
     -- Début de l'historique : une période plus longue que lui affiche les mêmes chiffres.
     'debut_mesure', (select min(at) from site_events),
+    -- Ce qui intéresse : vues, visiteurs et temps passé par rubrique. Le temps d'une
+    -- page est l'écart jusqu'à la page suivante de la même visite (plafonné à 30 min) ;
+    -- la dernière page d'une visite n'a pas de durée connue et n'entre pas dans la moyenne.
+    'rubriques', (select coalesce(jsonb_agg(x order by x.vues desc), '[]'::jsonb) from (
+        select rubrique, count(*) as vues, count(distinct visiteur) as visiteurs, round(avg(duree))::int as temps_moyen
+        from (
+          select visiteur,
+            least(extract(epoch from (lead(at) over (partition by session order by at) - at)), 1800) as duree,
+            case
+              when path = '/' then 'Accueil'
+              when path like '/lois%' then 'Lois'
+              when path like '/deputes%' then 'Députés'
+              when path like '/senateurs%' then 'Sénateurs'
+              when path like '/eurodeputes%' or path like '/europe%' or path like '/groupes-europeens%' then 'Europe'
+              when path like '/presidentielles-2027%' then 'Présidentielles 2027'
+              when path like '/local%' or path like '/departements%' or path like '/maires%' then 'Local'
+              when path like '/executif%' or path like '/presidents%' then 'Exécutif'
+              when path like '/partis%' then 'Partis'
+              when path like '/institutions%' or path like '/vocabulaire%' or path like '/faq%' then 'Comprendre'
+              when path like '/comparateur%' then 'Comparateur'
+              when path like '/promesses%' then 'Promesses'
+              when path like '/calendrier%' then 'Agenda'
+              when path like '/premium%' or path like '/success%' then 'Offres'
+              when path like '/dashboard%' or path like '/parrainage%' then 'Espace personnel'
+              when path like '/login%' or path like '/auth%' then 'Connexion'
+              else 'Autres pages'
+            end as rubrique
+          from site_events where at >= debut and kind = 'vue' and path not like '/admin%'
+        ) v group by rubrique) x),
+    'entrees', (select coalesce(jsonb_agg(x order by x.n desc), '[]'::jsonb) from (
+        select path, count(*) as n from (
+          select distinct on (session) session, path from site_events
+          where at >= debut and kind = 'vue' and path not like '/admin%' order by session, at) s
+        group by path order by n desc limit 10) x),
+    'duree_moyenne_visite', (select round(avg(d))::int from (
+        select extract(epoch from (max(at) - min(at))) as d from site_events
+        where at >= debut and path not like '/admin%' group by session having count(*) > 1) s),
     'en_ligne', (select count(distinct visiteur) from site_events where at > now() - interval '5 minutes'),
     'en_ligne_pages', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
         select path, count(distinct visiteur) as n from site_events
@@ -103,7 +140,7 @@ begin
         from site_events where at >= minuit group by 1) x),
     'pages', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
         select path, count(*) as vues, count(distinct visiteur) as visiteurs from site_events
-        where at >= debut and kind = 'vue' group by path order by vues desc limit 20) x),
+        where at >= debut and kind = 'vue' and path not like '/admin%' group by path order by vues desc limit 20) x),
     'sources', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
         select coalesce(nullif(referrer, ''), '(accès direct)') as source, count(distinct session) as sessions
         from site_events where at >= debut and kind = 'vue' group by 1 order by 2 desc limit 15) x),
