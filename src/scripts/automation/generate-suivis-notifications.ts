@@ -2,6 +2,7 @@ import "dotenv/config";
 import crypto from "crypto";
 import { supabase } from "../../config/supabase.js";
 import { fetchAll } from "./generate-interest-notifications.js";
+import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 
 /**
  * Alertes des « suivis élargis » des membres Pro : partis, ministères, candidats et
@@ -29,6 +30,85 @@ const ROUTINE = /^(nomination|titularisation|d[ée]l[ée]gation de signature|ces
 const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 type Alerte = { titre: string; detail: string | null; url: string | null; date: string | null; importance: number };
+
+/* ───────────── Tri éditorial (partis et candidats) ─────────────
+ * Un membre Pro ne veut pas « l'avis de quelqu'un sur une news » : seulement les FAITS
+ * dont l'entité qu'il suit est l'acteur. Grille fixe, appliquée par l'IA une fois par item :
+ *   5  candidature officielle ou retrait, programme publié, alliance/fusion/rupture,
+ *      résultat électoral, mise en examen/condamnation/relaxe, démission ou désignation d'un dirigeant
+ *   4  proposition concrète (mesure, chiffrage, texte déposé), congrès/primaire/investiture,
+ *      position officielle sur un texte en discussion au Parlement, lancement de campagne
+ *   3  déclaration ou interview sans annonce nouvelle, déplacement, meeting ordinaire
+ *   2  petite phrase, polémique verbale, réponse à une attaque
+ *   1  avis ou réaction d'un TIERS, analyse, éditorial, portrait, sondage
+ * Récap e-mail : nature « fait », acteur = l'entité suivie, importance ≥ 4.
+ */
+const GRILLE = `Tu tries l'actualité pour un abonné qui suit une organisation ou une personnalité politique. Il ne veut QUE les faits importants dont CETTE entité est l'acteur (elle décide, annonce, propose, est désignée, est poursuivie ou jugée…), jamais l'avis d'un tiers sur elle.
+
+Pour chaque item, renvoie :
+- "nature" : "fait" (décision, annonce, acte, procédure judiciaire, résultat) | "declaration" (propos sans annonce nouvelle) | "reaction" (quelqu'un commente, critique, réagit) | "analyse" (éditorial, décryptage, portrait) | "sondage".
+- "acteur" : true seulement si l'entité suivie est l'auteur du fait ou son sujet direct (sa candidature, sa mise en examen…). Un tiers qui parle d'elle → false.
+- "importance" (1-5) :
+  5 = candidature officielle ou retrait, programme publié, alliance/fusion/rupture, résultat électoral, mise en examen/condamnation/relaxe, démission ou désignation d'un dirigeant ;
+  4 = proposition concrète (mesure précise, chiffrage, texte déposé), congrès/primaire/investiture, position officielle sur un texte au Parlement, lancement de campagne ;
+  3 = déclaration ou interview sans annonce nouvelle, déplacement, meeting ordinaire ;
+  2 = petite phrase, polémique verbale, réponse à une attaque ;
+  1 = avis ou réaction d'un tiers, analyse, portrait, sondage.
+- "raison" : 8 mots maximum.
+Réponds en JSON strict : { "items": [ { "i": 0, "nature": "fait", "acteur": true, "importance": 4, "raison": "..." } ] }`;
+
+const AVIS_REGLE = /\b(selon|estime|juge|dénonce|fustige|tacle|réagit|commente|critique|accuse|s'en prend|tribune|édito|chronique|analyse|décryptage|portrait|sondage|qu'en pensez|faut-il)\b|\?\s*$|^[«"]/i;
+const FAIT_FORT = /(candidat(ure)?|investi|programme|alliance|fusion|rupture|mis(e)? en examen|condamn|relax|d[ée]mission|[ée]lu|d[ée]sign[ée]|congr[eè]s|primaire|propos(e|ition)|d[ée]pose|annonce|lance)/i;
+
+type Verdict = { importance: number; nature: string; acteur: boolean; raison?: string; methode: string };
+
+/** Secours sans IA : prudent (rien n'atteint 4 sans motif fort, et jamais un avis). */
+function regles(entite: string, titre: string): Verdict {
+  if (AVIS_REGLE.test(titre)) return { importance: 1, nature: "reaction", acteur: false, methode: "regles" };
+  const nomme = norm(titre).includes(norm(entite).split(/[ (—-]/)[0]);
+  return { importance: nomme && FAIT_FORT.test(titre) ? 4 : 2, nature: nomme ? "fait" : "declaration", acteur: nomme, methode: "regles" };
+}
+
+async function trier(items: { cle: string; entite: string; titre: string; detail: string | null }[]): Promise<Map<string, Verdict>> {
+  const res = new Map<string, Verdict>();
+  if (!items.length) return res;
+  for (let k = 0; k < items.length; k += 200) {
+    const { data: connus } = await supabase.from("tri_suivis").select("cle, importance, nature, acteur, raison, methode").in("cle", items.slice(k, k + 200).map(i => i.cle));
+    for (const c of connus || []) res.set(c.cle, c as Verdict);
+  }
+  const neufs = items.filter(i => !res.has(i.cle));
+  for (let k = 0; k < neufs.length; k += 15) {
+    const lot = neufs.slice(k, k + 15);
+    const contenu = lot.map((x, i) => `[${i}] Entité suivie : ${x.entite}\nTitre : ${x.titre}${x.detail ? `\nRésumé : ${String(x.detail).slice(0, 300)}` : ""}`).join("\n\n");
+    let verdicts: any[] | null = null;
+    for (const payant of [false, true]) {
+      try {
+        const r = await resilientDeepSeek.createMessage({
+          model: "deepseek-chat", max_tokens: 4000, responseFormat: "json_object", sansReflexion: true,
+          system: GRILLE, messages: [{ role: "user", content: contenu }],
+        }, { payant, timeoutMs: 60000 });
+        const t = r.content?.[0]?.type === "text" ? r.content[0].text : "";
+        verdicts = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] || "{}").items || null;
+        if (verdicts) break;
+      } catch { /* gratuit saturé → payant ; payant indisponible → règles */ }
+    }
+    const lignes = lot.map((x, i) => {
+      const v = verdicts?.find((y: any) => Number(y.i) === i);
+      const verdict: Verdict = v && Number(v.importance) >= 1
+        ? { importance: Math.min(5, Math.max(1, Number(v.importance))), nature: String(v.nature || "declaration"), acteur: !!v.acteur, raison: v.raison ? String(v.raison).slice(0, 120) : undefined, methode: "ia" }
+        : regles(x.entite, x.titre);
+      res.set(x.cle, verdict);
+      return { cle: x.cle, entite: x.entite.slice(0, 120), titre: x.titre.slice(0, 300), ...verdict };
+    });
+    // Le secours « règles » n'est pas mis en cache : l'IA rejugera au prochain passage.
+    const aGarder = lignes.filter(l => l.methode === "ia");
+    if (aGarder.length && !DRY) await supabase.from("tri_suivis").upsert(aGarder, { onConflict: "cle" });
+  }
+  return res;
+}
+
+/** Importance retenue : plafonnée à 2 si ce n'est pas un fait dont l'entité suivie est l'acteur. */
+const importanceTriee = (v: Verdict) => (v.nature === "fait" && v.acteur ? v.importance : Math.min(v.importance, 2));
 
 export async function generateSuivisNotifications() {
   // Partis et candidats : seulement avec l'accord explicite du membre (opinion politique, RGPD art. 9).
@@ -82,17 +162,37 @@ export async function generateSuivisNotifications() {
     if (kind === "commission") {
       const [chambre, nom] = ref.split("|");
       return commissions.filter((c: any) => c.chamber === chambre && norm(c.commission || "").startsWith(norm(nom).slice(0, 28)))
-        .map((c: any) => ({ titre: c.title, detail: c.summary, url: c.cr_url || `${SITE_URL}/commissions`, date: c.meeting_date, importance: 3 }));
+        // Seul le travail législatif compte : examen ou adoption d'un texte ou d'un rapport,
+        // audition d'un ministre. Bureau, tables rondes, nominations de rapporteurs : non.
+        .map((c: any) => {
+          const t = `${c.title || ""} ${c.summary || ""}`;
+          const fort = /(examen|adopt|projet de loi|proposition de loi|rapport d'information|audition de (m\.|mme|monsieur|madame) [^,.;]{0,80}ministre)/i.test(t)
+            && !/^(nomination|d[ée]signation)|bureau de (la commission|l.assembl)|[ée]lection du bureau|composition du bureau/i.test(String(c.title || "").trim());
+          const titre = String(c.title || "").length > 110 ? `${String(c.title).slice(0, 110).replace(/\s+\S*$/, "")}…` : c.title;
+          return { titre, detail: c.summary, url: c.cr_url || `${SITE_URL}/commissions`, date: c.meeting_date, importance: fort ? 4 : 2 };
+        });
     }
     return [];
   };
+
+  // Tri éditorial des partis et candidats, une fois par item (cache tri_suivis).
+  const aTrier = new Map<string, { cle: string; entite: string; titre: string; detail: string | null }>();
+  const cleTri = (s: any, a: Alerte) => cle(`${s.kind}|${s.ref}|${a.url || a.titre}`);
+  for (const s of suivis) if (s.kind === "parti" || s.kind === "candidat")
+    for (const a of alertesDe(s.kind, s.ref)) if (a.titre) aTrier.set(cleTri(s, a), { cle: cleTri(s, a), entite: s.label, titre: String(a.titre), detail: a.detail });
+  const verdicts = await trier([...aTrier.values()]);
+  console.log(`> ${aTrier.size} actu(s) de partis/candidats triée(s) : ${[...verdicts.values()].filter(v => importanceTriee(v) >= 4).length} jugée(s) importante(s).`);
 
   const maintenant = new Date().toISOString();
   const lignes: any[] = [];
   const parMembre = new Map<string, number>();
   for (const s of suivis) {
-    for (const a of alertesDe(s.kind, s.ref)) {
-      if (!a.titre) continue;
+    for (const a0 of alertesDe(s.kind, s.ref)) {
+      if (!a0.titre) continue;
+      const v = (s.kind === "parti" || s.kind === "candidat") ? verdicts.get(cleTri(s, a0)) : undefined;
+      const a = v ? { ...a0, importance: importanceTriee(v) } : a0;
+      // Avis, réactions, analyses : pas d'alerte du tout.
+      if (a.importance < 3) continue;
       if ((parMembre.get(s.user_id) || 0) >= MAX_PAR_MEMBRE) break;
       parMembre.set(s.user_id, (parMembre.get(s.user_id) || 0) + 1);
       lignes.push({

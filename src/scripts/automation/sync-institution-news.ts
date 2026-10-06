@@ -25,6 +25,47 @@ function mentionsEntity(title: string, entityName: string): boolean {
   return hits >= Math.min(2, toks.length); // au moins 2 mots-clés (ou tous si nom court)
 }
 
+// ── Fil des PARTIS : il ne doit jamais tomber en panne ─────────────────────────────
+// Trois secours successifs : (1) Bing Actualités si Google News ne répond pas ;
+// (2) DeepSeek payant si le quota IA gratuit du jour est épuisé ; (3) sans aucune IA,
+// le titre de presse tel quel, s'il nomme bien le parti et n'est pas un simple avis.
+
+/** Termes entre guillemets de la requête Google News (« Rassemblement National », « Jordan Bardella »). */
+function termesRequete(feedUrl: string): string[] {
+  try {
+    const q = new URL(feedUrl).searchParams.get("q") || "";
+    return [...q.matchAll(/"([^"]{2,60})"/g)].map(m => m[1]);
+  } catch { return []; }
+}
+
+/** Même recherche sur Bing Actualités (RSS public, sans clé). */
+function urlBing(feedUrl: string): string | null {
+  const termes = termesRequete(feedUrl);
+  if (!termes.length) return null;
+  return `https://www.bing.com/news/search?q=${encodeURIComponent(termes.map(t => `"${t}"`).join(" OR "))}&format=rss&setlang=fr-FR&cc=FR`;
+}
+
+async function lireFlux(src: any) {
+  try {
+    const f = await parser.parseURL(src.feed_url);
+    if ((f.items || []).length) return f;
+  } catch { /* on tente le secours */ }
+  const bing = src.entity_type === "party" && src.kind === "google_news" ? urlBing(src.feed_url) : null;
+  if (!bing) return null;
+  try { const f = await parser.parseURL(bing); console.log(`  ↪ ${src.entity_name} : Google News muet, relevé via Bing.`); return f; }
+  catch { return null; }
+}
+
+/** Avis, réaction ou commentaire d'un tiers : pas un fait de la vie du parti. */
+const AVIS = /\b(selon|pour (?:[A-ZÉ][\wéèàç-]+ ){1,3}[,:]|estime|juge|jugent|dénonce|dénoncent|fustige|tacle|réagit|réagissent|critique|accuse|charge contre|s'en prend|tribune|édito|chronique|opinion|analyse|décryptage|sondage|qu'en pensez|faut-il)\b|\?\s*$|^«|^"/i;
+
+/** Publication sans IA : le titre doit nommer le parti (ou un terme de sa requête) et ne pas être un avis. */
+function brutPubliable(titre: string, src: any): boolean {
+  if (AVIS.test(titre)) return false;
+  const t = deacc(titre);
+  return termesRequete(src.feed_url).some(x => x.length >= 3 && t.includes(deacc(x))) || mentionsEntity(titre, src.entity_name);
+}
+
 function cleanGoogleTitle(title: string): { title: string; source: string } {
   const idx = title.lastIndexOf(" - ");
   if (idx > 0) return { title: title.slice(0, idx).trim(), source: title.slice(idx + 3).trim() };
@@ -107,7 +148,7 @@ LIEU — obligatoire :
 - Le "title" NOMME la commune quand elle est connue (« Saint-Nazaire : … »). Si l'article parle d'une commune sans la nommer, écris « Une commune de ${entityName} … » — jamais « la municipalité », « la commune » ou « la mairie » seules, qui laissent croire au lecteur qu'il s'agit de la sienne.
 Ajoute ces deux champs au JSON : "portee" et "lieu".`;
 
-async function summarise(entityName: string, title: string, snippet: string, entityType: string) {
+async function summarise(entityName: string, title: string, snippet: string, entityType: string, payant = false) {
   const promptFor = entityType === "commune" ? COMMUNE_PROMPT : entityType === "region" ? REGION_PROMPT : entityType === "party" ? PARTY_PROMPT : MINISTRY_PROMPT;
   const labelFor = entityType === "commune" ? "Ville" : entityType === "region" ? "Région" : entityType === "party" ? "Parti" : "Institution";
   const territorial = entityType === "department" || entityType === "region";
@@ -115,7 +156,8 @@ async function summarise(entityName: string, title: string, snippet: string, ent
     model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object",
     system: promptFor(entityName) + (territorial ? LIEU_PROMPT(entityName) : ""),
     messages: [{ role: "user", content: `${labelFor} : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
-  });
+    sansReflexion: true,
+  }, { payant });
   const text = response.content[0]?.type === "text" ? response.content[0].text : "";
   const m = text.match(/\{[\s\S]*\}/);
   return m ? JSON.parse(m[0]) : null;
@@ -136,11 +178,13 @@ export async function syncInstitutionNews() {
   // le quota gratuit du jour était épuisé à l'heure du passage, chaque résumé échouait
   // en silence et le fil des communes ne recevait plus rien, passage « réussi ».
   let inserted = 0, scanned = 0, echecs = 0, quotaVide = 0, arret = false;
+  // Quota gratuit épuisé : les partis continuent (DeepSeek payant, puis titres bruts) ;
+  // les autres fils s'arrêtent et reprennent au prochain passage.
+  let gratuitVide = false, payantVide = false, bruts = 0, payes = 0;
   for (const src of sources || []) {
-    if (arret) break;
-    let feed;
-    try { feed = await parser.parseURL(src.feed_url); }
-    catch { continue; }
+    if (arret && src.entity_type !== "party") continue;
+    const feed = await lireFlux(src);
+    if (!feed) continue;
     const items = (feed.items || []).slice(0, 20);
 
     // URLs déjà connues pour cette entité (déduplication).
@@ -181,19 +225,32 @@ export async function syncInstitutionNews() {
       scanned++;
       const snippet = (item.contentSnippet || item.content || "").slice(0, 500);
       let ai;
-      try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); quotaVide = 0; }
+      if (src.entity_type === "party" && (gratuitVide || arret)) {
+        // Secours 2 : DeepSeek payant (quelques centimes par mois) ; secours 3 : titre brut.
+        if (!payantVide) {
+          try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type, true); payes++; }
+          catch { payantVide = true; }
+        }
+        if (!ai) {
+          if (!brutPubliable(rawTitle, src)) continue;
+          ai = { should_publish: true, title: rawTitle.slice(0, 160), summary: snippet && !snippet.startsWith(rawTitle) ? snippet.slice(0, 220) : null, news_type: "actualite", brut: true };
+          bruts++;
+        }
+      } else try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); quotaVide = 0; }
       catch (e: any) {
         echecs++;
         // Toutes les lignées gratuites refusent : on laisse passer les pauses de 5 min
         // une fois ; si ça refuse encore, c'est le quota du JOUR — inutile d'insister.
         if (/Aucun modèle gratuit disponible/.test(String(e?.message))) {
+          // Un parti n'attend pas : il passe tout de suite aux secours (payant, puis brut).
+          if (src.entity_type === "party") { gratuitVide = true; continue; }
           if (++quotaVide >= 2) { arret = true; break; }
           console.warn("[Institution-News] Modèles gratuits tous saturés — pause de 5 min.");
           await sleep(300000);
         } else await sleep(500);
         continue;
       }
-      if (!ai || ai.should_publish === false || !ai.title || !ai.summary) continue;
+      if (!ai || ai.should_publish === false || !ai.title || (!ai.summary && !ai.brut)) continue;
       // Même fait, autre journal. Pas pour les ministères : leurs actes du Journal
       // officiel ont des intitulés récurrents (« Nomination … ») qui se ressemblent
       // sans se répéter.
@@ -226,6 +283,7 @@ export async function syncInstitutionNews() {
     }
   }
   console.log(`[Institution-News] Terminé. ${scanned} items analysés (LLM), ${inserted} publiés, ${echecs} échec(s) de l'IA.`);
+  if (payes || bruts) console.log(`[Institution-News] Partis en secours : ${payes} résumé(s) DeepSeek payant, ${bruts} titre(s) publié(s) sans IA.`);
   if (arret) console.log("::warning::Quota gratuit du jour épuisé : passage interrompu, reprise au prochain.");
   else if (scanned >= 10 && echecs > scanned / 2) console.log(`::warning::${echecs} résumés sur ${scanned} ont échoué : le fil est à l'arrêt.`);
   return inserted;

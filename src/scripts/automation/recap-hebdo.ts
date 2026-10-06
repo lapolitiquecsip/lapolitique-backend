@@ -298,6 +298,21 @@ function composer(commun: Awaited<ReturnType<typeof semaine>>, ed: Awaited<Retur
 
 /* ───────────────────────── Passage ───────────────────────── */
 
+/** Description de vidéo sans la réclame de la chaîne (liens, « Participez à… », « Abonnez-vous »). */
+function descriptionUtile(d: string | null): string {
+  return String(d || "").split(/\n+/)
+    .filter(l => !/https?:\/\/|www\.|^\s*(participez|abonnez|suivez|rejoignez|soutenez|faites un don|retrouvez)/i.test(l))
+    .join(" ").trim();
+}
+
+/** Part des mots significatifs communs à deux titres (0 à 1). */
+function motsCommuns(a: string, b: string): number {
+  const mots = (t: string) => new Set(norm(t).replace(/^en direct\W*/, "").split(/[^a-z0-9]+/).filter(m => m.length > 3));
+  const x = mots(a), y = mots(b);
+  if (!x.size || !y.size) return 0;
+  return [...x].filter(m => y.has(m)).length / Math.min(x.size, y.size);
+}
+
 async function main() {
   const heureParis = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Europe/Paris" }));
   if (!TEST && !APERCU && !FORCE && heureParis !== 8) { console.log(`[Récap] Il est ${heureParis} h à Paris : envoi à 8 h seulement.`); return; }
@@ -357,7 +372,11 @@ async function main() {
     // organisation suivie, les plus importantes, sans doublon d'un même fait.
     const SIGNAL = /(annonce|programme|candidat|plainte|mis en examen|condamn|enqu[eê]te|d[ée]mission|propos|r[ée]v[ée]l|d[ée]bat|vote|loi|r[ée]forme|budget|sondage)/i;
     const parEntite = new Map<string, any[]>();
-    for (const n of (notifs || []).filter(n => cat(n) === "suivis" && (n.importance ?? 3) >= 3)) {
+    // Hors suivis : les sondages (rubrique Présidentielle), les actes de routine
+    // (nominations de sous-préfets, désignation d'un rapporteur en commission).
+    const ROUTINE_SUIVI = /^(nomination|titularisation|d[ée]l[ée]gation|cessation|admission|promotion|d[ée]tachement|r[ée]int[ée]gration|d[ée]signation)\b|portant nomination/i;
+    for (const n of (notifs || []).filter(n => cat(n) === "suivis" && n.type !== "sondage" && !ROUTINE_SUIVI.test(String(n.title || "").trim())
+      && (n.importance ?? 3) >= (/^suivi_(parti|candidat)$/.test(n.type) ? 4 : 3))) {
       const k = n.domain || "?"; const l = parEntite.get(k) || [];
       if (l.some(x => norm(x.title).slice(0, 45) === norm(n.title).slice(0, 45))) continue;
       l.push(n); parEntite.set(k, l);
@@ -378,9 +397,11 @@ async function main() {
         titre: d.title, resume: null, url: d.url, date: d.date, source: "debat", importance: 4,
         etiquette: `${refs.get(String(d.candidate_id))} · ${d.broadcaster || d.kind || "débat"} · ${new Date(d.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` })),
       ...videosSemaine.filter((v: any) => refs.has(String(v.candidate_id))).map((v: any): Info => ({
-        titre: v.title, resume: resumeCourt(v.description, 150) || null, url: v.url, date: v.published_at, source: "video", importance: 3,
+        titre: v.title, resume: resumeCourt(descriptionUtile(v.description), 150) || null, url: v.url, date: v.published_at, source: "video", importance: 3,
         etiquette: `${refs.get(String(v.candidate_id))} · ${new Date(v.published_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` })),
-    ].sort((a, b) => b.importance - a.importance || String(b.date).localeCompare(String(a.date))).slice(0, 5);
+    ].sort((a, b) => b.importance - a.importance || String(b.date).localeCompare(String(a.date)))
+      // Même émission publiée deux fois (« EN DIRECT | … » puis la rediffusion) : une seule.
+      .filter((v, i, l) => !l.slice(0, i).some(w => motsCommuns(w.titre, v.titre) >= 0.6)).slice(0, 4);
 
     // Territoire : sa commune d'abord, puis son département (ou sa région), selon son périmètre.
     const perimetre = p?.perimetre || "departement";

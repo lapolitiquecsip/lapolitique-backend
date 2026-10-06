@@ -1,0 +1,31 @@
+name: Fil d'actualité des partis
+# Job dédié, après la remise à zéro du quota IA gratuit (07:00 UTC) : les partis ne
+# passent plus en dernier d'un passage du soir dont le quota était déjà vide.
+# Secours intégrés : Bing si Google News est muet, DeepSeek payant puis titres bruts si
+# l'IA gratuite refuse ; alarme (job en échec → e-mail GitHub) si rien n'entre en 48 h.
+on:
+  schedule:
+    - cron: '20 8,13,18 * * *'
+  workflow_dispatch:
+concurrency:
+  group: fil-partis
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  partis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run automation:institution-news
+        continue-on-error: true
+        env:
+          INSTITUTION_NEWS_ONLY_TYPE: "party"
+      - run: npx tsx src/scripts/automation/verifier-fil-partis.ts
