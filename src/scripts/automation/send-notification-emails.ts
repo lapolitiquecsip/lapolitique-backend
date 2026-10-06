@@ -1,129 +1,115 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
+import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, simulation } from "../../lib/mail.js";
 
-// Envoie par e-mail les notifications « un élu suivi a voté » non encore envoyées.
-// S'appuie sur l'infra existante : generate-notifications remplit user_notifications ;
-// ici on regroupe par utilisateur, on respecte l'e-mail + la préférence `suivi_depute`
-// (dans subscribers), on envoie UN digest, puis on marque `emailed_at` (idempotent).
-//
-// Provider : Resend (offre gratuite ~3000 mails/mois). Variables d'env requises :
-//   RESEND_API_KEY   (secret)
-//   EMAIL_FROM       ex. "La Politique C'est Simple <alertes@ton-domaine.fr>" (expéditeur vérifié)
-//   SITE_URL         ex. "https://lapolitiquecestsimple.fr" (liens)
-// Dry-run si RESEND_API_KEY absente : log seulement, n'écrit rien.
-
-const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
-const FROM = process.env.EMAIL_FROM || "La Politique C'est Simple <onboarding@resend.dev>";
-const RESEND_KEY = process.env.RESEND_API_KEY;
+/**
+ * Envoie par e-mail les alertes des membres (user_notifications non encore envoyées).
+ *
+ * Chaque alerte a une catégorie — votes (élus suivis), local (territoire), suivis
+ * (partis, ministères, candidats, commissions), lois — et chaque membre Pro choisit,
+ * par catégorie, un rythme : immediat, quotidien, hebdo (seulement dans le récap du
+ * samedi) ou aucun. Les autres membres gardent l'ancien fonctionnement : un résumé
+ * quotidien de tout ce qui dépasse leur seuil d'importance.
+ *
+ *   --mode=immediat   (toutes les heures) : les catégories « immediat »
+ *   --mode=quotidien  (chaque soir)       : les catégories « quotidien »
+ *
+ * Une alerte « hebdo » reste en attente : le récap du samedi la reprend et la marque.
+ */
+const MODE = (process.argv.find(a => a.startsWith("--mode="))?.split("=")[1] || "quotidien") as "immediat" | "quotidien";
 const LOOKBACK_DAYS = Number(process.env.EMAIL_LOOKBACK_DAYS || 7);
+// Essai : --seul=adresse → ce seul membre, traité comme Pro, alertes laissées en attente.
+const SEUL = process.argv.find(a => a.startsWith("--seul="))?.split("=")[1]?.toLowerCase();
+const RYTHMES_DEFAUT: Record<string, string> = { votes: "immediat", local: "quotidien", suivis: "quotidien", lois: "hebdo" };
 
-const esc = (s: string) => String(s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
-const posColor = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? "#e11d48" : p === "ABSTENTION" ? "#d97706" : "#64748b");
+const categorieDe = (n: any): string => n.categorie
+  || (n.position || n.type === "vote" ? "votes" : n.type === "local" ? "local" : n.type === "loi" ? "lois" : "suivis");
 
-async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-  if (!RESEND_KEY) { console.log(`[DRY] → ${to} : ${subject}`); return true; }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM, to, subject, html }),
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) { console.error(`[EMAIL] échec ${to} : HTTP ${res.status} ${(await res.text()).slice(0, 200)}`); return false; }
-  return true;
-}
+const INTITULES: Record<string, [string, string, string]> = {
+  votes: ["🗳️", "Vos élus ont voté", "#4f46e5"],
+  local: ["📍", "Près de chez vous", "#e11d48"],
+  suivis: ["⭐", "Ce que vous suivez", "#d97706"],
+  lois: ["📜", "Lois", "#059669"],
+};
+const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? "#e11d48" : p === "ABSTENTION" ? "#d97706" : "#64748b");
 
-// Digest générique : gère les notifs de VOTE (position) et les alertes THÉMATIQUES (domaine + lien).
-function buildHtml(displayName: string, items: any[]): string {
-  const rows = items.map(n => {
-    const isVote = !!n.position;
-    const headline = esc(isVote ? (n.detail || n.title || "") : (n.title || n.detail || ""));
-    const sub = isVote ? esc(n.title || "") : (n.title && n.detail ? esc(n.detail) : "");
-    const link = n.url ? ` &nbsp;<a href="${esc(n.url)}" style="color:#2563eb;text-decoration:none;font-weight:700">Lire →</a>` : "";
-    const tag = isVote
-      ? `<span style="display:inline-block;margin-top:6px;font-size:11px;font-weight:800;letter-spacing:.06em;color:${posColor(n.position)}">VOTE : ${esc(n.position || "")}</span>`
-      : (n.domain ? `<span style="display:inline-block;margin-top:6px;font-size:11px;font-weight:800;letter-spacing:.06em;color:#b45309;text-transform:uppercase">${esc(n.domain)}</span>` : "");
-    return `
-    <tr><td style="padding:12px 0;border-bottom:1px solid #eef2f7">
-      <div style="font-weight:700;color:#0f172a;font-size:15px">${headline}</div>
-      ${sub || link ? `<div style="color:#475569;font-size:13px;margin-top:2px">${sub}${link}</div>` : ""}
-      ${tag}
-    </td></tr>`;
+function html(prenom: string, alertes: any[]): string {
+  const parCat = new Map<string, any[]>();
+  for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
+  const blocs = ["votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
+    const [emoji, intitule, couleur] = INTITULES[c];
+    const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
+      ? ligne({ titre: n.detail || n.title, url: n.url, resume: n.detail ? n.title : null, etiquette: `Vote : ${n.position}`, couleur: couleurVote(n.position) })
+      : ligne({ titre: n.title, url: n.url, resume: resumeCourt(n.detail, 160), etiquette: n.place || (c === "suivis" ? n.domain : null), couleur }));
+    return rubrique(emoji, intitule, couleur, lignes.join(""));
   }).join("");
-  return `<!doctype html><html><body style="margin:0;background:#f8fafc;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
-    <div style="max-width:560px;margin:0 auto;padding:24px">
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:28px">
-        <h1 style="font-size:18px;color:#0f172a;margin:0 0 4px">Vos alertes personnalisées</h1>
-        <p style="color:#64748b;font-size:13px;margin:0 0 16px">${esc(displayName ? "Bonjour " + displayName + "," : "Bonjour,")} voici les informations importantes qui vous concernent.</p>
-        <table style="width:100%;border-collapse:collapse">${rows}</table>
-        <a href="${SITE_URL}/dashboard" style="display:inline-block;margin-top:20px;background:#0f172a;color:#fff;text-decoration:none;font-weight:700;font-size:13px;padding:11px 18px;border-radius:10px">Voir mon tableau de bord</a>
-        <p style="color:#94a3b8;font-size:11px;margin-top:20px">Vous recevez cet e-mail selon les réglages de votre profil sur La Politique C'est Simple. Ajustez vos centres d'intérêt et le niveau d'alerte depuis votre tableau de bord.</p>
-      </div>
-    </div></body></html>`;
+  return gabarit({
+    preheader: `${alertes.length} alerte${alertes.length > 1 ? "s" : ""} selon vos réglages.`,
+    surtitre: MODE === "immediat" ? "Alerte" : "Vos alertes du jour",
+    titre: alertes.length === 1 ? "Une alerte pour vous" : `${alertes.length} alertes pour vous`,
+    sousTitre: `${prenom ? `Bonjour ${esc(prenom)}, voici` : "Voici"} ce qui vous concerne, d'après les réglages de votre profil.`,
+    corps: blocs + bouton("Toutes mes alertes", `${SITE_URL}/dashboard`),
+    pied: `Vous recevez ces alertes selon les réglages de votre profil.<br><a href="${SITE_URL}/dashboard#preferences" style="color:#64748b">Modifier mes alertes</a>`,
+  });
 }
 
 async function main() {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 86400000).toISOString();
-  // Notifications non envoyées, récentes.
-  const { data: notifs, error } = await supabase
-    .from("user_notifications")
-    .select("id, user_id, title, detail, position, importance, domain, url, event_at, created_at")
-    .is("emailed_at", null)
-    .gte("created_at", since)
-    .order("created_at", { ascending: false });
-  if (error) {
-    // Colonne pas encore ajoutée → on sort proprement (migration à appliquer), pas d'échec du cron.
-    if (/emailed_at|column .* does not exist/i.test(error.message)) {
-      console.log("[EMAIL] Colonne user_notifications.emailed_at absente — appliquer la migration. Étape ignorée.");
-      return;
-    }
-    throw error;
-  }
-  if (!notifs?.length) { console.log("Aucune notification à envoyer."); return; }
+  const { data: notifs, error } = await supabase.from("user_notifications")
+    .select("id, user_id, type, categorie, title, detail, position, importance, domain, url, place, event_at, created_at")
+    .is("emailed_at", null).gte("created_at", since).order("created_at", { ascending: false }).limit(20000);
+  if (error) throw error;
+  if (!notifs?.length) { console.log("Aucune alerte en attente."); return; }
 
-  // Regroupe par utilisateur.
-  const byUser = new Map<string, any[]>();
-  for (const n of notifs) { const a = byUser.get(n.user_id) || []; a.push(n); byUser.set(n.user_id, a); }
+  const parMembre = new Map<string, any[]>();
+  for (const n of notifs) parMembre.set(n.user_id, [...(parMembre.get(n.user_id) || []), n]);
+  let ids = [...parMembre.keys()];
 
-  // Coordonnées + préférences des abonnés concernés.
-  const userIds = [...byUser.keys()];
-  const { data: subs } = await supabase.from("subscribers").select("user_id, email, preferences, status").in("user_id", userIds);
-  const subByUser = new Map((subs || []).map((s: any) => [s.user_id, s]));
-  const { data: profs } = await supabase.from("profiles").select("id, display_name").in("id", userIds);
-  const nameById = new Map((profs || []).map((p: any) => [p.id, p.display_name]));
-  // Réglages premium : opt-in e-mail + seuil d'importance (les notifs restent toujours dans le fil).
-  const { data: prefsRows } = await supabase.from("user_preferences").select("user_id, notify_email, email_min_importance").in("user_id", userIds);
-  const prefByUser = new Map((prefsRows || []).map((p: any) => [p.user_id, p]));
-
-  let sent = 0, skipped = 0;
-  const processedIds: string[] = [];
-  for (const [userId, items] of byUser) {
-    const sub = subByUser.get(userId);
-    const pref = prefByUser.get(userId);
-    const email = sub?.email;
-    // Opt-in : préférence premium si présente, sinon ancien opt-out `subscribers`.
-    const optedIn = pref ? pref.notify_email !== false : (!sub?.preferences || sub.preferences.suivi_depute !== false);
-    const threshold = pref?.email_min_importance ?? 3;
-    // Seules les alertes au niveau d'importance choisi (ou +) partent par e-mail ; le reste reste dans le fil.
-    const toEmail = items.filter(i => (i.importance ?? 3) >= threshold);
-    if (email && optedIn && toEmail.length) {
-      const subject = toEmail.length === 1 ? `${toEmail[0].detail || toEmail[0].title}` : `${toEmail.length} alertes pour vous`;
-      const ok = await sendEmail(email, subject.slice(0, 120), buildHtml(nameById.get(userId) || "", toEmail));
-      if (ok) sent++;
-    } else {
-      skipped++;
-    }
-    processedIds.push(...items.map(i => i.id)); // toujours marquer traité (envoyées + sous-seuil) pour ne pas re-traiter
+  const { data: profils } = await supabase.from("profiles").select("id, display_name, subscription_tier").in("id", ids);
+  const profil = new Map((profils || []).map((p: any) => [p.id, p]));
+  const { data: prefs } = await supabase.from("user_preferences").select("user_id, notify_email, email_min_importance, rythmes").in("user_id", ids);
+  const pref = new Map((prefs || []).map((p: any) => [p.user_id, p]));
+  const { data: abonnes } = await supabase.from("subscribers").select("user_id, email, preferences").in("user_id", ids);
+  const abonne = new Map((abonnes || []).map((s: any) => [s.user_id, s]));
+  const adresses = await adressesDesMembres(ids);
+  if (SEUL) {
+    ids = ids.filter(id => (adresses.get(id) || "").toLowerCase() === SEUL);
+    for (const k of [...parMembre.keys()]) if (!ids.includes(k)) parMembre.delete(k);
+    console.log(`[Essai] ${SEUL} : ${[...parMembre.values()].flat().length} alerte(s) en attente.`);
   }
 
-  // Marque comme envoyées (idempotent).
-  if (processedIds.length) {
-    const now = new Date().toISOString();
-    for (let i = 0; i < processedIds.length; i += 200) {
-      const { error: e2 } = await supabase.from("user_notifications").update({ emailed_at: now }).in("id", processedIds.slice(i, i + 200));
-      if (e2) console.error("[EMAIL] update emailed_at:", e2.message);
+  let envoyes = 0, ignores = 0; const traites: string[] = [];
+  for (const [id, alertes] of parMembre) {
+    const p = pref.get(id); const pro = !!SEUL || profil.get(id)?.subscription_tier === "pro";
+    const rythmes = { ...RYTHMES_DEFAUT, ...(p?.rythmes || {}) };
+    // Rythme d'une catégorie : réglage Pro, sinon résumé quotidien de tout (ancien fonctionnement).
+    const rythme = (c: string) => (pro ? rythmes[c] : "quotidien");
+    const aucun = alertes.filter(a => rythme(categorieDe(a)) === "aucun");
+    const duMode = alertes.filter(a => rythme(categorieDe(a)) === MODE);
+    traites.push(...aucun.map(a => a.id));
+    if (!duMode.length) continue;
+    traites.push(...duMode.map(a => a.id));   // traitées même sous le seuil : jamais renvoyées
+
+    const optIn = p ? p.notify_email !== false : abonne.get(id)?.preferences?.suivi_depute !== false;
+    const seuil = p?.email_min_importance ?? 3;
+    const aEnvoyer = duMode.filter(a => (a.importance ?? 3) >= seuil || categorieDe(a) === "votes");
+    const adresse = abonne.get(id)?.email || adresses.get(id);
+    if (!optIn || !adresse || !aEnvoyer.length) { ignores++; continue; }
+    const sujet = aEnvoyer.length === 1
+      ? resumeCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}` : aEnvoyer[0].title, 110)
+      : `${aEnvoyer.length} alertes pour vous`;
+    if (await envoyerMail(adresse, sujet, html(profil.get(id)?.display_name || "", aEnvoyer), { desabo: `${SITE_URL}/dashboard#preferences` })) envoyes++;
+    await new Promise(r => setTimeout(r, 600));   // limite de débit Resend
+  }
+
+  if (!simulation && !SEUL) {
+    const maintenant = new Date().toISOString();
+    for (let i = 0; i < traites.length; i += 200) {
+      const { error: e } = await supabase.from("user_notifications").update({ emailed_at: maintenant }).in("id", traites.slice(i, i + 200));
+      if (e) console.error("[MAIL] emailed_at :", e.message);
     }
   }
-  console.log(`Digests envoyés : ${sent} · utilisateurs sans e-mail/opt-out : ${skipped} · notifs marquées : ${processedIds.length}${RESEND_KEY ? "" : " (DRY-RUN, RESEND_API_KEY absente)"}`);
+  console.log(`[Alertes ${MODE}] ${envoyes} e-mail(s) envoyé(s), ${ignores} membre(s) sans adresse ou désabonné(s), ${traites.length} alerte(s) traitée(s)${simulation ? " — SIMULATION" : ""}.`);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch(e => { console.error(e); process.exitCode = 1; });

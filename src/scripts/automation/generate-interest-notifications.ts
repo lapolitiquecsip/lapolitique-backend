@@ -33,7 +33,7 @@ const IMPORTANCE_BY_TYPE: Record<string, number> = {
   loi: 5, decision: 4, decret: 4, budget: 4, mesure: 4, projet: 3, actualite: 3, annonce: 3,
   lancement: 3, equipement: 3, bilan: 3, travaux: 2, evenement: 2, conseil_municipal: 2, nomination: 2,
 };
-const importanceOf = (newsType: string | null) => IMPORTANCE_BY_TYPE[String(newsType || "").toLowerCase()] ?? 3;
+export const importanceOf = (newsType: string | null) => IMPORTANCE_BY_TYPE[String(newsType || "").toLowerCase()] ?? 3;
 
 // Intérêts IMPLICITES déduits de la profession et de l'âge : un retraité est concerné par les
 // retraites/la santé, un étudiant par l'éducation… même sans les avoir cochés explicitement.
@@ -45,7 +45,7 @@ const PROFESSION_INTERESTS: Record<string, string[]> = {
 const AGE_INTERESTS: Record<string, string[]> = {
   "-18": ["education"], "18-24": ["education", "emploi"], "65+": ["retraites", "sante"],
 };
-function withImplied(explicit: string[], profession: string | null, age: string | null): string[] {
+export function withImplied(explicit: string[], profession: string | null, age: string | null): string[] {
   return [...new Set([...(explicit || []), ...(PROFESSION_INTERESTS[profession || ""] || []), ...(AGE_INTERESTS[age || ""] || [])])];
 }
 
@@ -73,7 +73,7 @@ const DEPARTMENTS: Record<string, string> = {
 };
 const NAME_TO_CODE = new Map(Object.entries(DEPARTMENTS).map(([code, name]) => [name, code]));
 
-function userDeptCode(dep: string | null): string | null {
+export function userDeptCode(dep: string | null): string | null {
   const raw = (dep || "").trim();
   if (!raw) return null;
   if (/^\d{2,3}$/i.test(raw) || /^2[ab]$/i.test(raw)) return raw.toLowerCase();          // saisi en numéro
@@ -82,7 +82,7 @@ function userDeptCode(dep: string | null): string | null {
 }
 
 // Département d'un item local : code direct (department) ou 2 premiers chiffres de l'INSEE (commune).
-function itemDeptCode(entityType: string, entityId: string): string | null {
+export function itemDeptCode(entityType: string, entityId: string): string | null {
   const id = String(entityId || "");
   if (entityType === "department") return id.toLowerCase();
   if (entityType === "commune") {
@@ -93,7 +93,7 @@ function itemDeptCode(entityType: string, entityId: string): string | null {
   return null;
 }
 
-async function fetchAll(table: string, select: string, apply: (q: any) => any): Promise<any[]> {
+export async function fetchAll(table: string, select: string, apply: (q: any) => any): Promise<any[]> {
   const out: any[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await apply(supabase.from(table).select(select)).range(from, from + 999);
@@ -118,7 +118,7 @@ interface Item {
 // Nom lisible d'un territoire : la carte d'alerte doit dire OÙ, sans quoi « la
 // municipalité acte la démolition de l'église » ne se rattache à rien.
 // Les codes de région portent un « R » dans `territories` (R52), pas dans le fil (52).
-async function territoryNames(keys: { type: string; id: string }[]): Promise<Map<string, string>> {
+export async function territoryNames(keys: { type: string; id: string }[]): Promise<Map<string, string>> {
   const codeOf = (k: { type: string; id: string }) => (k.type === "region" ? `R${k.id}` : k.id);
   const codes = [...new Set(keys.map(codeOf))];
   const names = new Map<string, string>();
@@ -133,7 +133,7 @@ async function territoryNames(keys: { type: string; id: string }[]): Promise<Map
 // ville → code INSEE (table territories) → département (2-3 premiers chiffres). Repli sur le
 // département saisi si la ville est absente/introuvable. Corrige aussi une saisie erronée du
 // champ « département » (ex. l'utilisateur y a mis une région).
-async function resolveLocation(city: string | null, department: string | null): Promise<{ communeCode: string | null; deptCode: string | null; regionCode: string | null }> {
+export async function resolveLocation(city: string | null, department: string | null): Promise<{ communeCode: string | null; deptCode: string | null; regionCode: string | null }> {
   const c = (city || "").trim();
   if (c) {
     const { data } = await supabase.from("territories").select("code").eq("type", "commune").ilike("name", c).limit(10);
@@ -219,7 +219,7 @@ export async function generateInterestNotifications() {
 
   // 1) Membres avec un profil (intérêts et/ou localisation renseignés).
   const prefs = await fetchAll("user_preferences",
-    "user_id, interests, region, department, city, age_range, profession, notify_email, email_min_importance", q => q);
+    "user_id, interests, region, department, city, age_range, profession, notify_email, email_min_importance, perimetre", q => q);
   const users: any[] = [];
   for (const p of prefs) {
     const loc = await resolveLocation(p.city, p.department);
@@ -263,7 +263,15 @@ export async function generateInterestNotifications() {
     const dedup = `feed|${crypto.createHash("md5").update(String(it.url || it.title)).digest("hex").slice(0, 16)}`;
 
     for (const u of users) {
-      if (it.singleCommune) {
+      // Périmètre choisi par le membre (Pro) : « national » = aucune alerte locale ;
+      // « commune » = sa commune seulement ; « region » = toute sa région.
+      const perimetre = u.perimetre || "departement";
+      if (perimetre === "national") continue;
+      if (perimetre === "commune" && !it.communeCode && !it.singleCommune) continue;
+      if (perimetre === "region" && !it.communeCode && !it.singleCommune && it.deptCode && u.regionCode
+          && regionOfDept(it.deptCode) === u.regionCode && u.deptCode !== it.deptCode) {
+        // Actu d'un autre département de sa région : retenue, au-delà du cas général ci-dessous.
+      } else if (it.singleCommune) {
         // Article d'un fil de département ou de région qui ne parle que d'UNE
         // commune : même règle qu'une actu de commune — seulement ses habitants.
         // Commune non nommée (« dans cette commune… ») : personne ne peut savoir
@@ -291,7 +299,7 @@ export async function generateInterestNotifications() {
         user_id: u.user_id, type: it.type,
         title: String(it.title || "").slice(0, 300),
         detail: it.summary ? String(it.summary).slice(0, 300) : null,
-        domain: domains[0] || "local", importance: it.importance, url: it.url || null,
+        domain: domains[0] || "local", importance: it.importance, url: it.url || null, categorie: "local",
         event_at: it.date || null, created_at: now, read: false, dedup_key: dedup,
         place: it.place || null,
       });

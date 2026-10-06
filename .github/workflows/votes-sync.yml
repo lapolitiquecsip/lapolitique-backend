@@ -55,7 +55,7 @@ jobs:
       - run: npm run automation:interest-notifications
       # 4bis) Envoie par e-mail les notifications non encore envoyées (digest quotidien).
       #       Dry-run tant que RESEND_API_KEY n'est pas fourni (log seulement).
-      - run: npm run automation:send-notification-emails
+      - run: npm run automation:send-notification-emails -- --mode=immediat   # alertes de vote « dans l'heure » ; le résumé du soir part à 17:30 UTC (alertes-pro)
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}

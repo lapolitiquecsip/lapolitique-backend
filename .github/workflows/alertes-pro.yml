@@ -1,0 +1,49 @@
+name: Alertes membres et récap hebdomadaire
+on:
+  schedule:
+    # Toutes les heures : alertes des suivis (partis, ministères, candidats, commissions)
+    # et du territoire, puis envoi des alertes « dans l'heure ».
+    - cron: '15 * * * *'
+    # Chaque soir : le résumé quotidien des alertes au rythme « chaque soir ».
+    - cron: '30 17 * * *'
+    # Samedi : « La semaine politique en 5 minutes ». Le script ne part qu'à 8 h,
+    # heure de Paris (6 h UTC l'été, 7 h UTC l'hiver).
+    - cron: '0 6,7 * * 6'
+  workflow_dispatch:
+    inputs:
+      etape:
+        description: "alertes | soir | recap"
+        default: alertes
+concurrency:
+  group: alertes-pro
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  alertes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      SITE_URL: https://lapolitiquecestsimple.fr
+      ETAPE: ${{ github.event.schedule == '0 6,7 * * 6' && 'recap' || github.event.schedule == '30 17 * * *' && 'soir' || inputs.etape || 'alertes' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run automation:suivis-notifications
+        if: env.ETAPE != 'recap'
+        continue-on-error: true
+      - run: npm run automation:interest-notifications
+        if: env.ETAPE == 'alertes'
+        continue-on-error: true
+      - run: npm run automation:send-notification-emails -- --mode=immediat
+        if: env.ETAPE == 'alertes'
+      - run: npm run automation:send-notification-emails -- --mode=quotidien
+        if: env.ETAPE == 'soir'
+      - run: npm run automation:recap-hebdo ${{ github.event_name == 'workflow_dispatch' && '-- --force' || '' }}
+        if: env.ETAPE == 'recap'

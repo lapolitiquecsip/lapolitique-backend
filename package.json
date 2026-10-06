@@ -18,6 +18,8 @@
     "automation:budget-check": "tsx src/scripts/automation/deepseek-budget-check.ts",
     "data:sync-borrowing-rates": "tsx src/scripts/data/sync-borrowing-rates.ts",
     "automation:send-notification-emails": "tsx src/scripts/automation/send-notification-emails.ts",
+    "automation:suivis-notifications": "tsx src/scripts/automation/generate-suivis-notifications.ts",
+    "automation:recap-hebdo": "tsx src/scripts/automation/recap-hebdo.ts",
     "automation:deputy-stats": "tsx src/scripts/automation/fetch-deputy-stats.ts",
     "data:sync-deputy-roster": "tsx src/scripts/data/sync-deputy-roster.ts",
     "automation:senat-summary": "tsx src/scripts/automation/summarize-daily-senat.ts",
