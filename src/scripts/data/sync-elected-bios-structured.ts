@@ -11,6 +11,8 @@ const which = process.argv.find(a => a === "deputies" || a === "senators") || "d
 const CFG = which === "senators"
   ? { table: "senators", roleLabel: "sénateur (Sénat français)", guard: /s[ée]nat/i, version: "sen-1" }
   : { table: "deputies", roleLabel: "député à l'Assemblée nationale", guard: /d[ée]put|assembl[ée]e nationale/i, version: "dep-1" };
+// --payant : DeepSeek directement (solde budgété), sans attendre le quota gratuit du jour.
+const PAYANT = process.argv.includes("--payant");
 const LIMIT = Number((process.argv.find(a => a.startsWith("--limit="))?.split("=")[1]) || 0);
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -109,7 +111,7 @@ Réponds en JSON strict :
   "chronologie": ["AAAA : événement clé"]
 }`,
     messages: [{ role: "user", content: `Personne : ${name} (${CFG.roleLabel})\n\nTexte de référence :\n${reference.slice(0, 40000)}` }],
-  }, { timeoutMs: 150000 });
+  }, { timeoutMs: 150000, payant: PAYANT });
   const text = (resp.content?.[0]?.text ?? "").replace(/```json\s*|\s*```/g, "").trim();
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;

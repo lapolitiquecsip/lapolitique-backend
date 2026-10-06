@@ -60,5 +60,11 @@ jobs:
         continue-on-error: true
         run: |
           curl -sf -X POST "$SUPABASE_URL/functions/v1/abonnement"             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{"action":"rappels"}'
+      # Parrainage : commissions validées virées automatiquement aux parrains (Stripe Connect).
+      - name: Versement des commissions de parrainage
+        if: env.ETAPE == 'soir'
+        continue-on-error: true
+        run: |
+          curl -sf -X POST "$SUPABASE_URL/functions/v1/parrainage-versements" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{"action":"verser"}'
       - run: npm run automation:recap-hebdo ${{ github.event_name == 'workflow_dispatch' && '-- --force' || '' }}
         if: env.ETAPE == 'recap'
