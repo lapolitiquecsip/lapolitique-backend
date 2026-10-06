@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
+import { silenceSondages } from "../../lib/sondage-notice.js";
 import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, simulation } from "../../lib/mail.js";
 
 /**
@@ -92,6 +93,12 @@ async function main() {
     .select("id, user_id, type, categorie, title, detail, position, importance, domain, url, place, event_at, created_at, donnees")
     .is("emailed_at", null).gte("created_at", since).order("created_at", { ascending: false }).limit(20000);
   if (error) throw error;
+  // Veille et jour du vote : les sondages ne partent pas (loi de 1977, art. 11) ; périmés ensuite, on les clôt.
+  if (silenceSondages() && !SEUL) {
+    const bloques = (notifs || []).filter(n => n.type === "sondage").map(n => n.id);
+    if (bloques.length) await supabase.from("user_notifications").update({ emailed_at: new Date().toISOString() }).in("id", bloques);
+    notifs?.splice(0, notifs.length, ...notifs.filter(n => n.type !== "sondage"));
+  }
   if (!notifs?.length) { console.log("Aucune alerte en attente."); return; }
 
   const parMembre = new Map<string, any[]>();

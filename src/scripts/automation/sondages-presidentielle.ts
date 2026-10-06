@@ -1,6 +1,7 @@
 import "dotenv/config";
 import * as cheerio from "cheerio";
 import { supabase } from "../../config/supabase.js";
+import { acheteurDe, silenceSondages } from "../../lib/sondage-notice.js";
 
 /**
  * Sondages de la présidentielle 2027, relevés sur la liste tenue sur Wikipédia
@@ -27,10 +28,10 @@ const MOIS: Record<string, number> = {
 };
 
 type Resultat = { nom: string; slug: string | null; pct: number; complet?: string; photo?: string | null };
-type Ligne = { cle: string; tour: 1 | 2; institut: string; date_debut: string | null; date_fin: string; echantillon: number | null; hypothese: number; resultats: Resultat[] };
+type Ligne = { notice_url: string | null; cle: string; tour: 1 | 2; institut: string; date_debut: string | null; date_fin: string; echantillon: number | null; hypothese: number; resultats: Resultat[] };
 
 /** Tableau HTML → grille, rowspan et colspan dépliés. */
-function grille($: cheerio.CheerioAPI, table: any): string[][] {
+function grille($: cheerio.CheerioAPI, table: any, liens: string[][] = []): string[][] {
   const g: string[][] = [];
   $(table).find("tr").each((r, tr) => {
     g[r] ||= [];
@@ -39,12 +40,14 @@ function grille($: cheerio.CheerioAPI, table: any): string[][] {
       while (g[r][c] !== undefined) c++;
       const $c = $(cell);
       $c.find("sup.reference, .reference, style").remove();
+      // Lien de la cellule institut : la notice officielle déposée à la Commission des sondages.
+      const notice = $c.find('a[href*="commission-des-sondages.fr"]').first().attr("href") || "";
       // Plusieurs candidats dans une même cellule (colonne « Autres ») : séparés par un filet.
       $c.find("hr").replaceWith(" ¦ ");
       const texte = $c.text().replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
       const rs = Math.max(1, parseInt($c.attr("rowspan") || "1", 10) || 1);
       const cs = Math.max(1, parseInt($c.attr("colspan") || "1", 10) || 1);
-      for (let i = 0; i < rs; i++) for (let k = 0; k < cs; k++) { (g[r + i] ||= [])[c + k] = texte; }
+      for (let i = 0; i < rs; i++) for (let k = 0; k < cs; k++) { (g[r + i] ||= [])[c + k] = texte; (liens[r + i] ||= [])[c + k] = notice; }
       c += cs;
     });
   });
@@ -164,7 +167,8 @@ async function main() {
       return;
     }
     if (/^autres$/i.test(titre)) return;   // hypothèses anciennes hors candidats (Macron…)
-    const g = grille($, el);
+    const liensNotice: string[][] = [];
+    const g = grille($, el, liensNotice);
     if (g.length < 4) return;
     // Ligne d'en-tête des noms courts : la première qui contient « (PARTI) » ou, au
     // second tour, la deuxième ligne.
@@ -218,6 +222,7 @@ async function main() {
       lignes.push({
         cle: tour === 1 ? `${idSondage}|1|h${hyp}` : `${idSondage}|2|${duel}`,
         tour, institut, date_debut: d[0], date_fin: d[1], echantillon, hypothese: tour === 1 ? hyp : 1, resultats,
+        notice_url: liensNotice[r]?.[0] || null,
       });
     }
   });
@@ -241,18 +246,46 @@ async function main() {
   const sansAlerte = process.env.SONDAGES_SANS_ALERTE === "1";
   const rows = uniques.map(l => ({ ...l, source_url: SOURCE, maj_le: new Date().toISOString(), ...(connues.has(l.cle) ? {} : { notifie: sansAlerte }) }));
   for (let i = 0; i < rows.length; i += 200) {
-    const { error } = await supabase.from("sondages").upsert(rows.slice(i, i + 200), { onConflict: "cle" });
+    const { error } = await supabase.from("sondages").upsert(rows.slice(i, i + 200), { onConflict: "cle", defaultToNull: false });
     if (error) throw error;
   }
   console.log(`[Sondages] ${rows.filter(r => !connues.has(r.cle)).length} nouvelle(s) hypothèse(s).`);
 
+  await commanditaires();
   await alerter();
+}
+
+/**
+ * Loi du 19 juillet 1977 (art. 2) : un sondage publié doit nommer son acheteur. Wikipédia
+ * ne le donne pas ; la notice officielle si (« Ifop-Fiducial pour LCI, Le Figaro… »,
+ * « Sondage réalisé par Elabe pour BFMTV »). Lue une fois par notice.
+ */
+async function commanditaires() {
+  const { data } = await supabase.from("sondages").select("notice_url").not("notice_url", "is", null).is("commanditaire", null).limit(400);
+  const urls = [...new Set((data || []).map(x => x.notice_url as string))];
+  if (!urls.length) return;
+  const { default: pdf } = await import("pdf-parse/lib/pdf-parse.js" as string);
+  let lus = 0;
+  for (const url of urls) {
+    let acheteur = "";
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": UA } });
+      if (r.ok) acheteur = acheteurDe((await pdf(Buffer.from(await r.arrayBuffer()), { max: 3 })).text);
+    } catch { /* notice illisible : on retentera au prochain passage */ }
+    // « — » : notice lue sans acheteur repérable ; l'affichage renvoie alors à la notice.
+    await supabase.from("sondages").update({ commanditaire: acheteur || "—" }).eq("notice_url", url);
+    lus++;
+    await new Promise(res => setTimeout(res, 400));
+  }
+  console.log(`[Sondages] ${lus} notice(s) lue(s) pour le commanditaire.`);
 }
 
 /** Un sondage de 1er tour récent et pas encore annoncé → une alerte par abonné. */
 async function alerter() {
+  // Veille et jour du vote : aucune diffusion. Ces sondages ne seront pas annoncés.
+  if (silenceSondages()) { await marquer(); return; }
   const depuis = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
-  const { data: nouveaux } = await supabase.from("sondages").select("id, institut, date_debut, date_fin, hypothese, resultats, tour")
+  const { data: nouveaux } = await supabase.from("sondages").select("id, institut, date_debut, date_fin, echantillon, commanditaire, hypothese, resultats, tour")
     .eq("notifie", false).eq("tour", 1).gte("date_fin", depuis).order("hypothese");
   const parSondage = new Map<string, any[]>();
   for (const s of nouveaux || []) { const k = `${s.institut}|${s.date_fin}`; parSondage.set(k, [...(parSondage.get(k) || []), s]); }
@@ -265,7 +298,9 @@ async function alerter() {
     const h1 = hyps[0];
     const tete = (h1.resultats as Resultat[]).slice(0, 3).map(x => `${x.nom.split(" ").pop()} ${String(x.pct).replace(".", ",")} %`).join(", ");
     const titre = `Nouveau sondage ${h1.institut} : ${tete}`;
-    const detail = `Présidentielle 2027, premier tour — enquête réalisée ${h1.date_debut ? `du ${fmt(h1.date_debut)} ` : ""}au ${fmt(h1.date_fin)}${hyps.length > 1 ? `, ${hyps.length} hypothèses testées` : ""}.`;
+    // Mentions de l'article 2 de la loi de 1977 : acheteur, échantillon, dates, notice.
+    const pour = h1.commanditaire && h1.commanditaire !== "—" ? ` pour ${h1.commanditaire}` : "";
+    const detail = `Présidentielle 2027, premier tour — sondage ${h1.institut}${pour}${h1.echantillon ? ` auprès de ${Number(h1.echantillon).toLocaleString("fr-FR")} personnes` : ""}, réalisé ${h1.date_debut ? `du ${fmt(h1.date_debut)} ` : ""}au ${fmt(h1.date_fin)}${hyps.length > 1 ? `, ${hyps.length} hypothèses testées` : ""}. Notice consultable auprès de la Commission des sondages.`;
     for (const u of abonnes || []) rows.push({
       user_id: u.id, type: "sondage", title: titre.slice(0, 300), detail, domain: "institutions", importance: 4,
       url: "/presidentielles-2027/#sondages", event_at: h1.date_fin, read: false, dedup_key: `sondage:${k}`,

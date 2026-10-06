@@ -73,7 +73,7 @@ export function gabarit({ preheader, surtitre, titre, sousTitre, corps, pied }: 
     <div style="font-size:14px;line-height:1.5;color:#cbd5e1;margin-top:10px">${sousTitre}</div>
   </td></tr>
   <tr><td style="background:${COULEURS.carte};padding:8px 32px 28px;border-radius:0 0 24px 24px">${corps}</td></tr>
-  <tr><td style="padding:22px 20px 8px;text-align:center;font-size:11px;line-height:1.6;color:${COULEURS.pale}">${pied}</td></tr>
+  <tr><td style="padding:22px 20px 8px;text-align:center;font-size:11px;line-height:1.6;color:${COULEURS.pale}">${pied}<br><span style="font-size:10px">Résumés et explications rédigés par intelligence artificielle à partir des textes officiels et contrôlés contre eux ; seul le texte officiel fait foi.</span></td></tr>
 </table></td></tr></table></body></html>`;
 }
 

@@ -3,6 +3,7 @@ import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { matchDomains, INTEREST_DOMAINS } from "../../lib/interest-domains.js";
 import { fetchAll, resolveLocation, withImplied, importanceOf } from "./generate-interest-notifications.js";
+import { silenceSondages } from "../../lib/sondage-notice.js";
 import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, COULEURS, simulation } from "../../lib/mail.js";
 
 /**
@@ -46,7 +47,8 @@ async function semaine(depuis: string) {
     fetchAll("entity_feed", "entity_id, title, summary, url, published_at, news_type", q => q.eq("entity_type", "ministry").gte("published_at", depuis)),
     fetchAll("decrees", "title, display_title, summary, source_url, date_publi, nature", q => q.gte("date_publi", jour)),
     fetchAll("content", "titre_simplifie, titre_original, resume_flash, source_url, institution, date_publication, source_name", q => q.gte("created_at", depuis)),
-    fetchAll("sondages", "institut, date_fin, hypothese, resultats, tour", q => q.eq("tour", 1).gte("date_fin", jour)),
+    // Veille et jour du vote : ni sondage ni commentaire de sondage (loi de 1977, art. 11), y compris dans l'édito.
+    silenceSondages() ? Promise.resolve([]) : fetchAll("sondages", "institut, commanditaire, echantillon, date_debut, date_fin, hypothese, resultats, tour", q => q.eq("tour", 1).gte("date_fin", jour)),
     fetchAll("candidate_news", "title, summary, source_url, date, news_type", q => q.gte("date", jour)),
   ]);
   // Nom lisible d'un ministère (le fil ne porte qu'un identifiant : « ministere-de-l-interieur »).
@@ -270,8 +272,9 @@ function composer(commun: Awaited<ReturnType<typeof semaine>>, ed: Awaited<Retur
       <td style="padding:4px 8px"><div style="height:10px;border-radius:6px;background:#e2e8f0"><div style="height:10px;border-radius:6px;background:#4f46e5;width:${Math.round((x.pct / max) * 100)}%"></div></div></td>
       <td style="width:48px;text-align:right;font-size:13px;font-weight:800;color:${COULEURS.encre}">${String(x.pct).replace(".", ",")} %</td></tr>`).join("");
     blocs.push(rubrique("📊", "Présidentielle 2027", "#4f46e5", `<div style="padding:12px 0">
-      <div style="font-size:13px;color:${COULEURS.doux};margin-bottom:8px">Dernier sondage : <strong style="color:${COULEURS.encre}">${esc(commun.dernierSondage.institut)}</strong>${commun.nbSondages > 1 ? ` — ${commun.nbSondages} sondages publiés cette semaine` : ""}</div>
+      <div style="font-size:13px;color:${COULEURS.doux};margin-bottom:8px">Dernier sondage : <strong style="color:${COULEURS.encre}">${esc(commun.dernierSondage.institut)}</strong>${commun.dernierSondage.commanditaire && commun.dernierSondage.commanditaire !== "—" ? ` pour ${esc(commun.dernierSondage.commanditaire)}` : ""}${commun.nbSondages > 1 ? ` — ${commun.nbSondages} sondages publiés cette semaine` : ""}</div>
       <table role="presentation" width="100%">${barres}</table>
+      <div style="margin-top:6px;font-size:11px;color:${COULEURS.doux}">${commun.dernierSondage.echantillon ? `${Number(commun.dernierSondage.echantillon).toLocaleString("fr-FR")} personnes interrogées, ` : ""}${commun.dernierSondage.date_debut ? `du ${new Date(commun.dernierSondage.date_debut + "T12:00:00Z").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} ` : ""}au ${new Date(commun.dernierSondage.date_fin + "T12:00:00Z").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Notice consultable auprès de la Commission des sondages. Un sondage n'est pas une prédiction.</div>
       <div style="margin-top:8px"><a href="${SITE_URL}/presidentielles-2027/#sondages" style="font-size:12px;font-weight:800;color:#4f46e5;text-decoration:none">Tous les sondages et leur moyenne →</a></div>
     </div>`));
   }

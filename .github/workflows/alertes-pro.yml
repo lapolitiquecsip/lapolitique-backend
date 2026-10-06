@@ -48,5 +48,17 @@ jobs:
         if: env.ETAPE == 'alertes'
       - run: npm run automation:send-notification-emails -- --mode=quotidien
         if: env.ETAPE == 'soir'
+      # Conformité, une fois par jour : durées de conservation (RGPD art. 5.1.e) et rappel
+      # d'échéance des abonnements annuels (C. conso. L215-1, fonction Edge « abonnement »).
+      - name: Purge des données échues
+        if: env.ETAPE == 'soir'
+        continue-on-error: true
+        run: |
+          curl -sf -X POST "$SUPABASE_URL/rest/v1/rpc/purge_conservation"             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
+      - name: Rappels d'échéance des abonnements annuels
+        if: env.ETAPE == 'soir'
+        continue-on-error: true
+        run: |
+          curl -sf -X POST "$SUPABASE_URL/functions/v1/abonnement"             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{"action":"rappels"}'
       - run: npm run automation:recap-hebdo ${{ github.event_name == 'workflow_dispatch' && '-- --force' || '' }}
         if: env.ETAPE == 'recap'
