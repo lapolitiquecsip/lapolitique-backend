@@ -25,6 +25,38 @@ const RYTHMES_DEFAUT: Record<string, string> = { votes: "immediat", local: "quot
 const categorieDe = (n: any): string => n.categorie
   || (n.position || n.type === "vote" ? "votes" : n.type === "local" ? "local" : n.type === "loi" ? "lois" : "suivis");
 
+/* Alerte « un texte vous concerne » : résultat du vote, groupes, élus suivis, extrait officiel. */
+const POSITION: Record<string, [string, string]> = { for: ["pour", "#059669"], against: ["contre", "#e11d48"], abstain: ["abstention", "#d97706"], POUR: ["pour", "#059669"], CONTRE: ["contre", "#e11d48"], ABSTENTION: ["abstention", "#d97706"] };
+function carteTexte(n: any): string {
+  const d = n.donnees || {}; const r = d.resultat;
+  const sur = d.source === "scrutin_final" ? `Vote final · ${d.chambre === "AN" ? "Assemblée nationale" : "Sénat"}` : d.source === "loi" ? "Loi · Journal officiel" : "Décret · Journal officiel";
+  let vote = "";
+  if (r && (r.pour != null)) {
+    const total = (r.pour || 0) + (r.contre || 0) + (r.abstention || 0) || 1;
+    const pc = (x: number) => Math.round((x / total) * 100);
+    vote = `<div style="margin-top:14px">
+      <span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:${r.adopte ? "#059669" : "#e11d48"}">${r.adopte ? "Adopté" : "Rejeté"}</span>
+      <table role="presentation" width="100%" style="margin-top:10px;border-collapse:collapse"><tr>
+        ${r.pour ? `<td style="height:10px;background:#059669;width:${pc(r.pour)}%"></td>` : ""}${r.contre ? `<td style="height:10px;background:#e11d48;width:${pc(r.contre)}%"></td>` : ""}${r.abstention ? `<td style="height:10px;background:#f59e0b;width:${pc(r.abstention)}%"></td>` : ""}
+      </tr></table>
+      <div style="font-size:13px;color:#334155;margin-top:6px"><strong style="color:#059669">${r.pour} pour</strong> · <strong style="color:#e11d48">${r.contre} contre</strong> · <strong style="color:#d97706">${r.abstention} abstentions</strong></div>
+      ${(r.groupes || []).length ? `<table role="presentation" width="100%" style="margin-top:10px;border-collapse:collapse;font-size:12px">
+        <tr><td style="padding:4px 0;color:#94a3b8;font-weight:700">Groupe</td><td align="right" style="color:#059669;font-weight:800">Pour</td><td align="right" style="color:#e11d48;font-weight:800">Contre</td><td align="right" style="color:#d97706;font-weight:800">Abst.</td></tr>
+        ${r.groupes.map((g: any) => `<tr style="border-top:1px solid #eef2f7"><td style="padding:5px 8px 5px 0;color:#0f172a">${esc(g.nom)}</td><td align="right">${g.pour || "–"}</td><td align="right">${g.contre || "–"}</td><td align="right">${g.abstention || "–"}</td></tr>`).join("")}
+      </table>` : ""}
+    </div>`;
+  }
+  const elus = (d.elus || []).length ? `<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#eef2ff;font-size:13px;color:#1e1b4b"><strong>Vos élus :</strong> ${d.elus.map((e: any) => `${esc(e.nom)} a voté <strong style="color:${(POSITION[e.position] || ["", "#475569"])[1]}">${(POSITION[e.position] || [e.position])[0]}</strong>`).join(" · ")}</div>` : "";
+  return `<div style="padding:18px 0;border-bottom:1px solid #e7e2d6">
+    <div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7c3aed">${esc(sur)}</div>
+    <div style="font-size:17px;line-height:1.35;font-weight:800;color:#0f172a;margin-top:5px"><a href="${esc(n.url || SITE_URL)}" style="color:#0f172a;text-decoration:none">${esc(n.title)}</a></div>
+    ${(d.pourquoi || []).length ? `<div style="margin-top:8px;font-size:12px;color:#7c3aed;font-weight:700">Pour vous : ${esc(d.pourquoi.join(" ; "))}</div>` : ""}
+    ${n.detail ? `<div style="font-size:14px;line-height:1.55;color:#334155;margin-top:8px">${esc(n.detail)}</div>` : ""}
+    ${d.extrait ? `<div style="margin-top:8px;padding-left:10px;border-left:3px solid #e2e8f0;font-size:12px;line-height:1.5;color:#64748b;font-style:italic">Extrait du résumé officiel : « ${esc(d.extrait)}${/[.!?»)]$/.test(d.extrait) ? "" : "…"} »</div>` : ""}
+    ${vote}${elus}
+  </div>`;
+}
+
 const INTITULES: Record<string, [string, string, string]> = {
   votes: ["🗳️", "Vos élus ont voté", "#4f46e5"],
   local: ["📍", "Près de chez vous", "#e11d48"],
@@ -36,7 +68,8 @@ const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? 
 function html(prenom: string, alertes: any[]): string {
   const parCat = new Map<string, any[]>();
   for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
-  const blocs = ["votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
+  const textes = (parCat.get("textes") || []).map(carteTexte).join("");
+  const blocs = (textes ? rubrique("📜", "Un texte vous concerne", "#7c3aed", textes) : "") + ["votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
     const [emoji, intitule, couleur] = INTITULES[c];
     const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
       ? ligne({ titre: n.detail || n.title, url: n.url, resume: n.detail ? n.title : null, etiquette: `Vote : ${n.position}`, couleur: couleurVote(n.position) })
@@ -56,7 +89,7 @@ function html(prenom: string, alertes: any[]): string {
 async function main() {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 86400000).toISOString();
   const { data: notifs, error } = await supabase.from("user_notifications")
-    .select("id, user_id, type, categorie, title, detail, position, importance, domain, url, place, event_at, created_at")
+    .select("id, user_id, type, categorie, title, detail, position, importance, domain, url, place, event_at, created_at, donnees")
     .is("emailed_at", null).gte("created_at", since).order("created_at", { ascending: false }).limit(20000);
   if (error) throw error;
   if (!notifs?.length) { console.log("Aucune alerte en attente."); return; }
@@ -83,7 +116,10 @@ async function main() {
     const p = pref.get(id); const pro = !!SEUL || profil.get(id)?.subscription_tier === "pro";
     const rythmes = { ...RYTHMES_DEFAUT, ...(p?.rythmes || {}) };
     // Rythme d'une catégorie : réglage Pro, sinon résumé quotidien de tout (ancien fonctionnement).
-    const rythme = (c: string) => (pro ? rythmes[c] : "quotidien");
+    // Membre Pro : seule l'alerte « un texte vous concerne » part sur le moment ;
+    // tout le reste (votes courants, suivis, local) attend le récap du samedi.
+    void rythmes;
+    const rythme = (c: string): string => (pro ? (c === "textes" ? "immediat" : "hebdo") : c === "textes" ? "immediat" : "quotidien");
     const aucun = alertes.filter(a => rythme(categorieDe(a)) === "aucun");
     const duMode = alertes.filter(a => rythme(categorieDe(a)) === MODE);
     traites.push(...aucun.map(a => a.id));
@@ -95,9 +131,13 @@ async function main() {
     const aEnvoyer = duMode.filter(a => (a.importance ?? 3) >= seuil || categorieDe(a) === "votes");
     const adresse = abonne.get(id)?.email || adresses.get(id);
     if (!optIn || !adresse || !aEnvoyer.length) { ignores++; continue; }
-    const sujet = aEnvoyer.length === 1
+    const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");
+    const sujet = t0 ? resumeCourt(`${t0.donnees?.source === "scrutin_final" ? (t0.donnees?.resultat?.adopte ? "Adopté" : "Vote final") : "Journal officiel"} : ${t0.title}`, 110)
+      : aEnvoyer.length === 1
       ? resumeCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}` : aEnvoyer[0].title, 110)
       : `${aEnvoyer.length} alertes pour vous`;
+    const apercu = process.argv.find(x => x.startsWith("--apercu="))?.split("=").slice(1).join("=");
+    if (apercu) { (await import("node:fs")).writeFileSync(apercu, html(profil.get(id)?.display_name || "", aEnvoyer)); console.log(`Aperçu : ${apercu}`); return; }
     if (await envoyerMail(adresse, sujet, html(profil.get(id)?.display_name || "", aEnvoyer), { desabo: `${SITE_URL}/dashboard#preferences` })) envoyes++;
     await new Promise(r => setTimeout(r, 600));   // limite de débit Resend
   }

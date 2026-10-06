@@ -31,7 +31,10 @@ const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 type Alerte = { titre: string; detail: string | null; url: string | null; date: string | null; importance: number };
 
 export async function generateSuivisNotifications() {
-  const suivis = await fetchAll("user_suivis", "user_id, kind, ref, label", q => q);
+  // Partis et candidats : seulement avec l'accord explicite du membre (opinion politique, RGPD art. 9).
+  const accords = new Set((await fetchAll("user_preferences", "user_id", q => q.not("consentement_suivis", "is", null))).map((p: any) => p.user_id));
+  const suivis = (await fetchAll("user_suivis", "user_id, kind, ref, label", q => q))
+    .filter((s: any) => !["parti", "candidat"].includes(s.kind) || accords.has(s.user_id));
   console.log(`> ${suivis.length} suivi(s) élargi(s).`);
   if (!suivis.length) return 0;
   const depuis = new Date(Date.now() - JOURS * 86400000).toISOString();

@@ -1,10 +1,10 @@
 name: Alertes membres et récap hebdomadaire
 on:
   schedule:
-    # Toutes les heures : alertes des suivis (partis, ministères, candidats, commissions)
-    # et du territoire, puis envoi des alertes « dans l'heure ».
+    # Toutes les heures : analyse des nouveaux textes et alertes « un texte vous concerne »
+    # (la seule alerte immédiate des membres Pro), mise à jour des suivis et du territoire.
     - cron: '15 * * * *'
-    # Chaque soir : le résumé quotidien des alertes au rythme « chaque soir ».
+    # Chaque soir : le résumé quotidien des membres NON Pro (inchangé pour eux).
     - cron: '30 17 * * *'
     # Samedi : « La semaine politique en 5 minutes ». Le script ne part qu'à 8 h,
     # heure de Paris (6 h UTC l'été, 7 h UTC l'hiver).
@@ -35,8 +35,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
+      - run: npm run automation:alertes-textes
+        if: env.ETAPE == 'alertes'
+        continue-on-error: true
       - run: npm run automation:suivis-notifications
-        if: env.ETAPE != 'recap'
+        if: env.ETAPE == 'alertes'
         continue-on-error: true
       - run: npm run automation:interest-notifications
         if: env.ETAPE == 'alertes'
