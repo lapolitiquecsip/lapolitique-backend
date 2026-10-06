@@ -59,6 +59,13 @@ export async function syncSenatorOdsen() {
     if (r[iMat]) activeByMat.set(r[iMat], r);
   }
   console.log(`> ODSEN : ${activeByMat.size} sénateurs actifs.`);
+  // Garde-fou : le 6 octobre 2026, le portail a servi une page HTML à la place du CSV ;
+  // zéro « ACTIF » lu → les 419 sénateurs passés « sortis » et le site vidé de ses
+  // sénateurs pendant six heures. Le Sénat en compte 348 : en dessous de 300, on s'arrête
+  // sans rien écrire.
+  if (iMat < 0 || iEtat < 0 || iNom < 0 || activeByMat.size < 300) {
+    throw new Error(`ODSEN illisible (${activeByMat.size} sénateurs actifs lus, colonnes ${iMat}/${iEtat}/${iNom}) : fichier indisponible ou changé. Aucune écriture.`);
+  }
 
   const { data: senators, error } = await supabase.from("senators").select("id, first_name, last_name, photo_url");
   if (error) throw error;
