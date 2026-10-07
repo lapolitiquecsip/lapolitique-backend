@@ -126,9 +126,17 @@ async function main() {
     // Membre Pro : seule l'alerte « un texte vous concerne » part sur le moment ;
     // tout le reste (votes courants, suivis, local) attend le récap du samedi.
     void rythmes;
-    const rythme = (c: string): string => (pro ? (c === "textes" ? "immediat" : "hebdo") : c === "textes" ? "immediat" : "quotidien");
-    const aucun = alertes.filter(a => rythme(categorieDe(a)) === "aucun");
-    const duMode = alertes.filter(a => rythme(categorieDe(a)) === MODE);
+    // Pro : les textes qui le concernent tout de suite ; un fait MAJEUR (importance 5 :
+    // candidature, programme publié, mise en examen, alliance…) d'un parti ou d'un candidat
+    // qu'il suit aussi ; tout le reste attend le récap du samedi.
+    const rythme = (n: any): string => {
+      const c = categorieDe(n);
+      if (c === "textes") return "immediat";
+      if (pro) return c === "suivis" && (n.importance ?? 0) >= 5 ? "immediat" : "hebdo";
+      return "quotidien";
+    };
+    const aucun = alertes.filter(a => rythme(a) === "aucun");
+    const duMode = alertes.filter(a => rythme(a) === MODE);
     traites.push(...aucun.map(a => a.id));
     if (!duMode.length) continue;
     traites.push(...duMode.map(a => a.id));   // traitées même sous le seuil : jamais renvoyées
@@ -141,7 +149,8 @@ async function main() {
     const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");
     const sujet = t0 ? resumeCourt(`${t0.donnees?.source === "scrutin_final" ? (t0.donnees?.resultat?.adopte ? "Adopté" : "Vote final") : "Journal officiel"} : ${t0.title}`, 110)
       : aEnvoyer.length === 1
-      ? resumeCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}` : aEnvoyer[0].title, 110)
+      ? resumeCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}`
+        : categorieDe(aEnvoyer[0]) === "suivis" && aEnvoyer[0].domain ? `${aEnvoyer[0].domain} : ${aEnvoyer[0].title}` : aEnvoyer[0].title, 110)
       : `${aEnvoyer.length} alertes pour vous`;
     const apercu = process.argv.find(x => x.startsWith("--apercu="))?.split("=").slice(1).join("=");
     if (apercu) { (await import("node:fs")).writeFileSync(apercu, html(profil.get(id)?.display_name || "", aEnvoyer)); console.log(`Aperçu : ${apercu}`); return; }

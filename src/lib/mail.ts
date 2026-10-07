@@ -91,9 +91,12 @@ export function rubrique(emoji: string, intitule: string, couleur: string, conte
 }
 
 /** Une ligne d'information : étiquette facultative, titre (lien), résumé court. */
-export function ligne({ titre, url, resume, etiquette, couleur = "#6366f1", meta }: {
+export function ligne({ titre, url, resume, etiquette, couleur = "#6366f1", meta, retour, libelleRetour = "Pas intéressant" }: {
   titre: string; url?: string | null; resume?: string | null; etiquette?: string | null; couleur?: string; meta?: string | null;
+  /** Lien « Pas intéressant » (un clic, sans connexion) : le récap en tient compte ensuite. */
+  retour?: string | null; libelleRetour?: string;
 }): string {
+  if (retour) meta = `${meta ? `${meta} · ` : ""}<a href="${esc(retour)}" style="color:${COULEURS.pale};text-decoration:underline">${esc(libelleRetour)}</a>`;
   const t = url ? `<a href="${esc(url)}" style="color:${COULEURS.encre};text-decoration:none">${esc(titre)}</a>` : esc(titre);
   return `<div style="padding:13px 0;border-bottom:1px solid ${COULEURS.filet}">
   ${etiquette ? `<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${couleur};margin-bottom:4px">${esc(etiquette)}</div>` : ""}

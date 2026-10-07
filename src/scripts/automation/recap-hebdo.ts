@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "crypto";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { matchDomains, INTEREST_DOMAINS } from "../../lib/interest-domains.js";
@@ -22,11 +23,18 @@ import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc,
  *   --test=adresse@exemple.fr  : un seul envoi, à ce membre, à toute heure, sans journal
  *   --force                    : ignore l'heure (rattrapage)
  *   --apercu=fichier.html      : écrit l'e-mail du premier membre dans un fichier, n'envoie rien
+ *   --relecture                : vendredi soir — aperçu envoyé aux administrateurs, chaque ligne
+ *                                avec « Retirer de l'envoi » ; l'édito est figé pour samedi
  */
 const arg = (n: string) => process.argv.find(a => a.startsWith(`--${n}=`))?.split("=").slice(1).join("=");
 const TEST = arg("test");
 const APERCU = arg("apercu");
 const FORCE = process.argv.includes("--force");
+const RELECTURE = process.argv.includes("--relecture");
+// Lignes retirées à la relecture du vendredi (clé = titre normalisé).
+const cleTitre = (t: string) => crypto.createHash("md5").update(norm(String(t || "")).replace(/\s+/g, " ").trim().slice(0, 140)).digest("hex").slice(0, 16);
+let EXCLUES = new Set<string>();
+let SAMEDI = "";
 const JOUR = 86400000;
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const labelDomaine = (c: string) => INTEREST_DOMAINS.find(d => d.code === c)?.label || c;
@@ -199,6 +207,14 @@ Ne signale pas les simples reformulations fidèles. Réponds en JSON : {"non_app
 
 const fmtJour = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 
+/** Une ligne d'e-mail, sauf si l'éditeur l'a retirée ; en relecture, avec « Retirer de l'envoi ». */
+function ligneR(o: Parameters<typeof ligne>[0]): string {
+  if (EXCLUES.has(cleTitre(o.titre))) return "";
+  if (RELECTURE) return ligne({ ...o, libelleRetour: "Retirer de l'envoi",
+    retour: `${SITE_URL}/admin/recap/?s=${SAMEDI}&k=${cleTitre(o.titre)}&t=${encodeURIComponent(o.titre.slice(0, 110))}` });
+  return ligne(o);
+}
+
 function composer(commun: Awaited<ReturnType<typeof semaine>>, ed: Awaited<ReturnType<typeof edito>>, perso: {
   prenom: string; votes: any[]; suivis: any[]; local: Info[]; sujets: (Info & { domaine: string })[]; lieu: string | null; demo: boolean; jeton: string | null;
   textes: any[]; videos: Info[];
@@ -206,7 +222,10 @@ function composer(commun: Awaited<ReturnType<typeof semaine>>, ed: Awaited<Retur
   const blocs: string[] = [];
   const mots = (s: string) => s.split(/\s+/).length;
   let lecture = 0;
-  const lignes = (l: Info[], couleur: string) => { const vus = new Set<string>(); const h = l.filter(i => { const k = norm(i.titre).slice(0, 70); return !vus.has(k) && !!vus.add(k); }).map(i => ligne({ titre: resumeCourt(i.titre, 115), url: i.url, resume: resumeCourt(i.resume, 170), etiquette: i.etiquette, couleur })).join(""); lecture += mots(h.replace(/<[^>]+>/g, " ")); return h; };
+  // « Pas intéressant » : un clic depuis l'e-mail, enregistré avec le jeton personnel du membre.
+  const retour = (cat: string, entite: string | null | undefined, titre: string) => perso.jeton
+    ? `${SITE_URL}/retour/?j=${perso.jeton}&c=${cat}&e=${encodeURIComponent(String(entite || "").slice(0, 80))}&t=${encodeURIComponent(titre.slice(0, 110))}` : null;
+  const lignes = (l: Info[], couleur: string, cat?: string, entiteDe?: (i: Info) => string | null) => { const vus = new Set<string>(); const h = l.filter(i => { const k = norm(i.titre).slice(0, 70); return !vus.has(k) && !!vus.add(k); }).map(i => ligneR({ titre: resumeCourt(i.titre, 115), url: i.url, resume: resumeCourt(i.resume, 170), etiquette: i.etiquette, couleur, retour: cat ? retour(cat, entiteDe?.(i), i.titre) : null })).join(""); lecture += mots(h.replace(/<[^>]+>/g, " ")); return h; };
 
   if (perso.demo) blocs.push(`<div style="margin-top:20px;padding:12px 14px;border-radius:12px;background:#fef3c7;font-size:12px;color:#92400e">Envoi de test : profil de démonstration (Paris, économie, sécurité, santé). Renseignez votre profil pour un récap à votre mesure.</div>`);
 
@@ -223,6 +242,7 @@ function composer(commun: Awaited<ReturnType<typeof semaine>>, ed: Awaited<Retur
       <div style="font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7c3aed">L'essentiel</div>
       <div style="font-size:22px;line-height:1.25;font-weight:800;color:${COULEURS.encre};margin-top:8px">${esc(ed.accroche)}</div>
       <div style="font-size:15px;line-height:1.65;color:#334155;margin-top:10px">${esc(ed.edito)}</div>
+      ${RELECTURE ? `<div style="margin-top:8px;font-size:12px"><a href="${SITE_URL}/admin/recap/?s=${SAMEDI}&k=__edito__&t=${encodeURIComponent("Édito : " + ed.accroche)}" style="color:#b91c1c">Retirer cet édito (remplacé par la liste des titres sourcés)</a></div>` : ""}
       ${ed.a_retenir?.length ? `<div style="margin-top:16px;padding:16px 18px;border-radius:16px;background:#f5f3ff">
         <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6d28d9;margin-bottom:6px">À retenir</div>
         ${ed.a_retenir.slice(0, 5).map(p => `<div style="font-size:14px;line-height:1.5;color:${COULEURS.encre};padding:4px 0">▸ ${esc(p)}</div>`).join("")}
@@ -235,18 +255,18 @@ function composer(commun: Awaited<ReturnType<typeof semaine>>, ed: Awaited<Retur
   if (perso.textes.length) perso_.push(rubrique("📜", "Les textes qui vous concernent", "#7c3aed", perso.textes.slice(0, 5).map(t => {
     const r = t.donnees?.resultat;
     const res = r && r.pour != null ? `${r.adopte ? "Adopté" : "Rejeté"} — ${r.pour} pour, ${r.contre} contre, ${r.abstention} abstentions` : null;
-    return ligne({ titre: t.title, url: t.url, resume: [t.detail, res].filter(Boolean).join(" · ") || null, etiquette: t.domain, couleur: "#7c3aed" });
+    return ligneR({ titre: t.title, url: t.url, resume: [t.detail, res].filter(Boolean).join(" · ") || null, etiquette: t.domain, couleur: "#7c3aed", retour: retour("textes", t.domain, t.title) });
   }).join("")));
   if (perso.votes.length) perso_.push(rubrique("🗳️", "Vos élus ont voté", "#4f46e5", perso.votes.slice(0, 6).map(v =>
-    ligne({ titre: v.detail || v.title, url: v.url, resume: v.detail ? v.title : null, etiquette: v.position ? `Vote : ${v.position}` : null,
+    ligneR({ titre: v.detail || v.title, url: v.url, resume: v.detail ? v.title : null, etiquette: v.position ? `Vote : ${v.position}` : null,
       couleur: v.position === "POUR" ? "#059669" : v.position === "CONTRE" ? "#e11d48" : "#d97706" })).join("")));
-  if (perso.suivis.length) perso_.push(rubrique("⭐", "Ce que vous suivez", "#d97706", perso.suivis.slice(0, 6).map(s =>
-    ligne({ titre: s.title, url: s.url, resume: resumeCourt(s.detail, 150), etiquette: s.domain, couleur: "#b45309" })).join("")));
-  if (perso.videos.length) perso_.push(rubrique("📺", "À la télé et en débat", "#0f766e", lignes(perso.videos, "#0f766e"),
-    "Les passages de la semaine des personnalités que vous suivez — titres et descriptions tels que publiés par les chaînes."));
-  if (perso.local.length) perso_.push(rubrique("📍", perso.lieu ? `Près de chez vous · ${perso.lieu}` : "Près de chez vous", "#e11d48", lignes(perso.local, "#e11d48")));
+  if (perso.suivis.length) perso_.push(rubrique("⭐", "Ce que vous suivez", "#d97706", perso.suivis.slice(0, 7).map(s =>
+    ligneR({ titre: s.title, url: s.url, resume: resumeCourt(s.detail, 150), etiquette: s.domain, couleur: "#b45309", retour: retour("suivis", s.domain, s.title) })).join("")));
+  if (perso.videos.length) perso_.push(rubrique("📺", "À la télé et en débat", "#0f766e", lignes(perso.videos, "#0f766e", "tele", i => String(i.etiquette || "").split(" · ")[0]),
+    "Les passages de la semaine des personnalités que vous suivez — résumés rédigés par IA à partir de ce qui y est dit (chiffres vérifiés contre la transcription)."));
+  if (perso.local.length) perso_.push(rubrique("📍", perso.lieu ? `Près de chez vous · ${perso.lieu}` : "Près de chez vous", "#e11d48", lignes(perso.local, "#e11d48", "local", () => perso.lieu)));
   if (perso.sujets.length) perso_.push(rubrique("🎯", "Vos sujets", "#0891b2", perso.sujets.map(i =>
-    ligne({ titre: i.titre, url: i.url, resume: resumeCourt(i.resume, 150), etiquette: labelDomaine(i.domaine), couleur: "#0e7490" })).join("")));
+    ligneR({ titre: i.titre, url: i.url, resume: resumeCourt(i.resume, 150), etiquette: labelDomaine(i.domaine), couleur: "#0e7490", retour: retour("sujets", i.domaine, i.titre) })).join("")));
   if (perso_.length) blocs.push(`<div style="margin-top:34px;font-family:'Staatliches',Impact,'Arial Narrow Bold',sans-serif;font-size:26px;text-transform:uppercase;color:${COULEURS.encre}">Pour vous</div>`, ...perso_);
 
   // Au Parlement
@@ -315,14 +335,19 @@ function motsCommuns(a: string, b: string): number {
 
 async function main() {
   const heureParis = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Europe/Paris" }));
-  if (!TEST && !APERCU && !FORCE && heureParis !== 8) { console.log(`[Récap] Il est ${heureParis} h à Paris : envoi à 8 h seulement.`); return; }
+  if (!TEST && !APERCU && !FORCE && !RELECTURE && heureParis !== 8) { console.log(`[Récap] Il est ${heureParis} h à Paris : envoi à 8 h seulement.`); return; }
 
   const fin = new Date(); const debut = new Date(fin.getTime() - 7 * JOUR);
-  const samedi = fin.toISOString().slice(0, 10);
+  // Le samedi d'envoi : aujourd'hui, ou le lendemain pour la relecture du vendredi.
+  const samedi = new Date(fin.getTime() + ((6 - fin.getUTCDay() + 7) % 7) * JOUR).toISOString().slice(0, 10);
+  SAMEDI = samedi;
+  EXCLUES = new Set(((await supabase.from("recap_exclusions").select("cle").eq("semaine", samedi)).data || []).map((r: any) => r.cle));
 
   // Destinataires : membres Pro (ou le membre de test).
   let ids: string[];
-  if (TEST) {
+  if (RELECTURE) {
+    ids = ((await supabase.from("administrateurs").select("user_id")).data || []).map((a: any) => a.user_id);
+  } else if (TEST) {
     let trouve: string | null = null;
     for (let page = 1; page <= 20 && !trouve; page++) {
       const { data: u } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
@@ -336,21 +361,28 @@ async function main() {
     ids = (await fetchAll("profiles", "id", q => q.eq("subscription_tier", "pro"))).map((p: any) => p.id);
   }
   const prefs = new Map((await fetchAll("user_preferences", "user_id, interests, region, department, city, age_range, profession, perimetre, recap_hebdo, jeton_desabo, consentement_suivis", q => q.in("user_id", ids))).map((p: any) => [p.user_id, p]));
-  const deja = TEST || APERCU ? new Set<string>() : new Set((await fetchAll("recaps_envoyes", "user_id", q => q.eq("semaine", samedi))).map((r: any) => r.user_id));
-  const destinataires = ids.filter(id => (prefs.get(id)?.recap_hebdo ?? true) && !deja.has(id));
+  const deja = TEST || APERCU || RELECTURE ? new Set<string>() : new Set((await fetchAll("recaps_envoyes", "user_id", q => q.eq("semaine", samedi))).map((r: any) => r.user_id));
+  const destinataires = RELECTURE ? ids : ids.filter(id => (prefs.get(id)?.recap_hebdo ?? true) && !deja.has(id));
   console.log(`[Récap] ${destinataires.length} destinataire(s) (${ids.length} membre(s) Pro, ${deja.size} déjà servi(s)).`);
   if (!destinataires.length) return;
 
   const commun = await semaine(debut.toISOString());
   console.log(`[Récap] Semaine : ${commun.lois.length} texte(s) adopté(s), ${commun.actualites.length} actu(s), ${commun.executif.length} info(s) exécutif, ${commun.nbSondages} sondage(s).`);
-  const ed = await edito(commun);
+  // Édito : celui validé à la relecture du vendredi s'il existe (le même texte part samedi),
+  // sauf s'il a été retiré ; sinon rédigé et vérifié maintenant.
+  let ed: Awaited<ReturnType<typeof edito>> = null;
+  if (!EXCLUES.has("__edito__")) {
+    const fige = RELECTURE ? null : (await supabase.from("recap_editos").select("contenu").eq("semaine", samedi).maybeSingle()).data?.contenu;
+    ed = fige || await edito(commun);
+    if (RELECTURE && ed && !simulation) await supabase.from("recap_editos").upsert({ semaine: samedi, contenu: ed }, { onConflict: "semaine" });
+  }
   const adresses = await adressesDesMembres(destinataires);
   const { data: profils } = await supabase.from("profiles").select("id, display_name").in("id", destinataires);
   const prenom = new Map((profils || []).map((p: any) => [p.id, (p.display_name || "").split(" ")[0]]));
 
   // Vidéos et débats de la semaine (candidats), chargés une fois.
-  const videosSemaine = await fetchAll("candidate_videos", "candidate_id, title, url, description, published_at", q => q.gte("published_at", debut.toISOString()));
-  const debats = await fetchAll("candidate_debates", "candidate_id, title, url, broadcaster, kind, date, a_venir", q => q.gte("date", debut.toISOString().slice(0, 10)).eq("a_venir", false));
+  const videosSemaine = await fetchAll("candidate_videos", "candidate_id, title, url, description, published_at, resume_ia", q => q.gte("published_at", debut.toISOString()));
+  const debats = await fetchAll("candidate_debates", "candidate_id, title, url, broadcaster, kind, date, a_venir, resume_ia", q => q.gte("date", debut.toISOString().slice(0, 10)).eq("a_venir", false));
 
   // Fil local de la semaine, chargé une fois.
   const fil = await fetchAll("entity_feed", "entity_type, entity_id, title, summary, url, published_at, news_type, place, place_scope",
@@ -359,7 +391,7 @@ async function main() {
   let envoyes = 0;
   for (const id of destinataires) {
     let p = prefs.get(id); let demo = false;
-    if (TEST && !p?.city && !p?.department && !(p?.interests || []).length) {
+    if ((TEST || RELECTURE) && !p?.city && !p?.department && !(p?.interests || []).length) {
       p = { ...p, city: "Paris", department: "75", interests: ["economie", "securite", "sante"], perimetre: "departement" }; demo = true;
     }
     const loc = await resolveLocation(p?.city || null, p?.department || null);
@@ -368,6 +400,11 @@ async function main() {
       .eq("user_id", id).gte("created_at", debut.toISOString()).order("importance", { ascending: false }).limit(200);
     const cat = (n: any) => n.categorie || (n.position || n.type === "vote" ? "votes" : n.type === "local" ? "local" : n.type === "loi" ? "lois" : "suivis");
     const votes = (notifs || []).filter(n => cat(n) === "votes");
+    // « Pas intéressant » (60 derniers jours) : deux clics sur une même source la font
+    // taire (suivis : seuls ses faits majeurs passent encore).
+    const { data: retours } = await supabase.from("retours_mails").select("categorie, entite").eq("user_id", id)
+      .gte("cree_le", new Date(Date.now() - 60 * 864e5).toISOString());
+    const refus = (c: string, e: string | null | undefined) => (retours || []).filter(r => r.categorie === c && norm(r.entite || "") === norm(e || "")).length >= 2;
     // Suivis : le plus important seulement — deux informations au plus par personnalité ou
     // organisation suivie, les plus importantes, sans doublon d'un même fait.
     const SIGNAL = /(annonce|programme|candidat|plainte|mis en examen|condamn|enqu[eê]te|d[ée]mission|propos|r[ée]v[ée]l|d[ée]bat|vote|loi|r[ée]forme|budget|sondage)/i;
@@ -376,14 +413,14 @@ async function main() {
     // (nominations de sous-préfets, désignation d'un rapporteur en commission).
     const ROUTINE_SUIVI = /^(nomination|titularisation|d[ée]l[ée]gation|cessation|admission|promotion|d[ée]tachement|r[ée]int[ée]gration|d[ée]signation)\b|portant nomination/i;
     for (const n of (notifs || []).filter(n => cat(n) === "suivis" && n.type !== "sondage" && !ROUTINE_SUIVI.test(String(n.title || "").trim())
-      && (n.importance ?? 3) >= (/^suivi_(parti|candidat)$/.test(n.type) ? 4 : 3))) {
+      && (n.importance ?? 3) >= (refus("suivis", n.domain) ? 5 : /^suivi_(parti|candidat)$/.test(n.type) ? 4 : 3))) {
       const k = n.domain || "?"; const l = parEntite.get(k) || [];
       if (l.some(x => norm(x.title).slice(0, 45) === norm(n.title).slice(0, 45))) continue;
       l.push(n); parEntite.set(k, l);
     }
     const suivis = [...parEntite.values()].flatMap(l => l
       .sort((a, b) => (b.importance ?? 3) + Number(SIGNAL.test(b.title)) - ((a.importance ?? 3) + Number(SIGNAL.test(a.title))))
-      .slice(0, 2)).slice(0, 6);
+      .slice(0, 3)).slice(0, 7);
     const textesSemaine = (notifs || []).filter(n => cat(n) === "textes");
 
     // Passages télé et débats des candidats suivis, sur la semaine.
@@ -394,18 +431,19 @@ async function main() {
     const refs = new Map((sesCandidats || []).map((c: any) => [String(c.ref), c.label]));
     const videos: Info[] = [
       ...debats.filter((d: any) => refs.has(String(d.candidate_id))).map((d: any): Info => ({
-        titre: d.title, resume: null, url: d.url, date: d.date, source: "debat", importance: 4,
+        titre: d.title, resume: d.resume_ia || null, url: d.url, date: d.date, source: "debat", importance: 4,
         etiquette: `${refs.get(String(d.candidate_id))} · ${d.broadcaster || d.kind || "débat"} · ${new Date(d.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` })),
       ...videosSemaine.filter((v: any) => refs.has(String(v.candidate_id))).map((v: any): Info => ({
-        titre: v.title, resume: resumeCourt(descriptionUtile(v.description), 150) || null, url: v.url, date: v.published_at, source: "video", importance: 3,
+        titre: v.title, resume: v.resume_ia || resumeCourt(descriptionUtile(v.description), 150) || null, url: v.url, date: v.published_at, source: "video", importance: 3,
         etiquette: `${refs.get(String(v.candidate_id))} · ${new Date(v.published_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` })),
     ].sort((a, b) => b.importance - a.importance || String(b.date).localeCompare(String(a.date)))
       // Même émission publiée deux fois (« EN DIRECT | … » puis la rediffusion) : une seule.
-      .filter((v, i, l) => !l.slice(0, i).some(w => motsCommuns(w.titre, v.titre) >= 0.6)).slice(0, 4);
+      .filter((v, i, l) => !l.slice(0, i).some(w => motsCommuns(w.titre, v.titre) >= 0.6))
+      .filter(v => !refus("tele", String(v.etiquette || "").split(" · ")[0])).slice(0, 4);
 
     // Territoire : sa commune d'abord, puis son département (ou sa région), selon son périmètre.
     const perimetre = p?.perimetre || "departement";
-    const local: Info[] = perimetre === "national" ? [] : fil.filter((f: any) =>
+    const local: Info[] = perimetre === "national" || refus("local", p?.city) ? [] : fil.filter((f: any) =>
       (f.entity_type === "commune" && String(f.entity_id) === loc.communeCode)
       || (perimetre !== "commune" && f.entity_type === "department" && String(f.entity_id) === loc.deptCode && f.place_scope !== "commune")
       || (perimetre === "region" && f.entity_type === "region" && String(f.entity_id) === loc.regionCode))
@@ -414,7 +452,7 @@ async function main() {
 
     // Centres d'intérêt : ce que la semaine a produit sur ses sujets.
     const vus = new Set<string>();
-    const sujets = commun.reservoir.map(i => ({ ...i, domaines: matchDomains(`${i.titre} ${i.resume || ""}`).filter(d => interets.includes(d)) }))
+    const sujets = commun.reservoir.map(i => ({ ...i, domaines: matchDomains(`${i.titre} ${i.resume || ""}`).filter(d => interets.includes(d) && !refus("sujets", d)) }))
       .filter(i => i.domaines.length && !vus.has(norm(i.titre)) && vus.add(norm(i.titre)))
       .sort((a, b) => b.importance - a.importance).slice(0, 4).map(i => ({ ...i, domaine: i.domaines[0] }));
 
@@ -428,10 +466,11 @@ async function main() {
     }
     const adresse = adresses.get(id);
     if (!adresse) continue;
-    const sujet = ed?.accroche ? `La semaine politique en 5 min : ${ed.accroche}` : `La semaine politique en 5 minutes — ${fmtJour(fin)}`;
+    const sujet = RELECTURE ? `[Relecture] Récap de samedi : retirez ce qui ne doit pas partir${ed?.accroche ? ` — ${ed.accroche}` : ""}`
+      : ed?.accroche ? `La semaine politique en 5 min : ${ed.accroche}` : `La semaine politique en 5 minutes — ${fmtJour(fin)}`;
     if (await envoyerMail(adresse, sujet.slice(0, 140), html, { desabo })) {
       envoyes++;
-      if (!TEST && !simulation) {
+      if (!TEST && !RELECTURE && !simulation) {
         await supabase.from("recaps_envoyes").upsert({ user_id: id, semaine: samedi, nb_items: votes.length + suivis.length + local.length + sujets.length }, { onConflict: "user_id,semaine" });
         // Les alertes au rythme « hebdo » sont servies par ce récap : elles ne repartiront pas seules.
         const enAttente = (notifs || []).filter(n => !n.emailed_at).map(n => n.id);

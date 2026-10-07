@@ -1,0 +1,35 @@
+name: Programmes et vidéos des candidats (dès parution)
+# Toutes les 3 h : nouvelles vidéos des chaînes officielles → présentation de programme
+# détectée, transcrite (sous-titres, sinon Gemini), restructurée fidèlement par thème →
+# fiche du candidat ET fiche de son parti ; puis les « ? » explicatifs.
+# Les programmes publiés en page web sont relevés par presidentielles-sync.yml (quotidien).
+on:
+  schedule:
+    - cron: '10 */3 * * *'
+  workflow_dispatch:
+concurrency:
+  group: programmes-candidats
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  programmes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+      PYTHON: python3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: python3 -m pip install -q -U yt-dlp
+      - run: npm run data:sync-candidate-videos
+        continue-on-error: true
+      - run: npx tsx src/scripts/data/programmes-videos.ts --jours=4
+      - run: npx tsx src/scripts/data/explain-proposals.ts --payant
+      # Résumés des vidéos et débats à partir de ce qui y est dit (récap Pro, fiches).
+      - run: npx tsx src/scripts/data/resumer-videos.ts --jours=7 --max=12
+        continue-on-error: true

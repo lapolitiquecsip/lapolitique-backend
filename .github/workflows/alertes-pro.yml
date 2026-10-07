@@ -9,10 +9,11 @@ on:
     # Samedi : « La semaine politique en 5 minutes ». Le script ne part qu'à 8 h,
     # heure de Paris (6 h UTC l'été, 7 h UTC l'hiver).
     - cron: '0 6,7 * * 6'
+    - cron: '0 16 * * 5'      # vendredi 18 h Paris (17 h l'hiver) : relecture du récap par l'administrateur
   workflow_dispatch:
     inputs:
       etape:
-        description: "alertes | soir | recap"
+        description: "alertes | soir | recap | relecture"
         default: alertes
 concurrency:
   group: alertes-pro
@@ -31,7 +32,7 @@ jobs:
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
       SITE_URL: https://lapolitiquecestsimple.fr
-      ETAPE: ${{ github.event.schedule == '0 6,7 * * 6' && 'recap' || github.event.schedule == '30 17 * * *' && 'soir' || inputs.etape || 'alertes' }}
+      ETAPE: ${{ github.event.schedule == '0 6,7 * * 6' && 'recap' || github.event.schedule == '0 16 * * 5' && 'relecture' || github.event.schedule == '30 17 * * *' && 'soir' || inputs.etape || 'alertes' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
@@ -66,5 +67,7 @@ jobs:
         continue-on-error: true
         run: |
           curl -sf -X POST "$SUPABASE_URL/functions/v1/parrainage-versements" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{"action":"verser"}'
+      - run: npm run automation:recap-hebdo -- --relecture
+        if: env.ETAPE == 'relecture'
       - run: npm run automation:recap-hebdo ${{ github.event_name == 'workflow_dispatch' && '-- --force' || '' }}
         if: env.ETAPE == 'recap'

@@ -55,12 +55,13 @@ Pour chaque item, renvoie :
   2 = petite phrase, polémique verbale, réponse à une attaque ;
   1 = avis ou réaction d'un tiers, analyse, portrait, sondage.
 - "raison" : 8 mots maximum.
-Réponds en JSON strict : { "items": [ { "i": 0, "nature": "fait", "acteur": true, "importance": 4, "raison": "..." } ] }`;
+- "evenement" : le FAIT D'ORIGINE dont parle l'article, en une phrase neutre de 14 mots maximum, attribuée à sa source quand c'est une révélation ou une accusation (« Mediapart attribue à Jordan Bardella des écrits antisémites »). Deux articles sur le même fait ont le même "evenement", mot pour mot. N'emploie que des noms et chiffres présents dans le titre ou le résumé.
+Réponds en JSON strict : { "items": [ { "i": 0, "nature": "fait", "acteur": true, "importance": 4, "raison": "...", "evenement": "..." } ] }`;
 
 const AVIS_REGLE = /\b(selon|estime|juge|dénonce|fustige|tacle|réagit|commente|critique|accuse|s'en prend|tribune|édito|chronique|analyse|décryptage|portrait|sondage|qu'en pensez|faut-il)\b|\?\s*$|^[«"]/i;
 const FAIT_FORT = /(candidat(ure)?|investi|programme|alliance|fusion|rupture|mis(e)? en examen|condamn|relax|d[ée]mission|[ée]lu|d[ée]sign[ée]|congr[eè]s|primaire|propos(e|ition)|d[ée]pose|annonce|lance)/i;
 
-type Verdict = { importance: number; nature: string; acteur: boolean; raison?: string; methode: string };
+type Verdict = { importance: number; nature: string; acteur: boolean; raison?: string; methode: string; evenement?: string | null };
 
 /** Secours sans IA : prudent (rien n'atteint 4 sans motif fort, et jamais un avis). */
 function regles(entite: string, titre: string): Verdict {
@@ -73,8 +74,9 @@ async function trier(items: { cle: string; entite: string; titre: string; detail
   const res = new Map<string, Verdict>();
   if (!items.length) return res;
   for (let k = 0; k < items.length; k += 200) {
-    const { data: connus } = await supabase.from("tri_suivis").select("cle, importance, nature, acteur, raison, methode").in("cle", items.slice(k, k + 200).map(i => i.cle));
-    for (const c of connus || []) res.set(c.cle, c as Verdict);
+    const { data: connus } = await supabase.from("tri_suivis").select("cle, importance, nature, acteur, raison, methode, evenement").in("cle", items.slice(k, k + 200).map(i => i.cle));
+    // Jugés avant l'ajout de l'« événement » : rejugés une fois.
+    for (const c of connus || []) if (c.evenement) res.set(c.cle, c as Verdict);
   }
   const neufs = items.filter(i => !res.has(i.cle));
   for (let k = 0; k < neufs.length; k += 15) {
@@ -95,7 +97,7 @@ async function trier(items: { cle: string; entite: string; titre: string; detail
     const lignes = lot.map((x, i) => {
       const v = verdicts?.find((y: any) => Number(y.i) === i);
       const verdict: Verdict = v && Number(v.importance) >= 1
-        ? { importance: Math.min(5, Math.max(1, Number(v.importance))), nature: String(v.nature || "declaration"), acteur: !!v.acteur, raison: v.raison ? String(v.raison).slice(0, 120) : undefined, methode: "ia" }
+        ? { importance: Math.min(5, Math.max(1, Number(v.importance))), nature: String(v.nature || "declaration"), acteur: !!v.acteur, raison: v.raison ? String(v.raison).slice(0, 120) : undefined, methode: "ia", evenement: v.evenement ? String(v.evenement).slice(0, 160) : null }
         : regles(x.entite, x.titre);
       res.set(x.cle, verdict);
       return { cle: x.cle, entite: x.entite.slice(0, 120), titre: x.titre.slice(0, 300), ...verdict };
@@ -105,6 +107,40 @@ async function trier(items: { cle: string; entite: string; titre: string; detail
     if (aGarder.length && !DRY) await supabase.from("tri_suivis").upsert(aGarder, { onConflict: "cle" });
   }
   return res;
+}
+
+/** Part des mots significatifs communs à deux phrases (0 à 1). */
+function motsCommuns(a: string, b: string): number {
+  const mots = (t: string) => new Set(norm(t).split(/[^a-z0-9]+/).filter(m => m.length > 3));
+  const x = mots(a), y = mots(b);
+  if (!x.size || !y.size) return 0;
+  return [...x].filter(m => y.has(m)).length / Math.min(x.size, y.size);
+}
+
+/**
+ * Regroupe les articles d'une entité par fait d'origine (« evenement » donné par le tri).
+ * Retient les faits commentés par 3 articles au moins dont aucun n'est déjà une alerte
+ * (importance ≥ 4), et dont la formulation est vérifiable : chaque nom propre et chaque
+ * chiffre de l'« evenement » figure dans un des titres du groupe.
+ */
+function evenementsSansFait(items: { a: Alerte; v: Verdict | undefined }[]) {
+  const groupes: { evenement: string; membres: { a: Alerte; v: Verdict }[] }[] = [];
+  for (const it of items) {
+    const e = it.v?.evenement;
+    if (!e || !it.v) continue;
+    const g = groupes.find(x => motsCommuns(x.evenement, e) >= 0.6);
+    if (g) g.membres.push({ a: it.a, v: it.v }); else groupes.push({ evenement: e, membres: [{ a: it.a, v: it.v }] });
+  }
+  return groupes.filter(g => g.membres.length >= 3 && !g.membres.some(m => importanceTriee(m.v) >= 4)).filter(g => {
+    const titres = norm(g.membres.map(m => `${m.a.titre} ${m.a.detail || ""}`).join(" "));
+    const nomsEtChiffres = (g.evenement.match(/\b([A-ZÉÈÀ][\wéèêàçïî'-]{2,}|\d+(?:[.,]\d+)?)/g) || []).slice(1);   // le 1er mot porte la majuscule de phrase
+    return nomsEtChiffres.every(x => titres.includes(norm(x)));
+  }).map(g => {
+    // Source : l'article le plus factuel du groupe, le plus ancien à égalité.
+    const rang = (m: { v: Verdict }) => (m.v.nature === "fait" ? 0 : m.v.nature === "declaration" ? 1 : 2);
+    const source = [...g.membres].sort((x, y) => rang(x) - rang(y) || String(x.a.date).localeCompare(String(y.a.date)))[0].a;
+    return { evenement: g.evenement, n: g.membres.length, source };
+  });
 }
 
 /** Importance retenue : plafonnée à 2 si ce n'est pas un fait dont l'entité suivie est l'acteur. */
@@ -184,6 +220,7 @@ export async function generateSuivisNotifications() {
   console.log(`> ${aTrier.size} actu(s) de partis/candidats triée(s) : ${[...verdicts.values()].filter(v => importanceTriee(v) >= 4).length} jugée(s) importante(s).`);
 
   const maintenant = new Date().toISOString();
+  const reNotes: { user_id: string; dedup_key: string; importance: number }[] = [];
   const lignes: any[] = [];
   const parMembre = new Map<string, number>();
   for (const s of suivis) {
@@ -191,6 +228,8 @@ export async function generateSuivisNotifications() {
       if (!a0.titre) continue;
       const v = (s.kind === "parti" || s.kind === "candidat") ? verdicts.get(cleTri(s, a0)) : undefined;
       const a = v ? { ...a0, importance: importanceTriee(v) } : a0;
+      // Une alerte déjà créée garde sa clé : sa note suit le tri (même à la baisse).
+      if (v) reNotes.push({ user_id: s.user_id, dedup_key: `suivi|${s.kind}|${s.ref}|${cle(String(a.url || a.titre))}`, importance: a.importance });
       // Avis, réactions, analyses : pas d'alerte du tout.
       if (a.importance < 3) continue;
       if ((parMembre.get(s.user_id) || 0) >= MAX_PAR_MEMBRE) break;
@@ -202,12 +241,35 @@ export async function generateSuivisNotifications() {
         created_at: maintenant, read: false, dedup_key: `suivi|${s.kind}|${s.ref}|${cle(String(a.url || a.titre))}`,
       });
     }
+
+    // Le fait derrière les réactions : quand 3 articles ou plus commentent un même fait
+    // et qu'aucun n'a été retenu, une seule ligne neutre donne le fait d'origine.
+    if (s.kind === "parti" || s.kind === "candidat") {
+      for (const g of evenementsSansFait(alertesDe(s.kind, s.ref).filter(a => a.titre).map(a => ({ a, v: verdicts.get(cleTri(s, a)) })))) {
+        if ((parMembre.get(s.user_id) || 0) >= MAX_PAR_MEMBRE) break;
+        parMembre.set(s.user_id, (parMembre.get(s.user_id) || 0) + 1);
+        lignes.push({
+          user_id: s.user_id, type: `suivi_${s.kind}`, categorie: "suivis",
+          title: majuscule(g.evenement).slice(0, 300), detail: `Fait commenté par ${g.n} articles cette semaine. Source citée : ${g.source.titre}`.slice(0, 300),
+          domain: s.label.slice(0, 60), importance: 4, url: g.source.url, event_at: g.source.date,
+          created_at: maintenant, read: false, dedup_key: `evt|${s.kind}|${s.ref}|${cle(norm(g.evenement))}`,
+        });
+      }
+    }
   }
   console.log(`> ${lignes.length} alerte(s) de suivi pour ${parMembre.size} membre(s).`);
   if (DRY) { for (const l of lignes.slice(0, 10)) console.log(`   [${l.domain}] ${l.title.slice(0, 80)}`); return lignes.length; }
   for (let i = 0; i < lignes.length; i += 500) {
     const { error } = await supabase.from("user_notifications").upsert(lignes.slice(i, i + 500), { onConflict: "user_id,dedup_key", ignoreDuplicates: true });
     if (error) throw error;
+  }
+  // Notes réécrites sur les alertes existantes (groupées par membre et par note).
+  const groupes = new Map<string, string[]>();
+  for (const r of reNotes) { const k = `${r.user_id}|${r.importance}`; groupes.set(k, [...(groupes.get(k) || []), r.dedup_key]); }
+  for (const [k, cles] of groupes) {
+    const [uid, imp] = k.split("|");
+    for (let i = 0; i < cles.length; i += 100)
+      await supabase.from("user_notifications").update({ importance: Number(imp) }).eq("user_id", uid).in("dedup_key", cles.slice(i, i + 100)).neq("importance", Number(imp));
   }
   return lignes.length;
 }

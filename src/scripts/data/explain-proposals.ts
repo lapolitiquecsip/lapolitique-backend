@@ -70,9 +70,9 @@ async function explainOne(text: string, theme: string | null): Promise<string | 
   const figures = [...new Set(domains.flatMap(d => NATIONAL_FIGURES[d] || []))].slice(0, 5);
   const figuresBlock = figures.length ? figures.map(f => `- ${f}`).join("\n") : "(aucun chiffre national fourni pour ce thème — n'en invente pas)";
   const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-chat", max_tokens: 500, system: SYS,
+    model: "deepseek-chat", max_tokens: 500, system: SYS, sansReflexion: true,
     messages: [{ role: "user", content: `PROPOSITION : ${text}\n\nCHIFFRES NATIONAUX VÉRIFIÉS (à utiliser uniquement ceux-ci) :\n${figuresBlock}` }],
-  }, { timeoutMs: 60000 });
+  }, { timeoutMs: 60000, payant: process.argv.includes("--payant") });
   const t = resp.content[0]?.text?.trim();
   return t && t.length > 30 ? t : null;
 }
