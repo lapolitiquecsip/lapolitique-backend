@@ -106,6 +106,8 @@ async function fetchChannel(candidateId: string, channelId: string): Promise<num
     const videoId = e.find("yt\\:videoId, videoId").first().text().trim();
     const title = e.find("title").first().text().trim();
     if (!videoId || !title) return;
+    // Shorts (clips verticaux de quelques secondes) : pas dans le fil d'actualité.
+    if (/\/shorts\//.test(e.find("link").first().attr("href") || "")) return;
     const published = e.find("published").first().text().trim();
     const d = published ? new Date(published) : null;
     rows.push({

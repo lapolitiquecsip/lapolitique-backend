@@ -62,6 +62,7 @@ const AVIS = /\b(selon|pour (?:[A-ZÉ][\wéèàç-]+ ){1,3}[,:]|estime|juge|juge
 /** Publication sans IA : le titre doit nommer le parti (ou un terme de sa requête) et ne pas être un avis. */
 function brutPubliable(titre: string, src: any): boolean {
   if (AVIS.test(titre)) return false;
+  if (/(…|\.\.\.)\s*$/.test(titre)) return false;   // titre coupé : jamais publié tel quel
   const t = deacc(titre);
   return termesRequete(src.feed_url).some(x => x.length >= 3 && t.includes(deacc(x))) || mentionsEntity(titre, src.entity_name);
 }

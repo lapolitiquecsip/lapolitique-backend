@@ -86,6 +86,9 @@ export async function syncPresidentialNews() {
       if (existing) continue;
 
       const { clean, source } = sourceFromTitle(item.title || "");
+      // Titre coupé par Google News ou « teaser » à points de suspension : illisible pour le
+      // lecteur (« … participera à la primaire de l ... »). Jamais publié tel quel.
+      if (/(…|\.\.\.)\s*$/.test(clean)) continue;
       const snippet = (item.contentSnippet || item.content || "").slice(0, 500);
 
       try {
@@ -99,7 +102,10 @@ export async function syncPresidentialNews() {
           // Mode brut (sans IA) : filtre minimal de pertinence (le nom du candidat dans le titre).
           const last = candidate.full_name.split(" ").pop()?.toLowerCase() || "";
           if (last && !clean.toLowerCase().includes(last)) continue;
-          row = { title: clean, summary: snippet.slice(0, 200) || null, news_type: "actualite" };
+          // L'extrait Google News n'est que « titre  source » : pas de résumé plutôt qu'une redite.
+          const extrait = snippet.replace(/\s+/g, " ").trim();
+          const redite = extrait.toLowerCase().startsWith(clean.toLowerCase().slice(0, 40));
+          row = { title: clean, summary: extrait && !redite ? extrait.slice(0, 400) : null, news_type: "actualite" };
         }
 
         const { error: insertError } = await supabase.from("candidate_news").insert({
