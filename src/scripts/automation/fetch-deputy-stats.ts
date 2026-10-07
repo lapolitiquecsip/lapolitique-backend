@@ -1,6 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
+/** Datan donne parfois un code au lieu du nom (« 099 », « 986 ») ou une casse différente :
+ *  on écrit toujours le nom officiel, celui des cartes et des filtres du site. */
+const NOMS_PAR_CODE: Record<string, string> = {
+  "099": "Français établis hors de France", "99": "Français établis hors de France", "ZZ": "Français établis hors de France",
+  "975": "Saint-Pierre-et-Miquelon", "977": "Saint-Barthélemy et Saint-Martin", "978": "Saint-Barthélemy et Saint-Martin", "Saint-Barthélemy": "Saint-Barthélemy et Saint-Martin", "986": "Wallis-et-Futuna",
+  "987": "Polynésie française", "988": "Nouvelle-Calédonie",
+};
+function nomCirconscription(brut: string): string | null {
+  const t = (brut || "").trim();
+  if (!t) return null;
+  if (NOMS_PAR_CODE[t]) return NOMS_PAR_CODE[t];
+  if (/^côtes-d'armor$/i.test(t)) return "Côtes-d'Armor";
+  return t;
+}
+
 dotenv.config();
 
 const supabase = createClient(
@@ -213,7 +228,7 @@ export async function syncDeputyStats() {
           an_id: anId, first_name: prenom, last_name: nom, slug,
           party: abbr || gv(row, 'groupe').trim() || null,
           party_color: GROUP_COLOR[abbr] || null,
-          department: gv(row, 'departementNom').trim() || null,
+          department: nomCirconscription(gv(row, 'departementNom')),
           constituency_number: num(gv(row, 'circo')),
           photo_url: `https://www.assemblee-nationale.fr/dyn/static/tribun/17/photos/carre/${anId.replace('PA', '')}.jpg`,
           participation_rate: pct(gv(row, 'scoreParticipation')),
