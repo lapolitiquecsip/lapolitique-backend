@@ -1,0 +1,20 @@
+name: Sanctions du Conseil constitutionnel
+# Chaque lundi : décisions électorales (base CONSTIT, DILA) → inéligibilités, démissions
+# d'office, déchéances, élections annulées → rattachées aux fiches (homonymes écartés).
+on:
+  schedule:
+    - cron: '20 5 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sanctions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/data/sanctions-conseil-constitutionnel.ts
