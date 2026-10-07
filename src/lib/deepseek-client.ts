@@ -18,6 +18,23 @@ import OpenAI from 'openai';
 export const DEEPSEEK_FLASH = 'deepseek-v4-flash';
 export const DEEPSEEK_PRO   = 'deepseek-v4-pro';
 
+/**
+ * Le modèle réellement envoyé à DeepSeek.
+ * — deepseek-v4-pro n'est jamais appelé en automatique : sans LLM_AUTORISER_PRO=1,
+ *   il est ramené à flash (law-summarizer le listait en second essai, ce qui l'aurait
+ *   appelé dès que le secours payant était allumé).
+ * — l'alias retiré « deepseek-chat », encore écrit dans la plupart des scripts, va
+ *   directement à flash au lieu de coûter un aller-retour en erreur 4xx.
+ */
+function modeleDeepSeek(m: string): string {
+  if (m === 'deepseek-chat') return DEEPSEEK_FLASH;
+  if (m === DEEPSEEK_PRO && process.env.LLM_AUTORISER_PRO !== '1') {
+    console.warn(`[LLM/DEEPSEEK] ${DEEPSEEK_PRO} refusé en automatique (LLM_AUTORISER_PRO absent) → ${DEEPSEEK_FLASH}.`);
+    return DEEPSEEK_FLASH;
+  }
+  return m;
+}
+
 const MAX_RETRIES = parseInt(process.env.DEEPSEEK_MAX_RETRIES || '3', 10);
 
 // Scripts d'écriture non latins jamais légitimes dans le contenu français du site (CJK, kana,
@@ -218,6 +235,7 @@ export class ResilientDeepSeek {
   private async callProvider(
     client: OpenAI, queue: RequestQueue, params: DeepSeekMessageParams, timeoutMs: number, label: string,
   ): Promise<DeepSeekMessage> {
+    if (label === 'DEEPSEEK') params = { ...params, model: modeleDeepSeek(params.model) };
     const exec = async (): Promise<DeepSeekMessage> => {
       let attempt = 0, delay = 2000;
       while (true) {
