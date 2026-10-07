@@ -157,5 +157,11 @@ export async function syncSenatorOdsen() {
 }
 
 if (process.argv[1] && process.argv[1].endsWith("sync-senator-odsen.ts")) {
-  syncSenatorOdsen().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); });
+  syncSenatorOdsen().then(() => process.exit(0)).catch(err => {
+    // Source senat.fr injoignable ou illisible depuis les serveurs de GitHub (blocage, page
+    // HTML) : rien n'est écrit (garde-fou), et ce n'est pas une panne du site — avertissement,
+    // pas d'échec quotidien. Toute autre erreur (base, code) fait toujours échouer le job.
+    if (/^ODSEN (HTTP|illisible)/.test(String(err?.message))) { console.log(`::warning::${err.message}`); process.exit(0); }
+    console.error(err); process.exit(1);
+  });
 }

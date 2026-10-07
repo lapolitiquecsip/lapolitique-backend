@@ -20,4 +20,5 @@ jobs:
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:register-sources
       - run: npm run data:sync-government
-      - run: npx tsx src/scripts/import-senators-real.ts
+      # Sénateurs : synchronisés par sync-senateurs-senatfr / sync-senator-odsen (l'ancien
+      # import-senators-real.ts écrivait une colonne disparue et échouait chaque jour).

@@ -35,7 +35,9 @@ const cleanDate = (s: string) => { const m = (s || "").match(/(\d{4})[-/](\d{2})
 export async function syncDepartmentPresidents() {
   console.log("--- SYNC PRÉSIDENTS DE DÉPARTEMENT (RNE) ---");
   const meta: any = await (await fetch(DATASET, { headers: { "User-Agent": "LaPolitiqueBot/1.0" }, signal: AbortSignal.timeout(30000) })).json();
-  const res = (meta.resources || []).find((r: any) => String(r.url).includes("conseillers-departementaux"));
+  // Le nom du fichier change d'une publication à l'autre (« conseillers-departementaux » puis
+  // « conseiller-departemental ») : on accepte les deux, titre ou adresse.
+  const res = (meta.resources || []).find((r: any) => /conseill\w*[-_ ]departement/i.test(`${r.title} ${r.url}`));
   if (!res) throw new Error("Ressource RNE conseillers départementaux introuvable.");
 
   const buf = await (await fetch(res.url, { headers: { "User-Agent": "LaPolitiqueBot/1.0" }, signal: AbortSignal.timeout(45000) })).arrayBuffer();
