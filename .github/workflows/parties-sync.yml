@@ -26,6 +26,8 @@ jobs:
       - run: npm run automation:deputy-stats
       # 1b) Roster AUTORITAIRE AN (députés actifs) → détection des départs (sitting=false)
       - run: npm run data:sync-deputy-roster
+      # Élus d'une législative partielle : leur résultat (et non celui de 2024 de la circonscription).
+      - run: npx tsx src/scripts/data/resultats-partielles.ts
       # 1b) Eurodéputés français (Parlement européen)
       - run: npm run data:sync-meps
       # 2) Enrichissement Wikipédia/IA (budget, adhérents, fondation…) — mis en cache
