@@ -298,6 +298,8 @@ export async function fetchAndParseVotes() {
       if (scrutinsCount % 100 === 0) console.log(`  - Total Scrutins Processed: ${scrutinsCount}...`);
     }
 
+    await rattraperVotes(jsonEntries, existingIds);
+
     console.log(`\n--- SYNCHRONIZATION COMPLETE ---`);
     console.log(`> Scrutins updated: ${scrutinsCount}`);
     
@@ -314,6 +316,58 @@ export async function fetchAndParseVotes() {
     await logError('fetchAndParseVotes', err, hcId);
     throw err;
   }
+}
+
+/**
+ * Rattrapage des votes des députés arrivés récemment.
+ *
+ * Un vote n'est enregistré que pour un député présent en base au moment où son scrutin est
+ * importé, et un scrutin n'est importé qu'une fois. Un député ajouté après coup (suppléant,
+ * élu d'une partielle) n'avait donc aucun des votes émis entre sa prise de fonction et la
+ * création de sa fiche : Patricia Maussion, Jean Bodart ou Michel Barnier en avaient zéro.
+ *
+ * On relit ici tous les scrutins déjà en base pour les députés entrés en fonction depuis
+ * AN_RATTRAPAGE_JOURS jours (45 par défaut), plus ceux listés dans AN_RATTRAPAGE_IDS.
+ * Idempotent (upsert sur la paire député × scrutin).
+ */
+async function rattraperVotes(jsonEntries: AdmZip.IZipEntry[], existingIds: Set<string>) {
+  const jours = parseInt(process.env.AN_RATTRAPAGE_JOURS || '45', 10);
+  const depuis = new Date(Date.now() - jours * 86400000).toISOString().slice(0, 10);
+  const { data: recents, error } = await supabase.from('deputies').select('an_id')
+    .eq('sitting', true).gte('date_prise_fonction', depuis);
+  if (error) { console.warn(`> Rattrapage des votes ignoré : ${error.message}`); return; }
+  const cibles = new Set<string>([
+    ...(recents || []).map(d => String(d.an_id || '').trim().toUpperCase()),
+    ...(process.env.AN_RATTRAPAGE_IDS || '').split(',').map(s => s.trim().toUpperCase()),
+  ].filter(Boolean));
+  if (!cibles.size) return;
+  console.log(`> Rattrapage des votes pour ${cibles.size} député(s) arrivé(s) récemment…`);
+
+  const lignes: any[] = [];
+  for (const entry of jsonEntries) {
+    const id = (entry.entryName.match(/(VT[A-Z0-9]+)\.json$/i)?.[1] || '').toUpperCase();
+    if (!existingIds.has(id)) continue;   // mêmes règles que l'import : seuls les scrutins retenus en base
+    const brut = entry.getData().toString('utf8');
+    if (![...cibles].some(c => brut.includes(c))) continue;   // lecture rapide avant le JSON
+    const s = JSON.parse(brut).scrutin;
+    const groupes = s?.ventilationVotes?.organe?.groupes?.groupe;
+    for (const g of (Array.isArray(groupes) ? groupes : groupes ? [groupes] : [])) {
+      const nominatif = g.vote?.decompteNominatif;
+      if (!nominatif) continue;
+      for (const [cle, pos] of [['pours', 'POUR'], ['contres', 'CONTRE'], ['abstentions', 'ABSTENTION'], ['nonVotants', 'NON_VOTANT']] as const) {
+        const v = nominatif[cle]?.votant;
+        for (const d of (Array.isArray(v) ? v : v ? [v] : [])) {
+          const acteur = String(d?.acteurRef || '').trim().toUpperCase();
+          if (cibles.has(acteur)) lignes.push({ deputy_an_id: acteur, scrutin_id: s.uid, position: pos, date_scrutin: s.dateScrutin });
+        }
+      }
+    }
+  }
+  for (let i = 0; i < lignes.length; i += 1000) {
+    const { error: e } = await supabase.from('deputy_votes').upsert(lignes.slice(i, i + 1000), { onConflict: 'deputy_an_id, scrutin_id' });
+    if (e) console.error(`  [ERROR] rattrapage des votes : ${e.message}`);
+  }
+  console.log(`> Rattrapage : ${lignes.length} vote(s) individuel(s) vérifié(s) ou ajouté(s).`);
 }
 
 // Standalone execution support
