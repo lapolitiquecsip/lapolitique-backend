@@ -65,3 +65,5 @@ jobs:
       #    Avant, l'étape n'avait lieu que « le lundi » en heure UTC ; le passage de 22:20 démarrant
       #    en pratique après minuit, elle ne tournait presque jamais et les nouveaux restaient sans bio.
       - run: npm run data:sync-deputy-bios -- --limit=300
+      # 6) Comptes X/Facebook et site des députés entrés depuis 60 jours (Wikidata, par identifiant AN).
+      - run: npx tsx src/scripts/data/completer-reseaux-deputes.ts --depuis=$(date -u -d '60 days ago' +%F)
