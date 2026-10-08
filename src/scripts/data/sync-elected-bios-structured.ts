@@ -139,6 +139,8 @@ async function structureBio(name: string, reference: string): Promise<any | null
 
 NEUTRALITÉ ABSOLUE : aucun jugement de valeur, aucun qualificatif idéologique, aucun adjectif évaluatif. Faits, dates, fonctions, chiffres.
 
+ENTRÉE EN FONCTION : « élu(e) » ne désigne qu'une élection. Un suppléant qui remplace le titulaire (motif « remplacement… » dans la fiche officielle) n'est pas élu à la date de sa prise de fonction : écris « devient député(e) en remplacement de … » ; il a été élu suppléant lors des législatives où le binôme l'a emporté.
+
 EXIGENCES : exhaustif et précis (dates, chiffres, lieux, intitulés). Chaque rubrique est un TABLEAU de points (3 à 8 si l'info existe). Rubrique absente → tableau vide [].
 
 Réponds en JSON strict :
