@@ -60,9 +60,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           SITE_URL: https://lapolitiquecestsimple.fr
-      # 5) Bios structurées des députés (IA). HEBDO (lundi uniquement) : les bios ne changent
-      #    quasi jamais → une passe/semaine suffit et divise le coût DeepSeek de ce poste par ~7.
-      - id: dow
-        run: echo "monday=$([ "$(date -u +%u)" = "1" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      # 5) Bios structurées des députés (IA gratuite). Chaque jour : le script ne traite que les
+      #    députés SANS bio à jour (nouveaux entrants surtout), donc presque rien d'habitude.
+      #    Avant, l'étape n'avait lieu que « le lundi » en heure UTC ; le passage de 22:20 démarrant
+      #    en pratique après minuit, elle ne tournait presque jamais et les nouveaux restaient sans bio.
       - run: npm run data:sync-deputy-bios -- --limit=300
-        if: steps.budget.outputs.has_budget == 'true' && steps.dow.outputs.monday == 'true'
