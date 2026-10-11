@@ -1,0 +1,102 @@
+import "dotenv/config";
+import fs from "fs";
+import { supabase } from "../../config/supabase.js";
+import { lireCycle, TERMINALES, type Cycle, type Item } from "../../lib/cycles.js";
+
+/**
+ * LE CONTRÔLEUR — dernier agent de chaque cycle.
+ *
+ * Sa seule tâche : s'assurer que rien ne reste en route. Il ne détecte, ne rédige ni ne
+ * publie ; il lit le journal et répond à une question : « tout ce qui devait être en ligne
+ * l'est-il ? ». Il produit un état des lieux par cycle (résumé du passage GitHub), et fait
+ * échouer le passage — donc envoie un courriel — quand un objet est bloqué depuis trop
+ * longtemps. UNE alerte par blocage : un objet déjà signalé ne redéclenche rien tant qu'il
+ * n'a pas bougé.
+ *
+ * Usage : npx tsx src/scripts/agents/controleur.ts [--sans-alerte]
+ */
+const SANS_ALERTE = process.argv.includes("--sans-alerte");
+
+/** Délai, en jours, au-delà duquel un objet resté à cette étape est considéré bloqué. */
+const DELAIS: Record<Cycle, Record<string, number>> = {
+  programmes: { detecte: 2, redige: 1, a_revoir: 0 },
+  // Un compte rendu met couramment deux à trois semaines à paraître ; l'analyse suit en un jour.
+  auditions: { detecte: 30, collecte: 4 },
+};
+const NOMS: Record<string, string> = {
+  detecte: "détecté, pas encore repris", collecte: "collecté, analyse en attente", redige: "rédigé, à vérifier",
+  verifie: "vérifié, prêt à publier", en_ligne: "en ligne", a_transcrire: "vidéo à transcrire",
+  sans_source: "sans compte rendu ni vidéo", a_revoir: "à revoir par un humain", ecarte: "écarté",
+};
+
+const jours = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 864e5);
+
+async function main() {
+  const lignes: string[] = ["# Cycles d'agents — état des lieux", ""];
+  const alertes: Item[] = [];
+
+  for (const cycle of ["programmes", "auditions"] as Cycle[]) {
+    const items = [...(await lireCycle(cycle)).values()];
+    const parEtape = new Map<string, Item[]>();
+    for (const i of items) parEtape.set(i.etape, [...(parEtape.get(i.etape) ?? []), i]);
+    // Dénominateur : ce qui PEUT être en ligne. Une réunion dont le compte rendu n'est pas
+    // encore paru n'est pas un retard de notre chaîne.
+    const suivis = items.filter(i => i.etape !== "sans_source" && i.etape !== "ecarte"
+      && (cycle !== "auditions" || i.donnees?.ref || i.etape === "a_transcrire"));
+    const attendus = items.filter(i => cycle === "auditions" && i.etape === "detecte" && !i.donnees?.ref).length;
+    const enLigne = parEtape.get("en_ligne")?.length ?? 0;
+
+    lignes.push(`## ${cycle === "programmes" ? "Programmes des candidats" : "Auditions et réunions de commission (Assemblée)"}`, "");
+    lignes.push(`**${enLigne} en ligne sur ${suivis.length} suivis** (${suivis.length ? Math.round(100 * enLigne / suivis.length) : 0} %).`, "");
+    if (attendus) lignes.push(`${attendus} réunion(s) récente(s) attendent encore la parution de leur compte rendu par l'Assemblée.`, "");
+    lignes.push("| Étape | Nombre |", "|---|---:|");
+    for (const [e, l] of [...parEtape.entries()].sort((a, b) => b[1].length - a[1].length)) lignes.push(`| ${NOMS[e] ?? e} | ${l.length} |`);
+    lignes.push("");
+
+    const bloques = items.filter(i => {
+      const delai = DELAIS[cycle][i.etape];
+      if (delai === undefined || TERMINALES.has(i.etape)) return false;
+      // L'âge se compte depuis la réunion ou la parution, pas depuis la première détection.
+      return jours(i.date_objet ?? i.detecte_le) >= delai;
+    }).sort((a, b) => (a.date_objet ?? "").localeCompare(b.date_objet ?? ""));
+    if (bloques.length) {
+      lignes.push(`### ${bloques.length} blocage(s)`, "");
+      for (const b of bloques.slice(0, 40)) {
+        lignes.push(`- **${b.date_objet ?? "?"}** · ${b.sujet ?? ""} — ${(b.titre ?? b.cle).slice(0, 110)}`
+          + `\n  - ${NOMS[b.etape] ?? b.etape}${b.erreur ? ` : ${b.erreur}` : ""}${b.source_url ? ` · ${b.source_url}` : ""}`);
+      }
+      if (bloques.length > 40) lignes.push(`- … et ${bloques.length - 40} autres.`);
+      lignes.push("");
+      alertes.push(...bloques.filter(b => !b.alerte_le));
+    }
+
+    const prets = parEtape.get("verifie") ?? [];
+    if (prets.length) {
+      lignes.push("### Brouillons vérifiés, en attente de mise en ligne", "",
+        "Publication automatique coupée (variable `PROGRAMMES_PUBLICATION_AUTO` absente) : mode d'observation.", "");
+      for (const p of prets) {
+        const b = (p.donnees?.brouillon_verifie ?? []) as { theme: string; propositions: string[] }[];
+        lignes.push(`- ${p.sujet} — ${p.titre ?? p.cle} : ${b.reduce((n, t) => n + t.propositions.length, 0)} propositions en ${b.length} thèmes`
+          + ` (${(p.donnees?.rejets ?? []).length} écartées) · ${p.source_url}`);
+      }
+      lignes.push("");
+    }
+    const videos = parEtape.get("a_transcrire") ?? [];
+    if (videos.length) lignes.push(`> ${videos.length} réunion(s) sans compte rendu écrit, à transcrire depuis la vidéo`
+      + ` (dont ${videos.filter(v => v.donnees?.lien).length} avec le lien vidéo déjà connu).`, "");
+  }
+
+  const rapport = lignes.join("\n");
+  console.log(rapport);
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, rapport + "\n");
+
+  if (alertes.length && !SANS_ALERTE) {
+    for (const a of alertes) {
+      await supabase.from("cycle_items").update({ alerte_le: new Date().toISOString() }).eq("cycle", a.cycle).eq("cle", a.cle);
+      console.log(`::error title=Cycle ${a.cycle} bloqué::${a.date_objet ?? ""} ${(a.titre ?? a.cle).slice(0, 120)} — ${a.erreur ?? NOMS[a.etape] ?? a.etape}`);
+    }
+    process.exit(1);
+  }
+}
+
+main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });

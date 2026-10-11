@@ -1,0 +1,52 @@
+name: Cycles d'agents (programmes, auditions)
+# Des agents spécialisés qui se passent le relais par la table cycle_items :
+#   veilleurs  → remarquent une parution de programme, une réunion de commission tenue
+#   rédacteur  → tire un brouillon de la page d'un programme
+#   vérificateur → confronte le brouillon au texte source, mot à mot (sans IA)
+#   contrôleur → dit ce qui est en ligne, ce qui est bloqué, et alerte une fois par blocage
+#
+# MODE D'OBSERVATION : rien n'est publié sur le site tant que la variable de dépôt
+# PROGRAMMES_PUBLICATION_AUTO ne vaut pas 1. Les tâches existantes (relevé hebdomadaire des
+# sites, comptes rendus de commission, analyses) tournent comme avant, sans modification.
+# Voir docs/agents-cycles.md.
+on:
+  schedule:
+    # 07h20 UTC : juste après la remise à zéro du quota gratuit du modèle (07h00), avant
+    # les tâches de la matinée qui le consomment. Le rédacteur n'a besoin que de peu d'appels.
+    - cron: '20 7 * * *'
+    # 16h40 UTC : second passage des veilleurs, pour une parution de la journée.
+    - cron: '40 16 * * *'
+  workflow_dispatch:
+concurrency:
+  group: agents-cycles
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  cycles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      PROGRAMMES_PUBLICATION_AUTO: ${{ vars.PROGRAMMES_PUBLICATION_AUTO }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # Chaque agent est indépendant : la panne de l'un n'empêche pas les autres de passer.
+      - name: Programmes · veilleur
+        run: npx tsx src/scripts/agents/programmes-veilleur.ts
+        continue-on-error: true
+      - name: Programmes · rédacteur
+        run: npx tsx src/scripts/agents/programmes-redacteur.ts --max=2
+        continue-on-error: true
+      - name: Programmes · vérificateur
+        run: npx tsx src/scripts/agents/programmes-verificateur.ts
+        continue-on-error: true
+      - name: Auditions · veilleur
+        run: npx tsx src/scripts/agents/auditions-veilleur.ts
+        continue-on-error: true
+      - name: Contrôleur
+        run: npx tsx src/scripts/agents/controleur.ts

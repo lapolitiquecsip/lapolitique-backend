@@ -9,7 +9,7 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 // deepseek-chat, + un CONTEXTE (« pourquoi ce thème ») tiré du texte. Garde-fou anti-coût :
 // on ne relance l'IA que si les données du candidat ont plus de FRESH_DAYS (proposals stables).
 // FORCE_PROPOSALS=1 force la régénération.
-const PROGRAMS: Record<string, { base: string; index: string }> = {
+export const PROGRAMS: Record<string, { base: string; index: string }> = {
   "david lisnard": { base: "https://www.unenouvelleenergie.fr", index: "/notre-programme/" },
   "bruno retailleau": { base: "https://www.republicains.fr", index: "/nos-propositions/" },   // programme LR (son parti)
   "delphine batho": { base: "https://generationecologie.fr", index: "/notre-projet/" },
@@ -23,7 +23,7 @@ const FORCE = process.argv.includes("--force") || process.env.FORCE_PROPOSALS ==
 const CONTEXT_MARK = "__contexte__";
 
 const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-const NOISE = /(recevez|newsletter|s'engager|s’engager|participer|proposer vos idées|faire un don|adhérer|adherer|rejoignez|mentions légales|abonnez|suivez-nous|cookies)/i;
+export const NOISE = /(recevez|newsletter|s'engager|s’engager|participer|proposer vos idées|faire un don|adhérer|adherer|rejoignez|mentions légales|abonnez|suivez-nous|cookies)/i;
 
 async function fetchDoc(url: string): Promise<cheerio.CheerioAPI | null> {
   try {
@@ -60,7 +60,7 @@ Réponds en JSON STRICT :
 
 RÈGLES : reste FIDÈLE au texte (aucune invention, aucun ajout, aucune opinion). Capture TOUTES les propositions concrètes présentes (vise l'exhaustivité). Chaque proposition = 1 phrase claire. Si le texte est purement introductif, "proposals" peut être court.`;
 
-async function extractIdeas(theme: string, text: string): Promise<{ context: string | null; proposals: string[] }> {
+export async function extractIdeas(theme: string, text: string): Promise<{ context: string | null; proposals: string[] }> {
   const resp = await resilientDeepSeek.createMessage({
     model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object",
     system: SYS, messages: [{ role: "user", content: `THÈME : ${theme}\n\nTEXTE :\n${text}` }],

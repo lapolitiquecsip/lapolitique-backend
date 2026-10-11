@@ -1,0 +1,87 @@
+# Cycles d'agents
+
+Mis en place le 11 octobre 2026, en **mode d'observation** : rien de ce qui est décrit ici ne
+modifie le site tant que le drapeau de publication n'est pas levé.
+
+## Le principe
+
+Un **cycle** est une chaîne d'agents qui se passent le relais. Chaque agent ne fait qu'une
+chose, et la fait pour tous les objets arrivés à son étape. Le relais est une table,
+`cycle_items` : un agent y lit ce que le précédent a laissé, y pose son travail, et le suivant
+le prend. Personne n'appelle personne.
+
+Ce que cela change par rapport aux tâches d'avant, qui faisaient tout d'un bloc :
+
+- **Rien ne disparaît en silence.** Chaque objet a une ligne, avec son étape et le motif de
+  son blocage. Avant, une page qui répondait 503 était sautée et personne ne le savait.
+- **Une panne reste locale.** Le rédacteur à court de quota n'empêche ni le veilleur de
+  détecter, ni le contrôleur d'alerter. Il reprendra où il s'était arrêté.
+- **Celui qui écrit n'est pas celui qui valide.** Le vérificateur n'utilise aucune IA : il
+  confronte le brouillon au texte source.
+- **Chaque agent peut avoir son modèle.** Détecter ne demande aucune IA ; rédiger en demande
+  une bonne ; vérifier se fait par comparaison de texte. On paie le modèle là où il sert.
+
+## Cycle « programmes des candidats »
+
+| Agent | Tâche unique | IA | Fichier |
+|---|---|---|---|
+| Veilleur | Remarquer une parution : nouvelle page sous un index officiel surveillé ; annonce relayée par au moins trois médias | non | `agents/programmes-veilleur.ts` |
+| Rédacteur | Tirer un brouillon de la page (thèmes, contexte, propositions), avec la consigne qui a produit la fiche Lisnard | oui | `agents/programmes-redacteur.ts` |
+| Vérificateur | Retirer toute proposition dont un chiffre ou les mots ne se retrouvent pas dans un même passage de la source | non | `agents/programmes-verificateur.ts` |
+| Mise en ligne | Écrire sur la fiche les seules lignes de cette source | non | idem, sous drapeau |
+| Explications « ? » | Tâche existante `explain-proposals`, inchangée : elle complète toute proposition sans explication | oui | `data/explain-proposals.ts` |
+| Contrôleur | Dire ce qui est en ligne, ce qui attend, ce qui est bloqué | non | `agents/controleur.ts` |
+
+Étapes : `detecte` → `redige` → `verifie` → `en_ligne` ; `a_revoir` quand un humain doit trancher.
+
+**Deux filières.** Les sites déjà relevés chaque semaine par `sync-candidate-proposals`
+(Lisnard, Retailleau, Batho) restent à cette tâche : le veilleur constate, le rédacteur n'y
+touche pas. La filière « agents » couvre ce que personne ne relevait : aujourd'hui les plans
+thématiques et d'investissement de Jean-Luc Mélenchon, qui paraissent un par un.
+
+**Ajouter un candidat** : une ligne dans la carte `SITES` de `programmes-veilleur.ts`, avec
+l'adresse de la page d'index de son programme. Pour les candidats sans page connue, seul le
+signal de presse joue : il demande un regard humain, il ne déclenche aucune rédaction.
+
+**Passer en publication automatique** : variable de dépôt GitHub
+`PROGRAMMES_PUBLICATION_AUTO=1`. Les brouillons vérifiés en attente sont alors publiés au
+passage suivant. Sans elle, le contrôleur les liste dans son rapport.
+
+## Cycle « auditions »
+
+Les agents de collecte et d'analyse sont **les tâches existantes, inchangées**. Le cycle leur
+ajoute ce qui manquait : une liste de référence et un contrôle.
+
+| Agent | Tâche unique | Fichier |
+|---|---|---|
+| Veilleur | Tenir la liste de toutes les réunions de commission tenues (agenda open data de l'Assemblée) et l'état de chacune | `agents/auditions-veilleur.ts` |
+| Collecteur | Lire le compte rendu écrit, résumé court | `data/sync-commission-reports.ts` (existant) |
+| Transcripteur | Transcrire la vidéo quand il n'y a pas de compte rendu écrit | `transcribe-auditions.ts`, dépôt du site (existant, **jamais activé**) |
+| Analyste | Analyse détaillée lue par l'abonné Pro | `update-commissions.ts`, dépôt du site (existant) |
+| Contrôleur | Signaler toute réunion dont le compte rendu existe et n'est pas en ligne | `agents/controleur.ts` |
+
+Étapes : `detecte` → `collecte` → `en_ligne` ; `a_transcrire` (vidéo seule) ; `sans_source`.
+
+État au 11 octobre 2026, sur cinq mois : 394 réunions publiables, 366 en ligne (93 %),
+6 comptes rendus récents en attente de collecte, 22 réunions filmées sans compte rendu écrit.
+
+## Ce qui reste à faire
+
+1. **Transcription des auditions sans compte rendu écrit.** Il manque une clé de
+   transcription (secret `ASR_API_KEY`, gratuite chez Groq) et la recherche de la vidéo
+   d'une réunion à partir de son identifiant d'agenda. Le journal liste déjà les réunions
+   concernées (étape `a_transcrire`).
+2. **Sénat.** Le veilleur ne couvre que l'Assemblée. Les comptes rendus du Sénat partent déjà
+   des pages d'index officielles, donc le risque d'oubli y est plus faible.
+3. **Étendre la carte `SITES`** à mesure que les candidats ouvrent une page programme.
+4. **Un modèle par agent.** Le rédacteur passe aujourd'hui par le client commun (modèle
+   gratuit, DeepSeek en secours si autorisé). Lui attribuer un modèle propre se fera dans la
+   passerelle unique prévue par l'audit (phase 1).
+
+## Lancer à la main
+
+```
+npx tsx src/scripts/agents/programmes-veilleur.ts --dry-run
+npx tsx src/scripts/agents/programmes-redacteur.ts --url=https://…   # essai, rien n'est écrit
+npx tsx src/scripts/agents/controleur.ts --sans-alerte
+```
