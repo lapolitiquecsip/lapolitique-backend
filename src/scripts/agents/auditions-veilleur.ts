@@ -120,7 +120,8 @@ async function main() {
     const filmee = r.captationVideo === "true";
     const age = (Date.now() - new Date(date).getTime()) / 864e5;
     const connu = suivi.get(r.uid);
-    const base = ref ? enBase.get(ref) : undefined;
+    // Une réunion transcrite depuis sa vidéo est rangée sous son identifiant d'agenda.
+    const base = (ref ? enBase.get(ref) : undefined) ?? enBase.get(r.uid);
 
     let etape: string, erreur: string | null = null, lien: string | undefined;
     if (base) etape = base.analyse ? "en_ligne" : "collecte";

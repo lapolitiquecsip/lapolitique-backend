@@ -85,3 +85,54 @@ npx tsx src/scripts/agents/programmes-veilleur.ts --dry-run
 npx tsx src/scripts/agents/programmes-redacteur.ts --url=https://…   # essai, rien n'est écrit
 npx tsx src/scripts/agents/controleur.ts --sans-alerte
 ```
+
+---
+
+# Banc d'essai multi-agents — 12 au 18 octobre 2026
+
+Demande de l'éditeur : avant de généraliser, tester une semaine, sur toutes les fonctionnalités
+qui s'y prêtent, ce qu'apporte une chaîne de plusieurs agents aux rôles précis.
+
+**Méthode.** Le site continue d'être produit comme d'habitude. Des agents passent derrière
+chaque texte publié et notent, dans le journal `cycle_items` (cycles `banc:<famille>`), ce
+qu'ils auraient arrêté. Rien n'est corrigé ni dépublié : c'est une mesure.
+
+| Agent | Rôle | IA | Fichier |
+|---|---|---|---|
+| Sentinelle | La fonctionnalité produit-elle encore ? (âge de la dernière production) | non | `agents/controleur.ts` |
+| Vérificateur | Nombres et noms propres du texte publié absents de sa source | non | `agents/banc-verificateur.ts` |
+| Relecteur | Un modèle d'une autre maison (gpt-oss d'OpenAI, servi par Groq) juge fidélité, neutralité, clarté | oui | `agents/banc-relecteur.ts` |
+| Contrôleur | Tableau par fonctionnalité, exemples, textes signalés par les deux agents | non | `agents/controleur.ts` |
+
+**Familles dans le banc** (`src/lib/banc.ts`) : analyses des commissions, fil d'actualité de
+l'accueil, fils des ministères/collectivités/communes/partis, actualités des candidats,
+résumés de l'Élysée, « Ce texte vous concerne », veille des controverses.
+
+**Hors banc, faute de source relisible** : résumés des lois et des dossiers (la base ne garde
+que l'adresse du dossier), décrets et Journal officiel (Légifrance fermé aux machines),
+résumés des vidéos (transcription non conservée), explications des scrutins.
+
+**Premier constat (11/10).** Trois fils — entités, candidats, controverses — n'enregistrent
+comme source qu'un lien de redirection Google Actualités : aucun agent ne peut y relire
+l'article. Une chaîne à plusieurs agents y demanderait d'abord un agent collecteur qui garde
+l'adresse réelle et l'extrait dont le résumé est tiré.
+
+**Lecture du résultat.** La colonne « signalés par les deux » compte les textes désignés à la
+fois par le vérificateur (sans IA) et par le relecteur (autre modèle), sans concertation.
+C'est elle qui dit où une chaîne d'agents aurait évité une erreur publiée. Bilan à tirer le
+19 octobre, fonctionnalité par fonctionnalité.
+
+**Limites.** Le relecteur est limité à une demande par minute et ne lit que des extraits des
+sources longues : ses « infidèle » sont des pistes à vérifier, pas des verdicts. Secret requis
+dans GitHub : `GROQ_API_KEY` (dépôt des mises à jour).
+
+# Auditions : Sénat et transcription (11/10/2026)
+
+- `agents/auditions-veilleur-senat.ts` : suit chaque page hebdomadaire des huit commissions
+  permanentes et compare le nombre de réunions publiées au nombre en base. Attrape les pages
+  que le Sénat complète après leur première collecte.
+- Transcription (`transcribe-auditions.ts`, dépôt du site) : lit désormais l'étape
+  `a_transcrire` du journal, retrouve la vidéo sur videos.assemblee-nationale.fr (même jour +
+  nom de famille ou sigle de l'intitulé, une seule candidate, vidéo non partagée par deux
+  réunions), transcrit (Whisper via Groq), analyse, publie et marque la réunion en ligne.
+  Secret requis : `ASR_API_KEY` (dépôt du site).

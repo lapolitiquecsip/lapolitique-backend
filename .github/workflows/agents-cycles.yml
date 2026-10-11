@@ -48,5 +48,31 @@ jobs:
       - name: Auditions · veilleur
         run: npx tsx src/scripts/agents/auditions-veilleur.ts
         continue-on-error: true
+      - name: Auditions · veilleur du Sénat
+        run: npx tsx src/scripts/agents/auditions-veilleur-senat.ts
+        continue-on-error: true
+      # Banc d'essai (12-18 octobre 2026) : contrôle sans IA des derniers textes publiés.
+      - name: Banc d'essai · vérificateur
+        run: npx tsx src/scripts/agents/banc-verificateur.ts --max=12
+        continue-on-error: true
       - name: Contrôleur
         run: npx tsx src/scripts/agents/controleur.ts
+
+  # Le relecteur est un autre modèle (gpt-oss, servi par Groq), limité à une demande par
+  # minute sur le palier gratuit : il a son propre travail pour ne pas retarder les autres.
+  relecteur:
+    runs-on: ubuntu-latest
+    needs: cycles
+    if: always()
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - name: Banc d'essai · relecteur (second modèle)
+        run: npx tsx src/scripts/agents/banc-relecteur.ts --max=4
+      - name: Contrôleur (rapport après relecture)
+        run: npx tsx src/scripts/agents/controleur.ts --sans-alerte

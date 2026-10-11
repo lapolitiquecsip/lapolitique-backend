@@ -2,6 +2,7 @@ import "dotenv/config";
 import fs from "fs";
 import { supabase } from "../../config/supabase.js";
 import { lireCycle, TERMINALES, type Cycle, type Item } from "../../lib/cycles.js";
+import { FAMILLES } from "../../lib/banc.js";
 
 /**
  * LE CONTRÔLEUR — dernier agent de chaque cycle.
@@ -31,6 +32,56 @@ const NOMS: Record<string, string> = {
 
 const jours = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 864e5);
 
+/**
+ * Le banc d'essai : ce que les agents vérificateur et relecteur ont noté sur les textes
+ * publiés, fonctionnalité par fonctionnalité, depuis le début de l'essai. Aucune alerte :
+ * c'est une mesure, pas une panne.
+ */
+async function rapportBanc(): Promise<string[]> {
+  const out: string[] = ["## Banc d'essai multi-agents (observation, rien n'est modifié sur le site)", ""];
+  const tableau: string[] = [];
+  const exemples: string[] = [];
+  let debut = "";
+  for (const f of FAMILLES) {
+    const { data } = await supabase.from("cycle_items").select("etape, titre, erreur, donnees, detecte_le")
+      .eq("cycle", `banc:${f.cle}`).limit(5000);
+    const items = data ?? [];
+    for (const i of items) if (!debut || i.detecte_le < debut) debut = i.detecte_le;
+    const n = (e: string) => items.filter(i => i.etape === e).length;
+    const lisibles = n("conforme") + n("a_revoir");
+    const relus = items.filter(i => i.donnees?.relecteur);
+    const infideles = relus.filter(i => i.donnees.relecteur.fidele === false);
+    const partiaux = relus.filter(i => i.donnees.relecteur.neutre === false);
+    // Les deux agents, indépendants l'un de l'autre, désignent le même texte.
+    const doubles = infideles.filter(i => i.etape === "a_revoir");
+
+    // Sentinelle : la fonctionnalité produit-elle encore ?
+    let q = supabase.from(f.table).select(f.date).not(f.date, "is", null).order(f.date, { ascending: false }).limit(1);
+    if (f.filtre) q = f.filtre(q);
+    const { data: dernier } = await q;
+    const date = (dernier as any)?.[0]?.[f.date];
+    const age = date ? Math.round((Date.now() - new Date(date).getTime()) / 36e5) : null;
+    const fraicheur = age === null ? "—" : `${age < 48 ? `${age} h` : `${Math.round(age / 24)} j`}${age > f.fraicheur ? " ⚠" : ""}`;
+
+    const pct = (a: number, b: number) => (b ? `${Math.round(100 * a / b)} %` : "—");
+    tableau.push(`| ${f.nom} | ${items.length} | ${n("sans_source")} | ${n("a_revoir")} (${pct(n("a_revoir"), lisibles)}) | ${relus.length} | ${infideles.length} (${pct(infideles.length, relus.length)}) | ${partiaux.length} | ${doubles.length} | ${fraicheur} |`);
+
+    for (const i of [...doubles, ...infideles.filter(x => !doubles.includes(x))].slice(0, 2)) {
+      const e = (i.donnees.relecteur.erreurs ?? [])[0];
+      exemples.push(`- **${f.nom}** — ${String(i.titre ?? "").slice(0, 90)}`
+        + (e ? `\n  - relecteur : « ${String(e.extrait).slice(0, 120)} » → ${String(e.probleme).slice(0, 160)}` : "")
+        + ((i.donnees.chiffres_absents ?? []).length ? `\n  - vérificateur : nombres absents de la source : ${i.donnees.chiffres_absents.join(" · ")}` : ""));
+    }
+  }
+  if (debut) out.push(`Depuis le ${new Date(debut).toLocaleDateString("fr-FR")}.`, "");
+  out.push("| Fonctionnalité | Textes contrôlés | Source illisible | Signalés par le vérificateur | Relus par le 2ᵉ modèle | Jugés infidèles | Jugés non neutres | Signalés par les deux | Dernière production |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|", ...tableau, "");
+  out.push("« Signalés par les deux » est la mesure qui compte : un agent sans IA et un modèle d'une autre maison,",
+    "sans se concerter, désignent le même texte. « Source illisible » dit qu'aucun agent ne peut vérifier la fonctionnalité telle qu'elle est construite.", "");
+  if (exemples.length) out.push("### Exemples", "", ...exemples, "");
+  return out;
+}
+
 async function main() {
   const lignes: string[] = ["# Cycles d'agents — état des lieux", ""];
   const alertes: Item[] = [];
@@ -46,7 +97,7 @@ async function main() {
     const attendus = items.filter(i => cycle === "auditions" && i.etape === "detecte" && !i.donnees?.ref).length;
     const enLigne = parEtape.get("en_ligne")?.length ?? 0;
 
-    lignes.push(`## ${cycle === "programmes" ? "Programmes des candidats" : "Auditions et réunions de commission (Assemblée)"}`, "");
+    lignes.push(`## ${cycle === "programmes" ? "Programmes des candidats" : "Auditions et réunions de commission (Assemblée et Sénat)"}`, "");
     lignes.push(`**${enLigne} en ligne sur ${suivis.length} suivis** (${suivis.length ? Math.round(100 * enLigne / suivis.length) : 0} %).`, "");
     if (attendus) lignes.push(`${attendus} réunion(s) récente(s) attendent encore la parution de leur compte rendu par l'Assemblée.`, "");
     lignes.push("| Étape | Nombre |", "|---|---:|");
@@ -85,6 +136,8 @@ async function main() {
     if (videos.length) lignes.push(`> ${videos.length} réunion(s) sans compte rendu écrit, à transcrire depuis la vidéo`
       + ` (dont ${videos.filter(v => v.donnees?.lien).length} avec le lien vidéo déjà connu).`, "");
   }
+
+  lignes.push(...await rapportBanc());
 
   const rapport = lignes.join("\n");
   console.log(rapport);
