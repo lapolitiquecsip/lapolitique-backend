@@ -69,12 +69,36 @@ async function textesRecents(): Promise<Texte[]> {
   }
 
   // Journal officiel : lois et décrets qui ne sont pas des actes de routine.
+  //
+  // Le texte soumis à l'analyse est l'explication du Journal officiel du jour (jorf_texts) :
+  // la NOTICE rédigée par l'administration quand elle existe, sinon un résumé tiré du contenu
+  // du texte lui-même. L'ancien « résumé du décret » était, lui, imaginé à partir du seul
+  // TITRE : il pouvait affirmer ce que le décret ne dit pas, et l'extrait « vérifié mot pour
+  // mot » l'était alors contre une invention. Il manquait en outre à deux décrets sur trois
+  // (quota du modèle épuisé la nuit), et un décret sans résumé n'était jamais signalé.
+  const depuisDecrets = new Date(Date.now() - Math.max(JOURS, 5) * 86400000).toISOString().slice(0, 10);
   const decrets = await fetchAll("decrees", "jorf_id, title, display_title, summary, source_url, date_publi, nature",
-    q => q.gte("date_publi", depuis.slice(0, 10)));
+    q => q.gte("date_publi", depuisDecrets));
+  const officiel = new Map<string, { explication: string; source: string }>();
+  for (let i = 0; i < decrets.length; i += 150) {
+    const { data } = await supabase.from("jorf_texts").select("id, explication, source_explication")
+      .in("id", decrets.slice(i, i + 150).map((d: any) => d.jorf_id));
+    for (const t of data || []) {
+      if (t.explication && t.source_explication !== "renvoi") officiel.set(t.id, { explication: t.explication, source: t.source_explication });
+    }
+  }
   for (const d of decrets) {
-    if (ROUTINE.test(`${d.title || ""} ${d.display_title || ""}`) || !d.summary) continue;
-    out.push({ source: /loi/i.test(d.nature || "") ? "loi" : "decret", source_id: d.jorf_id, chambre: "JO", titre: d.display_title || d.title,
-      resume: `${d.title}\n\n${d.summary}`, url: d.source_url, date: d.date_publi });
+    if (ROUTINE.test(`${d.title || ""} ${d.display_title || ""}`)) continue;
+    const jo = officiel.get(d.jorf_id);
+    // Sans explication tirée du texte, on attend : elle arrive avec le Journal officiel du jour.
+    if (!jo) continue;
+    out.push({ source: /loi/i.test(d.nature || "") ? "loi" : "decret", source_id: d.jorf_id, chambre: "JO",
+      // Un titre raccourci trop court ne dit plus de quoi il s'agit (« Application de l'article
+      // L. 121-6 » — de quel code ?) : on revient alors à l'intitulé officiel complet.
+      titre: (d.display_title || "").length >= 45 ? d.display_title : d.title,
+      resume: `${d.title}
+
+${jo.explication}`, url: d.source_url, date: d.date_publi });
   }
   return out;
 }
@@ -145,7 +169,9 @@ export function raisons(t: any, p: any, loc: { deptCode: string | null; regionCo
     if (t.territoire === "outre-mer" ? !dom : t.territoire !== (loc.deptCode || "").toLowerCase()) return [];
   }
   const out: string[] = [];
-  const communs = t.publics.filter((x: string) => publicsDuMembre(p).includes(x) && x !== "contribuables");
+  // « tous » n'est pas un public précis : il a sa propre règle (importance 4), et le compter ici
+  // faisait partir des alertes « Pour vous : il concerne » — sans dire qui.
+  const communs = t.publics.filter((x: string) => publicsDuMembre(p).includes(x) && x !== "contribuables" && x !== "tous");
   if (t.publics.includes("tous") && t.importance >= 4) out.push("il concerne tout le monde");
   else if (communs.length && t.importance >= 3) out.push(`il concerne ${communs.filter((x: string) => x !== "tous").map((x: string) => LIBELLE_PUBLIC[x]).join(", ")}`);
   if (p.secteur && t.secteurs.includes(p.secteur) && t.importance >= 3) out.push("il touche votre secteur d'activité");
