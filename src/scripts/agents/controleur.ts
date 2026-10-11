@@ -79,6 +79,20 @@ async function rapportBanc(): Promise<string[]> {
   out.push("« Signalés par les deux » est la mesure qui compte : un agent sans IA et un modèle d'une autre maison,",
     "sans se concerter, désignent le même texte. « Source illisible » dit qu'aucun agent ne peut vérifier la fonctionnalité telle qu'elle est construite.", "");
   if (exemples.length) out.push("### Exemples", "", ...exemples, "");
+
+  // Recoupement des fils nourris par la presse : qui d'autre donne l'information ?
+  const { data: rec } = await supabase.from("cycle_items").select("etape, sujet").eq("cycle", "banc:recoupement").limit(20000);
+  if (rec?.length) {
+    const fils = [...new Set(rec.map(r => r.sujet as string))].sort();
+    out.push("### Recoupement des fils d'actualité (garde-fou contre la fausse nouvelle)", "",
+      "| Fil | Informations | Source officielle | Recoupées par un autre média | Un seul média |", "|---|---:|---:|---:|---:|");
+    for (const f of fils) {
+      const l = rec.filter(r => r.sujet === f);
+      const n = (e: string) => l.filter(r => r.etape === e).length;
+      out.push(`| ${f} | ${l.length} | ${n("officiel")} | ${n("recoupe")} | ${n("source_unique")} (${Math.round(100 * n("source_unique") / l.length)} %) |`);
+    }
+    out.push("", "« Un seul média » ne veut pas dire faux : l'information n'a pas été retrouvée ailleurs. La recherche part du titre réécrit par le site, ce qui en fait manquer : le chiffre est un majorant.", "");
+  }
   return out;
 }
 

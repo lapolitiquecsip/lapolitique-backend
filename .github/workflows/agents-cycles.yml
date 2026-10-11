@@ -55,6 +55,9 @@ jobs:
       - name: Banc d'essai · vérificateur
         run: npx tsx src/scripts/agents/banc-verificateur.ts --max=12
         continue-on-error: true
+      - name: Banc d'essai · recoupeur
+        run: npx tsx src/scripts/agents/banc-recoupeur.ts --max=60
+        continue-on-error: true
       - name: Contrôleur
         run: npx tsx src/scripts/agents/controleur.ts
 
