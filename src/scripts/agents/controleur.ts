@@ -49,7 +49,7 @@ async function rapportBanc(): Promise<string[]> {
     for (const i of items) if (!debut || i.detecte_le < debut) debut = i.detecte_le;
     const n = (e: string) => items.filter(i => i.etape === e).length;
     const lisibles = n("conforme") + n("a_revoir");
-    const relus = items.filter(i => i.donnees?.relecteur);
+    const relus = items.filter(i => i.donnees?.relecteur && !i.donnees.relecteur.non_juge);
     const infideles = relus.filter(i => i.donnees.relecteur.fidele === false);
     const partiaux = relus.filter(i => i.donnees.relecteur.neutre === false);
     // Les deux agents, indépendants l'un de l'autre, désignent le même texte.

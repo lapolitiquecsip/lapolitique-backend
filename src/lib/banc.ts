@@ -1,4 +1,5 @@
 import { sansAccent } from "./cycles.js";
+import { chiffresAbsents } from "./verification-source.js";
 
 /**
  * BANC D'ESSAI MULTI-AGENTS — du 12 au 18 octobre 2026.
@@ -153,15 +154,9 @@ const NOM_PROPRE = /\b[A-ZÉÈÀÂÎÔÛÇ][a-zà-ÿ'’]+(?:[ -](?:de |du |des 
  */
 export function controler(texte: string, source: string): { chiffres: string[]; noms: string[] } {
   const src = sansAccent(source);
-  const srcChiffres = source.replace(/[\s.,  ]/g, "");
-  const chiffres = new Set<string>();
-  // Un nombre : des groupes de trois chiffres séparés par UNE espace (« 281 000 »), ou une
-  // suite de chiffres avec décimales. Jamais deux nombres voisins pris pour un seul.
-  for (const c of texte.match(/\d{1,3}(?:[   ]\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?/g) ?? []) {
-    const brut = c.replace(/[\s.,  ]/g, "");
-    if (brut.length < 2 || /^(19|20)\d\d$/.test(brut)) continue;
-    if (!srcChiffres.includes(brut)) chiffres.add(c.trim());
-  }
+  // Nombres : lecture commune aux deux dépôts (nombres en lettres de la source, dates et
+  // heures ignorées).
+  const chiffres = new Set<string>(chiffresAbsents(texte, source));
   const noms = new Set<string>();
   for (const n of texte.match(NOM_PROPRE) ?? []) {
     const mots = sansAccent(n).split(/[ -]/).filter(m => m.length > 3);

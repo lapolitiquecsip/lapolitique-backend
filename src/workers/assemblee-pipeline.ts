@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import { supabase } from '../config/supabase.js';
 import * as Sentry from '@sentry/node';
 import { logStart, logSuccess, logError } from '../lib/monitoring.js';
+import { chiffresAbsents, retirerPhrasesNonSourcees } from '../lib/verification-source.js';
 import { resilientDeepSeek } from '../lib/deepseek-client.js';
 
 const parser = new Parser({
@@ -250,6 +251,28 @@ async function processSource(
         continue;
       }
 
+      // AGENT VÉRIFICATEUR (sans IA) — entre le rédacteur et la publication. La consigne
+      // réclame au rédacteur « au moins un chiffre » : il lui arrive de le fournir de mémoire
+      // (« dans les 46 États membres » pour une page qui ne donne aucun nombre). Toute phrase
+      // qui avance un nombre absent du texte qu'il a lu est retirée ; si c'est le titre, ou
+      // s'il ne reste rien du résumé, la fiche n'est pas publiée.
+      // FIL_ACCUEIL_VERIFICATEUR=0 coupe ce contrôle.
+      if (process.env.FIL_ACCUEIL_VERIFICATEUR !== '0') {
+        const lu = cleanedText.substring(0, 15000);
+        const horsSource = chiffresAbsents(summary.titre_simplifie || '', lu);
+        const flash = retirerPhrasesNonSourcees(summary.resume_flash || '', lu);
+        const detail = retirerPhrasesNonSourcees(summary.resume_detaille || '', lu);
+        if (horsSource.length || !flash.texte) {
+          console.log(`[Vérificateur] ✗ Fiche retenue (nombre absent de la source : ${[...horsSource, ...flash.retirees.map(x => x.slice(0, 60))].join(' | ')}) : ${item.title}`);
+          continue;
+        }
+        if (flash.retirees.length + detail.retirees.length) {
+          console.log(`[Vérificateur] ${flash.retirees.length + detail.retirees.length} phrase(s) retirée(s) : ${item.title}`);
+        }
+        summary.resume_flash = flash.texte;
+        summary.resume_detaille = detail.texte || null;
+      }
+
       const insertPayload: Record<string, any> = {
         titre_original: item.title || 'Sans titre',
         titre_simplifie: summary.titre_simplifie,
@@ -262,7 +285,9 @@ async function processSource(
           ? new Date(item.pubDate).toISOString()
           : new Date().toISOString(),
         date_traitement: new Date().toISOString(),
-        raw_text: cleanedText.substring(0, 5000),
+        // Tout ce que le rédacteur a lu, pas le tiers : sans cela, personne ne peut
+        // vérifier après coup un fait tiré de la fin du document.
+        raw_text: cleanedText.substring(0, 15000),
         status: 'published',
       };
 

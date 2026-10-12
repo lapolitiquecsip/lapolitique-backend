@@ -87,6 +87,14 @@ async function passer(f: Famille): Promise<boolean> {
     if (!r) continue;
     const lue = await lireSource(f.source(r));
     if ("motif" in lue) continue;
+    // Le relecteur ne juge que ce qu'il peut lire EN ENTIER. Sur un compte rendu de cent mille
+    // caractères, il ne voyait que des extraits et déclarait « absent de la source » ce qui
+    // était dit plus loin : sur les cas contrôlés à la main, ses alertes étaient fausses.
+    if (lue.texte.length > SOURCE_MAX) {
+      await supabase.from("cycle_items").update({ donnees: { ...it.donnees, relecteur: { non_juge: "source trop longue pour être relue en entier" } } })
+        .eq("cycle", cycle).eq("cle", it.cle);
+      continue;
+    }
     try {
       const avis = await relire(lue.texte, f.texte(r));
       if (avis === "quota") { console.log("  Quota du relecteur atteint : on s'arrête là pour ce passage."); return false; }
