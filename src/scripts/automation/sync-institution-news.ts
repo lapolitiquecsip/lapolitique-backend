@@ -2,6 +2,7 @@ import "dotenv/config";
 import Parser from "rss-parser";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
+import { recouper, OFFICIEL } from "../../lib/recoupement.js";
 import { quasiDoublon } from "../../lib/quasi-doublon.js";
 
 // Brique #4 — Fil d'actualité par institution (ministères, départements).
@@ -216,7 +217,7 @@ export async function syncInstitutionNews() {
       const pub = item.isoDate ? new Date(item.isoDate) : null;
       if (pub && (Date.now() - pub.getTime()) / 86400000 > freshDays) continue;
 
-      const { title: rawTitle } = cleanGoogleTitle(item.title || "");
+      const { title: rawTitle, source: media } = cleanGoogleTitle(item.title || "");
       if (!rawTitle || rawTitle.length < 12) continue;
 
       // Filtre heuristique AVANT LLM (surtout pour Google News : désambiguïsation). Sauté pour les
@@ -268,9 +269,19 @@ export async function syncInstitutionNews() {
         : !territorial ? null
         : surUneCommune ? lieu
         : lieu && lieu !== src.entity_name ? `${lieu} (${src.entity_name})` : src.entity_name;
+      // D'où vient l'information, et qui d'autre la donne. Une source institutionnelle n'a
+      // pas à être recoupée ; une information de presse l'est sur son titre d'ORIGINE (le
+      // titre réécrit ne se retrouve chez personne). En cas de panne de la recherche, le
+      // champ reste vide et l'agent recoupeur y reviendra.
+      const dePresse = src.kind === "google_news" && !OFFICIEL.test(`${media} ${src.source_name ?? ""}`);
+      let recoupement: { etat: string; medias: string[] } | null = dePresse ? null : { etat: "officiel", medias: [] };
+      if (dePresse) { try { recoupement = await recouper(rawTitle, media); } catch { /* l'agent y reviendra */ } }
       const row = {
         entity_type: src.entity_type, entity_id: src.entity_id,
         source_name: src.source_name, source_kind: src.kind,
+        media: media || null, titre_origine: rawTitle.slice(0, 400), extrait_origine: snippet || null,
+        recoupement: recoupement?.etat ?? null, autres_medias: recoupement ? recoupement.medias.length : null,
+        recoupe_le: recoupement ? new Date().toISOString() : null,
         url: link, title: ai.title, summary: ai.summary,
         news_type: ai.news_type || "actualite", topic: null,
         published_at: pub ? pub.toISOString() : null,
