@@ -80,18 +80,26 @@ async function rapportBanc(): Promise<string[]> {
     "sans se concerter, désignent le même texte. « Source illisible » dit qu'aucun agent ne peut vérifier la fonctionnalité telle qu'elle est construite.", "");
   if (exemples.length) out.push("### Exemples", "", ...exemples, "");
 
-  // Recoupement des fils nourris par la presse, sur les quatorze derniers jours.
-  const { data: rec } = await supabase.from("entity_feed").select("entity_type, recoupement")
-    .gte("created_at", new Date(Date.now() - 14 * 864e5).toISOString()).limit(20000);
-  if (rec?.length) {
+  // Recoupement des fils nourris par la presse, sur les quatorze derniers jours. On COMPTE
+  // en base au lieu de rapatrier les lignes : la lecture est plafonnée à mille lignes, et le
+  // tableau n'en montrait qu'une partie (zéro mention affichée pour cent cinquante réelles).
+  const depuis14 = new Date(Date.now() - 14 * 864e5).toISOString();
+  const compter = async (fil: string, etat: string | null) => {
+    let q = supabase.from("entity_feed").select("id", { count: "exact", head: true }).eq("entity_type", fil).gte("created_at", depuis14);
+    q = etat === null ? q.is("recoupement", null) : q.eq("recoupement", etat);
+    return (await q).count ?? 0;
+  };
+  const lignesFils: string[] = [];
+  for (const [fil, nom] of [["commune", "Communes"], ["department", "Départements"], ["region", "Régions"], ["party", "Partis"], ["ministry", "Ministères"]]) {
+    const [officiel, recoupe, unique, attente] = await Promise.all([compter(fil, "officiel"), compter(fil, "recoupe"), compter(fil, "unique"), compter(fil, null)]);
+    const total = officiel + recoupe + unique + attente;
+    if (total) lignesFils.push(`| ${nom} | ${total} | ${officiel} | ${recoupe} | ${unique} | ${attente} |`);
+  }
+  if (lignesFils.length) {
     out.push("### Recoupement des fils d'actualité (14 jours)", "",
-      "| Fil | Informations | Source officielle | Recoupées | Un seul média (mention affichée) | Pas encore recoupées |", "|---|---:|---:|---:|---:|---:|");
-    for (const f of [...new Set(rec.map(r => r.entity_type as string))].sort()) {
-      const l = rec.filter(r => r.entity_type === f);
-      const n = (e: string | null) => l.filter(r => r.recoupement === e).length;
-      out.push(`| ${f} | ${l.length} | ${n("officiel")} | ${n("recoupe")} | ${n("unique")} | ${n(null)} |`);
-    }
-    out.push("");
+      "| Fil | Informations | Source officielle | Recoupées | Un seul média (mention affichée) | Sans conclusion |", "|---|---:|---:|---:|---:|---:|",
+      ...lignesFils, "",
+      "« Sans conclusion » : informations d'avant le 12 octobre, dont le titre d'origine n'a pas été conservé — on n'y pose jamais la mention.", "");
   }
   return out;
 }

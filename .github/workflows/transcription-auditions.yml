@@ -1,0 +1,44 @@
+name: Auditions sans compte rendu (transcription)
+# Agent « transcripteur » du cycle des auditions : retrouve la vidéo d'une réunion filmée
+# sans compte rendu écrit, la transcrit (Whisper, via Groq), l'analyse et la met en ligne.
+#
+# Le script vit dans le dépôt du site (scripts/transcribe-auditions.ts), mais la tâche tourne
+# ICI : c'est ce dépôt qui détient la clé de transcription (secret GROQ_API_KEY) et le journal
+# des cycles. Le dépôt du site est public, il se récupère sans jeton.
+on:
+  schedule:
+    - cron: '50 7 * * *'    # après la remise à zéro du quota gratuit d'analyse (07h00 UTC)
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Nombre d'auditions à traiter"
+        required: false
+        default: "2"
+concurrency:
+  group: transcription-auditions
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  transcrire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Récupérer le dépôt du site
+        uses: actions/checkout@v4
+        with:
+          repository: lapolitiquecsip/politique-pour-tous
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: ffmpeg -version | head -1
+      - name: Transcrire et analyser
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ASR_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: npx --yes tsx scripts/transcribe-auditions.ts --limit=${{ github.event.inputs.limit || '2' }}

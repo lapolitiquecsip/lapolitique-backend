@@ -57,8 +57,10 @@ export const FAMILLES: Famille[] = [
     source: r => ({ url: r.cr_url }), titre: r => r.title ?? r.ref, sujet: r => r.commission, fraicheur: 96,
   },
   {
-    cle: "fil-accueil", nom: "Fil d'actualité de l'accueil", table: "content", id: "id", date: "date_traitement",
-    colonnes: "id, titre_original, titre_simplifie, resume_flash, resume_detaille, raw_text, source_url, source_name, date_publication, date_traitement",
+    // `created_at` et non `date_traitement` : ce dernier n'est rempli que par l'une des deux
+    // chaînes qui alimentent le fil, et la sentinelle le croyait arrêté quand l'autre publiait.
+    cle: "fil-accueil", nom: "Fil d'actualité de l'accueil", table: "content", id: "id", date: "created_at",
+    colonnes: "id, titre_original, titre_simplifie, resume_flash, resume_detaille, raw_text, source_url, source_name, date_publication, created_at",
     filtre: q => q.not("resume_flash", "is", null),
     texte: r => [r.titre_simplifie, r.resume_flash, r.resume_detaille].filter(Boolean).join("\n"),
     // Le média et la date font partie de la source : le résumé les cite, à juste titre.
