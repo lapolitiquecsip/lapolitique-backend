@@ -48,6 +48,9 @@ jobs:
       - name: Auditions · veilleur
         run: npx tsx src/scripts/agents/auditions-veilleur.ts
         continue-on-error: true
+      - name: Auditions · vidéothécaire (vidéo officielle de chaque audition)
+        run: npx tsx src/scripts/agents/auditions-videos.ts --jours=45
+        continue-on-error: true
       - name: Auditions · veilleur du Sénat
         run: npx tsx src/scripts/agents/auditions-veilleur-senat.ts
         continue-on-error: true
