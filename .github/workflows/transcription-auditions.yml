@@ -7,7 +7,12 @@ name: Auditions sans compte rendu (transcription)
 # des cycles. Le dépôt du site est public, il se récupère sans jeton.
 on:
   schedule:
-    - cron: '50 7 * * *'    # après la remise à zéro du quota gratuit d'analyse (07h00 UTC)
+    # Quatre passages par jour : le service de transcription gratuit accorde deux heures
+    # d'enregistrement par heure, soit une à deux auditions par passage.
+    - cron: '50 7 * * *'
+    - cron: '50 11 * * *'
+    - cron: '50 15 * * *'
+    - cron: '50 19 * * *'
   workflow_dispatch:
     inputs:
       limit:
