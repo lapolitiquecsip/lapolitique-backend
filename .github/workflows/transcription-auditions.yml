@@ -33,7 +33,13 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - run: ffmpeg -version | head -1
+      # ffmpeg n'est plus fourni d'office sur les machines de GitHub : on l'installe, et on
+      # s'arrête ici s'il manque (le contrôle précédent, « ffmpeg | head », réussissait même absent).
+      - name: Installer ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          ffmpeg -version > /dev/null && echo "ffmpeg prêt"
       - name: Transcrire et analyser
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
