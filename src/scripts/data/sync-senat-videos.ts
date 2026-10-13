@@ -59,8 +59,42 @@ export async function syncSenatVideos() {
   console.log(`> ${rows.length} vidéos dans le flux.`);
   if (rows.length === 0) throw new Error("Flux vide — on n'écrit rien.");
 
-  const { error } = await supabase.from("senat_videos").upsert(rows, { onConflict: "video_id" });
-  if (error) { console.error("[SenatVideos] upsert:", error.message); throw error; }
+  // On ne réécrit pas le titre ni la vignette des vidéos déjà complétées (voir plus bas) :
+  // le flux ne donne qu'un titre reconstruit depuis l'adresse, sans accents ni majuscules.
+  const { data: completes } = await supabase.from("senat_videos").select("video_id")
+    .in("video_id", rows.map(r => r.video_id)).not("thumbnail_url", "is", null);
+  const dejaCompletes = new Set((completes || []).map((r: any) => r.video_id));
+  for (const r of rows) if (dejaCompletes.has(r.video_id)) { delete r.title; delete r.thumbnail_url; }
+  const neuves = rows.filter(r => !dejaCompletes.has(r.video_id));
+  const connues = rows.filter(r => dejaCompletes.has(r.video_id));
+  for (const lot of [neuves, connues]) {
+    if (!lot.length) continue;
+    const { error } = await supabase.from("senat_videos").upsert(lot, { onConflict: "video_id" });
+    if (error) { console.error("[SenatVideos] upsert:", error.message); throw error; }
+  }
+
+  // Le vrai titre et la vignette sont sur la page de la vidéo (balises og:title, og:image).
+  // On y va une page à la fois, sans hâte : le portail coupe les demandes rapprochées.
+  const { data: aCompleter } = await supabase.from("senat_videos").select("video_id, url")
+    .is("thumbnail_url", null).order("published_at", { ascending: false }).limit(Number(process.env.SENAT_VIDEOS_COMPLETER || 30));
+  const entites = (t: string) => cheerio.load(`<i>${t}</i>`)("i").text().trim();
+  let completees = 0;
+  for (const v of aCompleter || []) {
+    try {
+      const r = await fetch(v.url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; LaPolitiqueBot/1.0)" }, signal: AbortSignal.timeout(30000) });
+      if (r.ok) {
+        const html = await r.text();
+        const titre = html.match(/property="og:title"\s+content="([^"]+)"/)?.[1];
+        const image = html.match(/property="og:image"\s+content="([^"]+)"/)?.[1];
+        if (titre && image) {
+          await supabase.from("senat_videos").update({ title: entites(titre).slice(0, 300), thumbnail_url: image }).eq("video_id", v.video_id);
+          completees++;
+        }
+      }
+    } catch { /* la prochaine fois */ }
+    await new Promise(x => setTimeout(x, 1500));
+  }
+  console.log(`> ${completees} vidéo(s) complétée(s) (titre officiel et vignette).`);
   console.log(`--- TERMINE. ${rows.length} vidéos. ---`);
   return rows.length;
 }
