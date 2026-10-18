@@ -137,8 +137,11 @@ export async function generateNotifications() {
     const votes: any[] = [];
     for (let i = 0; i < anIds.length; i += 50) {
       const batch = anIds.slice(i, i + 50);
+      // Filtre sur date_scrutin, que couvre l'index (deputy_an_id, date_scrutin) : sur
+      // created_at, sans index, la table (1,6 million de lignes) était parcourue en entier et
+      // la base coupait la requête (délai dépassé) — étape en échec les 14 et 18 octobre.
       const rows = await fetchAll("deputy_votes", "deputy_an_id, scrutin_id, position, date_scrutin, created_at",
-        q => q.in("deputy_an_id", batch).gte("created_at", since));
+        q => q.in("deputy_an_id", batch).gte("date_scrutin", since.slice(0, 10)).order("deputy_an_id").order("date_scrutin", { ascending: false }));
       votes.push(...rows);
     }
     if (votes.length > 0) {
