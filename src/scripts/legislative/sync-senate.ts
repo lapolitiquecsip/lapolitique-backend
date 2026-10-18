@@ -12,25 +12,35 @@ const normalized = (value: string) => value.normalize("NFD").replace(/[\u0300-\u
 
 // senat.fr est parfois lent \u2192 retries avec backoff pour \u00e9viter les \u00e9checs intermittents.
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-async function fetchRetry(url: string, attempts = 3): Promise<Response> {
+async function fetchRetry(url: string, attempts = 3, pause = 2000): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       return await fetch(url, { signal: AbortSignal.timeout(45_000) });
     } catch (error) {
       lastError = error;
-      if (attempt < attempts) await sleep(2000 * attempt);
+      if (attempt < attempts) await sleep(pause * attempt);
     }
   }
   throw lastError;
 }
 
+/** Panne passagère de senat.fr : signalée, sans faire échouer la tâche (voir plus bas). */
+class SenatInjoignable extends Error {}
+
 export async function syncSenate() {
   const { data: run, error: runError } = await supabase.from("legislative_sync_runs").insert({ pipeline: "senate", status: "running" }).select("id").single();
   if (runError) throw runError;
   try {
+    // Les deux index sont la porte d'entrée : s'ils ne répondent pas, il n'y a rien à faire
+    // ce passage-ci. On insiste davantage (cinq essais sur un peu plus d'une minute) : les
+    // échecs relevés — 8, 9, 15 et 17 octobre — étaient tous des « fetch failed » passagers,
+    // et le passage suivant, une heure après, réussissait chaque fois.
     const indexBodies = await Promise.all(INDEXES.map(async url => {
-      const response = await fetchRetry(url);
+      let response: Response;
+      try { response = await fetchRetry(url, 5, 5000); }
+      catch (e: any) { throw new SenatInjoignable(`senat.fr injoignable (${e?.message ?? e})`); }
+      if (response.status >= 500) throw new SenatInjoignable(`senat.fr répond HTTP ${response.status}`);
       if (!response.ok) throw new Error(`Senate index HTTP ${response.status}`);
       return response.text();
     }));
@@ -103,4 +113,23 @@ export async function syncSenate() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) syncSenate().catch(error => { console.error(error); process.exitCode = 1; });
+/**
+ * Une panne passagère de senat.fr ne fait plus échouer la tâche, donc n'envoie plus de
+ * courriel d'alerte : le passage suivant, une heure plus tard, rattrape. Mais si le Sénat
+ * reste injoignable plus de douze heures, l'échec redevient bruyant — une panne qui dure
+ * doit se voir.
+ */
+async function panneLongue(): Promise<boolean> {
+  const { data } = await supabase.from("legislative_sync_runs").select("finished_at")
+    .eq("pipeline", "senate").eq("status", "success").order("finished_at", { ascending: false }).limit(1);
+  const dernier = data?.[0]?.finished_at ? new Date(data[0].finished_at).getTime() : 0;
+  return Date.now() - dernier > 12 * 3600_000;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) syncSenate().catch(async error => {
+  if (error instanceof SenatInjoignable && !(await panneLongue())) {
+    console.log(`::warning title=Sénat injoignable::${error.message} — passage ignoré, le suivant rattrapera.`);
+    return;
+  }
+  console.error(error); process.exitCode = 1;
+});
