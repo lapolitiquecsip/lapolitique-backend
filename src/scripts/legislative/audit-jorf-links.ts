@@ -9,11 +9,13 @@ import { legislativeTitleMatchScore } from "../../lib/legislative/normalization.
 // erronés. --apply pour écrire ; sinon dry-run (n'écrit rien).
 const APPLY = process.argv.includes("--apply");
 
-type Dossier = { id: string; official_id: string; title: string };
+type Dossier = { id: string; official_id: string; title: string; deposited_at: string | null };
 
-function best(lawTitle: string, dossiers: Dossier[]) {
+function best(lawTitle: string, dossiers: Dossier[], promulgueLe?: string | null) {
   let top: { d: Dossier; score: number } | null = null;
   for (const d of dossiers) {
+    // Jamais un texte déposé APRÈS la promulgation de la loi (voir promoteFromJorf).
+    if (promulgueLe && d.deposited_at && String(d.deposited_at).slice(0, 10) > String(promulgueLe).slice(0, 10)) continue;
     const score = legislativeTitleMatchScore(d.title, lawTitle);
     if (score < 0.5) continue;
     if (!top || score > top.score
@@ -41,7 +43,7 @@ async function loadAllDossiers(): Promise<Dossier[]> {
   for (let from = 0; ; from += page) {
     const { data, error } = await supabase
       .from("legislative_dossiers")
-      .select("id, official_id, title")
+      .select("id, official_id, title, deposited_at")
       .range(from, from + page - 1);
     if (error) throw error;
     if (!data?.length) break;
@@ -59,14 +61,14 @@ async function main() {
 
   const { data: laws, error } = await supabase
     .from("promulgated_laws")
-    .select("jorf_id, dossier_id, title");
+    .select("jorf_id, dossier_id, title, promulgated_at");
   if (error) throw error;
   console.log(`> ${laws?.length ?? 0} lois promulguées à auditer.\n`);
 
   const fixes: Array<{ jorf: string; from: string | null; to: string; law: string }> = [];
   const review: string[] = [];
   for (const law of laws ?? []) {
-    const top = best(law.title, dossiers);
+    const top = best(law.title, dossiers, law.promulgated_at);
     if (!top) continue;                          // aucun bon candidat : on n'y touche pas
     if (top.d.id === law.dossier_id) continue;   // déjà bien rattaché
     const cur = law.dossier_id ? byId.get(law.dossier_id) : null;

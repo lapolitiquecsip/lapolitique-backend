@@ -147,6 +147,11 @@ export function legislativeTitleMatchScore(left: string, right: string): number 
 export function promoteFromJorf(dossier: NormalizedDossier, record: JorfRecord) {
   if (record.nature.toUpperCase() !== "LOI") return null;
   if (legislativeTitleMatchScore(dossier.title, record.title) < 0.5) return null;
+  // Une loi ne peut pas être promulguée AVANT le dépôt de son texte. Sans ce garde-fou, une
+  // archive DILA qui rejoue d'anciennes éditions (1991, 2008…) rattachait par simple
+  // ressemblance de titre une vieille loi à un texte déposé en 2025 ou 2026, qui
+  // s'affichait alors « promulgué » sur le site (28 cas relevés le 18/10/2026).
+  if (dossier.depositedAt && record.publishedAt && record.publishedAt.slice(0, 10) < String(dossier.depositedAt).slice(0, 10)) return null;
   return {
     dossierOfficialId: dossier.officialId,
     jorfNor: record.nor,
