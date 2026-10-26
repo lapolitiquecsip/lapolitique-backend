@@ -35,6 +35,8 @@ jobs:
       - run: npm run data:sync-vote-group-results
       # 5) Explications IA des votes principaux (ne (re)génère que les manquants)
       - run: npm run data:sync-vote-explanations
+        env:
+          LLM_SECOURS_PAYANT: "1"
       # 5 bis) Filet : intitulé français des votes qui n'en auraient pas encore
       #        (les alertes de vote nomment le texte avant d'en donner le résumé)
       - run: npm run data:sync-vote-explanations -- --titres-fr

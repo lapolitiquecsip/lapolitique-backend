@@ -35,7 +35,10 @@ jobs:
       # 2) ANALYSES APPROFONDIES (Premium / Pro) : lues dans le texte officiel (texte adopté,
       #    exposé des motifs, étude d'impact). Quelques dossiers par passage, les textes votés
       #    d'abord, AVANT le rattrapage (qui épuise le quota gratuit du jour) ; un dossier dont le texte n'a pas changé n'est pas refait.
-      - run: npm run automation:legislative:deep -- --max=3
+      #    DeepSeek payant (26/10/2026) : le gratuit n'en sortait presque aucune (quota épuisé, JSON
+      #    cassé), et un abonné voyait le résumé court à la place. Ce workflow ne tourne qu'en
+      #    heures creuses ; 0,30 $ au plus par passage, ~0,02-0,05 $ par texte nouveau.
+      - run: npm run automation:legislative:deep -- --payant --max=6 --parallele=2 --budget=0.3
         continue-on-error: true
         timeout-minutes: 25
       # 3) Comble le RETARD : dossiers sans analyse (anciens, Sénat…), par lots, jusqu'à épuisement.

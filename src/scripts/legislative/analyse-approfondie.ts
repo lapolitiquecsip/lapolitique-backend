@@ -406,9 +406,12 @@ async function prioritaires(): Promise<string[]> {
   const { data: sc } = await supabase.from("scrutins").select("id").eq("type", "LOI").ilike("title", "l'ensemble%")
     .gte("date_scrutin", depuis).order("date_scrutin", { ascending: false }).limit(60);
   const { data: liens } = await supabase.from("legislative_scrutins").select("dossier_id").in("official_id", (sc || []).map((s: any) => s.id));
+  // legislative_scrutins manque souvent le vote final « sur l'ensemble » ; scrutin_navette
+  // le relie à son dossier (c'est aussi lui que la fiche du vote ouvre).
+  const { data: navette } = await supabase.from("scrutin_navette").select("dossier_id").in("scrutin_id", (sc || []).map((s: any) => s.id));
   const { data: recents } = await supabase.from("legislative_dossiers").select("id").eq("current_chamber", "AN")
     .gte("latest_step_at", new Date(Date.now() - 45 * 86400000).toISOString()).order("latest_step_at", { ascending: false }).limit(60);
-  return [...new Set([...(liens || []).map((l: any) => l.dossier_id), ...(recents || []).map((r: any) => r.id)].filter(Boolean))];
+  return [...new Set([...(navette || []).map((l: any) => l.dossier_id), ...(liens || []).map((l: any) => l.dossier_id), ...(recents || []).map((r: any) => r.id)].filter(Boolean))];
 }
 
 /**

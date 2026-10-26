@@ -159,6 +159,12 @@ async function main() {
     } catch (e: any) { console.warn(`  ! ${id}: ${e.message}`); }
   }
   console.log(`--- TERMINE. ${ok} explications générées, ${skip} sans contenu. ---`);
+  // Rien d'écrit alors qu'il y avait à faire = les modèles ont tous échoué. Le passage
+  // du 22/10/2026 s'était terminé « en succès » ainsi, et la panne est restée invisible.
+  if (todo.length && !ok) {
+    console.log(`::error::Aucune explication écrite sur ${todo.length} votes à expliquer (modèles indisponibles ?)`);
+    process.exitCode = 1;
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

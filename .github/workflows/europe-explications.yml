@@ -1,0 +1,30 @@
+name: Eurodéputés — explications des votes
+# Le passage hebdomadaire (europe-sync) part souvent l'après-midi avec des heures de
+# retard, quand le quota gratuit Gemini du jour est épuisé : le 22/10/2026, il n'a écrit
+# aucune explication et 43 votes d'octobre sont restés « en cours de génération ».
+# Ce passage quotidien, après la remise à zéro du quota (07 h UTC), rattrape les votes
+# sans explication ; DeepSeek prend le relais si le gratuit échoue (~0,001 $ par vote).
+on:
+  schedule:
+    - cron: '40 9 * * *'
+  workflow_dispatch:
+concurrency:
+  group: europe-explications
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  explications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+      LLM_SECOURS_PAYANT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:sync-vote-explanations
+      - run: npm run data:sync-vote-explanations -- --titres-fr
