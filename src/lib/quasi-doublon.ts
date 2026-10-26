@@ -47,7 +47,7 @@ export function quasiDoublon(a: string, b: string, contexte = "", seuil = 0.5): 
   // semaine 32 » n'est pas « semaine 33 », ni la RD 61 la RD 62.
   // Tous les nombres comptent ici, même d'un chiffre : « fermé du 3 au 4 » n'est pas
   // « fermé les 7 et 9 ».
-  const nombres = (t: string) => (t.match(/\d+/g) || []);
+  const nombres = (t: string): string[] => t.match(/\d+/g) || [];
   const nA = nombres(a), nB = nombres(b);
   if (nA.length && nB.length && !nA.some(n => nB.includes(n))) return false;
   let communs = 0;

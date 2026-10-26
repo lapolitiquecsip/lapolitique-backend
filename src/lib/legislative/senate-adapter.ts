@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { classifyLegislativeText, stableHash } from "./normalization.js";
+import { classifyDossier, stableHash } from "./normalization.js";
 
 const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, trimValues: true, processEntities: false });
 const array = <T>(value: T | T[] | null | undefined): T[] => value == null ? [] : Array.isArray(value) ? value : [value];
@@ -37,7 +37,7 @@ export function parseSenateText(xml: string, sourceUpdatedAt: string) {
     textType: isBill ? "bill" as const : "proposal" as const,
     authorKind: isBill ? "government" as const : "parliamentarian" as const,
     authorName: isBill ? "Le Gouvernement" : authorName,
-    category: classifyLegislativeText(title),
+    category: classifyDossier(`SENAT:${signet}`, title),
     statusCode: latest?.label.toLowerCase().includes("adopt") ? "voted" : "filed",
     statusLabel: latest?.label ?? "Déposé au Sénat",
     currentChamber: "SENAT" as const,

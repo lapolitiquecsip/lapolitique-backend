@@ -8,7 +8,54 @@ import { trackLegislativeSync } from "../../lib/legislative/sync-run.js";
 import { fetchExposeText } from "../../lib/legislative/expose.js";
 
 // v2 : ajoute l'exposé des motifs (substance du texte) aux faits fournis au modèle.
-const PROMPT_VERSION = "legislative-v2";
+export const PROMPT_VERSION = "legislative-v2";
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+/** Faits officiels fournis au modèle pour un dossier (null si Supabase ne répond pas). */
+export async function faitsOfficiels(dossier: any): Promise<{ officialFacts: any; sourceUrls: string[] } | null> {
+  // Fetch des faits officiels avec retries (évite les coupures Supabase sous charge en backfill).
+  let stepsResult: any = {}, amendmentsResult: any = {}, scrutinsResult: any = {};
+  for (let attempt = 0; attempt < 3; attempt++) {
+    [stepsResult, amendmentsResult, scrutinsResult] = await Promise.all([
+      supabase.from("legislative_steps").select("step_label,chamber,occurred_at,source_url,source_hash").eq("dossier_id", dossier.id).order("sequence").limit(100),
+      supabase.from("legislative_amendments").select("number,author_name,subject,outcome_label,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(100),
+      supabase.from("legislative_scrutins").select("title,result_label,for_count,against_count,abstain_count,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(30),
+    ]);
+    if (!(stepsResult.error || amendmentsResult.error || scrutinsResult.error)) break;
+    await sleep(800 * (attempt + 1));
+  }
+  if (stepsResult.error || amendmentsResult.error || scrutinsResult.error) return null;
+  // Exposé des motifs (PDF officiel) : ce que contient le texte et à quel problème il répond.
+  // Plafonné à 18 000 caractères : au-delà, coût token élevé sans gain de qualité (et compatible
+  // avec la fenêtre de sortie des modèles gratuits type Gemini Flash).
+  const exposeDesMotifs = (await fetchExposeText(dossier.source_urls) || "").slice(0, 18000);
+  // Cap les amendements/scrutins envoyés au LLM (les gros dossiers en ont 100+ → coût token énorme).
+  const officialFacts = { dossier, expose_des_motifs: exposeDesMotifs, steps: (stepsResult.data || []).slice(0, 40), amendments: (amendmentsResult.data || []).slice(0, 30), scrutins: (scrutinsResult.data || []).slice(0, 20) };
+  const sourceUrls = [...new Set([
+    ...(dossier.source_urls ?? []),
+    ...(stepsResult.data ?? []).map((item: any) => item.source_url),
+    ...(amendmentsResult.data ?? []).map((item: any) => item.source_url),
+    ...(scrutinsResult.data ?? []).map((item: any) => item.source_url),
+  ].filter(Boolean))] as string[];
+  return { officialFacts, sourceUrls };
+}
+
+/**
+ * Empreinte qui décide si une analyse est à refaire. La catégorie est un classement maison,
+ * pas un fait officiel, et source_hash l'incluait : les retirer évite qu'une retouche du
+ * classeur (normalization.ts) fasse passer des centaines de dossiers pour modifiés et
+ * relance autant d'analyses DeepSeek payantes. Le modèle reçoit toujours le dossier entier.
+ */
+export function empreinteAnalyse(officialFacts: any): string {
+  const { category: _category, source_hash: _sourceHash, ...dossier } = officialFacts.dossier;
+  return stableHash({ officialFacts: { ...officialFacts, dossier }, prompt: PROMPT_VERSION });
+}
+
+/** Empreinte d'avant le 26/10/2026 — sert seulement à rebase-analyses-hash.ts. */
+export function empreinteHistorique(officialFacts: any): string {
+  return stableHash({ officialFacts, prompt: PROMPT_VERSION });
+}
 
 export async function summarizeLegislativeDossiers() {
   return trackLegislativeSync("legislative_summaries", async () => {
@@ -72,37 +119,15 @@ export async function summarizeLegislativeDossiers() {
     dossiers = missing;
     console.log(`[BACKFILL] ${analyzed.size} dossiers déjà analysés ; ${missing.length} manquants à traiter.`);
   }
-  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
   let generated = 0;
   for (const dossier of dossiers) {
-    // Fetch des faits officiels avec retries (évite les coupures Supabase sous charge en backfill).
-    let stepsResult: any = {}, amendmentsResult: any = {}, scrutinsResult: any = {};
-    for (let attempt = 0; attempt < 3; attempt++) {
-      [stepsResult, amendmentsResult, scrutinsResult] = await Promise.all([
-        supabase.from("legislative_steps").select("step_label,chamber,occurred_at,source_url,source_hash").eq("dossier_id", dossier.id).order("sequence").limit(100),
-        supabase.from("legislative_amendments").select("number,author_name,subject,outcome_label,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(100),
-        supabase.from("legislative_scrutins").select("title,result_label,for_count,against_count,abstain_count,voted_at,source_url,source_hash").eq("dossier_id", dossier.id).order("voted_at", { ascending: false }).limit(30),
-      ]);
-      if (!(stepsResult.error || amendmentsResult.error || scrutinsResult.error)) break;
-      await sleep(800 * (attempt + 1));
-    }
-    if (stepsResult.error || amendmentsResult.error || scrutinsResult.error) {
+    const faits = await faitsOfficiels(dossier);
+    if (!faits) {
       console.error(`Analysis unavailable for ${dossier.id}: official facts could not be loaded.`);
       continue;
     }
-    // Exposé des motifs (PDF officiel) : ce que contient le texte et à quel problème il répond.
-    // Plafonné à 18 000 caractères : au-delà, coût token élevé sans gain de qualité (et compatible
-    // avec la fenêtre de sortie des modèles gratuits type Gemini Flash).
-    const exposeDesMotifs = (await fetchExposeText(dossier.source_urls) || "").slice(0, 18000);
-    // Cap les amendements/scrutins envoyés au LLM (les gros dossiers en ont 100+ → coût token énorme).
-    const officialFacts = { dossier, expose_des_motifs: exposeDesMotifs, steps: (stepsResult.data || []).slice(0, 40), amendments: (amendmentsResult.data || []).slice(0, 30), scrutins: (scrutinsResult.data || []).slice(0, 20) };
-    const sourceUrls = [...new Set([
-      ...(dossier.source_urls ?? []),
-      ...(stepsResult.data ?? []).map(item => item.source_url),
-      ...(amendmentsResult.data ?? []).map(item => item.source_url),
-      ...(scrutinsResult.data ?? []).map(item => item.source_url),
-    ].filter(Boolean))];
-    const inputHash = stableHash({ officialFacts, prompt: PROMPT_VERSION });
+    const { officialFacts, sourceUrls } = faits;
+    const inputHash = empreinteAnalyse(officialFacts);
     const { count } = await supabase.from("legislative_analyses").select("id", { count: "exact", head: true }).eq("dossier_id", dossier.id).eq("input_hash", inputHash).eq("prompt_version", PROMPT_VERSION);
     if ((count ?? 0) >= 2) continue;
     try {

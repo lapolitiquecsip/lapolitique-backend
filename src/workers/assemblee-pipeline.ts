@@ -5,6 +5,22 @@ import * as Sentry from '@sentry/node';
 import { logStart, logSuccess, logError } from '../lib/monitoring.js';
 import { chiffresAbsents, retirerPhrasesNonSourcees } from '../lib/verification-source.js';
 import { resilientDeepSeek } from '../lib/deepseek-client.js';
+import { fusionnerSources, memeSujet, regroupable } from '../lib/feed-events.js';
+
+// Fiches des trois derniers jours, chargées une fois par passage : une nouvelle
+// fiche sur un événement déjà couvert (même nouvelle, autre média) enrichit la
+// liste des sources de l'existante au lieu d'empiler une carte de plus.
+type Voisine = { id: string; titre_simplifie: string; date_publication: string; source_url: string; source_name: string | null };
+let voisines: Voisine[] | null = null;
+async function fichesRecentes(): Promise<Voisine[]> {
+  if (voisines) return voisines;
+  const { data } = await supabase
+    .from('content')
+    .select('id, titre_simplifie, date_publication, source_url, source_name')
+    .gte('date_publication', new Date(Date.now() - 72 * 3600 * 1000).toISOString());
+  voisines = (data || []) as Voisine[];
+  return voisines;
+}
 
 const parser = new Parser({
   customFields: {
@@ -291,6 +307,23 @@ async function processSource(
         status: 'published',
       };
 
+      const fiche = { titre_simplifie: insertPayload.titre_simplifie, date_publication: insertPayload.date_publication, source_url: sourceUrl, source_name: insertPayload.source_name };
+      const recentes = await fichesRecentes();
+      const jumelle = regroupable(fiche)
+        ? recentes.find(v => regroupable(v)
+            && Math.abs(Date.parse(v.date_publication) - Date.parse(fiche.date_publication)) <= 72 * 3600 * 1000
+            && memeSujet(v.titre_simplifie || '', fiche.titre_simplifie || ''))
+        : undefined;
+      if (jumelle) {
+        const sources = fusionnerSources(jumelle.source_name, fiche.source_name);
+        if (sources !== jumelle.source_name) {
+          await supabase.from('content').update({ source_name: sources }).eq('id', jumelle.id);
+          jumelle.source_name = sources;
+        }
+        console.log(`[Pipeline] ⊕ Même événement que « ${jumelle.titre_simplifie} » : sources réunies (${sources}).`);
+        continue;
+      }
+
       let { error: insertError } = await supabase.from('content').insert(insertPayload);
 
       // If source_name column doesn't exist yet, retry without it
@@ -304,6 +337,8 @@ async function processSource(
       if (insertError) throw new Error(`Supabase insert error: ${insertError.message}`);
 
 
+      const { data: inseree } = await supabase.from('content').select('id').eq('source_url', sourceUrl).maybeSingle();
+      if (inseree) recentes.push({ id: inseree.id, ...fiche });
       console.log(`[Pipeline] ✓ ${summary.titre_simplifie}`);
       processedThisSource++;
       totalProcessed.count++;
