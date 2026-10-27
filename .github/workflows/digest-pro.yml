@@ -5,6 +5,8 @@ on:
     - cron: '0 17,18 * * *'
     # Hebdomadaire : dimanche 18 h à Paris (16 h UTC l'été, 17 h UTC l'hiver).
     - cron: '0 16,17 * * 0'
+    # Préparation : l'agent IA enrichit en lot (moitié prix) ce qui partira, une heure avant.
+    - cron: '0 15,16 * * *'
   workflow_dispatch:
     inputs:
       rythme:
@@ -18,19 +20,28 @@ permissions:
 jobs:
   digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Plafond de dépense de l'agent par passage, en dollars.
+      DIGEST_IA_BUDGET: '2'
       EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
       SITE_URL: https://lapolitiquecestsimple.fr
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
+      # Préparation en lot (cron de 15 h / 16 h UTC) : rien n'est envoyé.
+      - run: |
+          npm run automation:digest-pro -- --rythme=quotidien --preparer
+          npm run automation:digest-pro -- --rythme=hebdo --preparer
+        if: github.event.schedule == '0 15,16 * * *'
+        continue-on-error: true
       # Le dimanche, les deux crons tournent : chaque script vérifie lui-même son heure.
       - run: npm run automation:digest-pro -- --rythme=quotidien ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
-        if: github.event_name != 'workflow_dispatch' || inputs.rythme == 'quotidien'
+        if: github.event.schedule != '0 15,16 * * *' && (github.event_name != 'workflow_dispatch' || inputs.rythme == 'quotidien')
         continue-on-error: true
       - run: npm run automation:digest-pro -- --rythme=hebdo ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
-        if: github.event_name != 'workflow_dispatch' || inputs.rythme == 'hebdo'
+        if: github.event.schedule != '0 15,16 * * *' && (github.event_name != 'workflow_dispatch' || inputs.rythme == 'hebdo')

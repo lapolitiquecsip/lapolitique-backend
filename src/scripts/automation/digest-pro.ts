@@ -2,6 +2,7 @@ import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { fetchAll, resolveLocation, importanceOf } from "./generate-interest-notifications.js";
 import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, COULEURS, simulation } from "../../lib/mail.js";
+import { enrichir, lireEnrichissements, type Enrichissement } from "../../lib/enrichissement-pro.js";
 
 /**
  * E-mails à la carte des membres Pro — chaque jour ou chaque semaine, par catégorie.
@@ -16,21 +17,31 @@ import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc,
  *   europe       votes du Parlement européen (et la position des eurodéputés suivis)
  *   territoire   actualités de sa commune, son département, sa région
  *
- * Sans IA : tout est lu dans ce que le site a déjà publié. Une information ne part
- * qu'une fois par rythme (table digest_items), même arrivée en base avec retard.
- * S'ajoute à l'alerte « Un texte vous concerne » et au récap du samedi, inchangés.
+ * Les informations viennent de ce que le site a déjà publié ; celles des rubriques
+ * commissions, textes, JO et Europe sont enrichies par un agent IA (lib/enrichissement-pro :
+ * l'essentiel, faits clés, concernés, rapport de force, suite), une fois pour tous.
+ * Une information ne part qu'une fois par rythme (table digest_items), même arrivée en
+ * base avec retard. S'ajoute à l'alerte « Un texte vous concerne » et au récap du samedi.
  *
  * Envoi : quotidien à 19 h (heure de Paris), hebdomadaire le dimanche à 18 h.
  *   --rythme=quotidien|hebdo   (obligatoire)
+ *   --preparer                 enrichit en lot (moitié prix) ce qui partira, n'envoie rien
  *   --test=adresse@exemple.fr  un seul envoi à ce membre, à toute heure, sans journal
  *   --force                    ignore l'heure (rattrapage)
  *   --apercu=fichier.html      écrit l'e-mail du premier destinataire, n'envoie rien
+ *   --sans-ia                  aucun appel à l'agent (seulement les enrichissements déjà faits)
+ *   --max-ia=N                 au plus N informations enrichies (essais)
  */
 const arg = (n: string) => process.argv.find(a => a.startsWith(`--${n}=`))?.split("=").slice(1).join("=");
 const RYTHME = arg("rythme") as "quotidien" | "hebdo";
 const TEST = arg("test");
 const APERCU = arg("apercu");
 const FORCE = process.argv.includes("--force");
+const PREPARER = process.argv.includes("--preparer");
+const SANS_IA = process.argv.includes("--sans-ia");
+const MAX_IA = Number(arg("max-ia") || 0) || Infinity;
+// Plafond de dépense de l'agent par passage (en $) ; le lot du soir coûte moitié moins.
+const BUDGET_IA = Number(process.env.DIGEST_IA_BUDGET || 2);
 const JOUR = 864e5;
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -43,7 +54,9 @@ export const CATEGORIES = [
   { code: "territoire", emoji: "📍", intitule: "Votre territoire", couleur: "#059669" },
 ] as const;
 type Code = typeof CATEGORIES[number]["code"];
-type Info = { cle: string; titre: string; resume?: string | null; url?: string | null; etiquette?: string | null; meta?: string | null; importance?: number };
+// ref : clé de l'enrichissement quand l'information en double une autre (loi du JO = loi promulguée).
+type Info = { cle: string; titre: string; resume?: string | null; url?: string | null; etiquette?: string | null; meta?: string | null; importance?: number; ref?: string };
+const numeroLoi = (t: string) => /\bn°\s*(\d{4}-\d+)/i.exec(t || "")?.[1];
 
 // Actes de routine du Journal officiel : comptés dans la synthèse, pas listés.
 const ROUTINE = /\b(portant|relatif à la|relative à la|relatif aux|relative aux)\s+(nomination|titularisation|d[ée]l[ée]gation de signature|cessation de fonctions|admission|promotion|r[ée]int[ée]gration|d[ée]tachement|mise [àa] disposition|radiation|inscription au tableau)|^(arr[êe]t[ée]|d[ée]cision)\b.*\b(nomination|d[ée]l[ée]gation de signature)/i;
@@ -71,7 +84,8 @@ async function commun(debut: Date, recul: Date) {
     }));
 
   // Textes : lois promulguées, puis projets et propositions de loi arrivés sur le site.
-  const lois = await fetchAll("promulgated_laws", "id, dossier_id, title, promulgated_at, eli_url, created_at", q => q.gte("created_at", depuis));
+  // Promulguées récemment : les rattrapages d'archives (lois de 2022 entrées hier en base) restent dehors.
+  const lois = await fetchAll("promulgated_laws", "id, dossier_id, title, promulgated_at, eli_url, created_at", q => q.gte("created_at", depuis).gte("promulgated_at", jourRecul));
   const depots = await fetchAll("legislative_dossiers", "id, title, text_type, author_name, current_chamber, deposited_at, created_at",
     q => q.gte("created_at", depuis).gte("deposited_at", jourRecul).in("text_type", ["bill", "proposal"]));
   const titres = new Map<string, string>();
@@ -101,6 +115,7 @@ async function commun(debut: Date, recul: Date) {
   const actes = editions.length ? await fetchAll("jorf_texts", "id, edition_date, titre, nature, explication",
     q => q.in("edition_date", editions.map((e: any) => e.date)).in("nature", ["loi", "ordonnance", "decret"]).not("explication", "is", null)) : [];
   const ordreNature = (n: string) => (n === "loi" ? 0 : n === "ordonnance" ? 1 : 2);
+  const loiParNumero = new Map(lois.map((l: any) => [numeroLoi(l.title), `loi:${l.id}`]).filter(([n]) => n) as [string, string][]);
   const jo: Info[] = [
     ...editions.map((e: any) => ({
       cle: `jo:${e.date}`, titre: e.title || `Journal officiel du ${fmtJour(e.date)}`, resume: e.digest, url: `${SITE_URL}/premium#journal-officiel`,
@@ -111,6 +126,7 @@ async function commun(debut: Date, recul: Date) {
       .map((a: any) => ({
         cle: `jotexte:${a.id}`, titre: a.titre, resume: resumeCourt(a.explication, 200), url: `${SITE_URL}/premium#journal-officiel`,
         etiquette: a.nature === "loi" ? "Loi" : a.nature === "ordonnance" ? "Ordonnance" : "Décret", meta: `JO du ${fmtJour(a.edition_date)}`,
+        ref: a.nature === "loi" ? loiParNumero.get(numeroLoi(a.titre) || "") : undefined,
       })),
   ];
 
@@ -139,13 +155,40 @@ async function commun(debut: Date, recul: Date) {
   return { commissions, textes, jo, europe, positionsUE, actus, fil };
 }
 
+/* ───────────────────────── Ligne enrichie par l'agent ───────────────────────── */
+
+// Analyse complète pour les premières informations de chaque rubrique, l'essentiel ensuite.
+const COMPLETES = 6;
+const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function ligneEnrichie(i: Info, e: Enrichissement, couleur: string, court = false): string {
+  const titre = esc(majuscule(resumeCourt(i.titre, 140)));
+  const t = i.url ? `<a href="${esc(i.url)}" style="color:${COULEURS.encre};text-decoration:none">${titre}</a>` : titre;
+  if (court) e = { ...e, points: [], concernes: "", suite: "", enjeu: "" };
+  const rubriqueCourte = (libelle: string, texte: string) => texte
+    ? `<div style="font-size:13px;line-height:1.55;color:${COULEURS.doux};margin-top:6px"><span style="font-weight:800;color:${couleur}">${libelle}</span> ${esc(texte)}</div>` : "";
+  return `<div style="padding:16px 0;border-bottom:1px solid ${COULEURS.filet}">
+  ${i.etiquette ? `<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${couleur};margin-bottom:4px">${esc(i.etiquette)}</div>` : ""}
+  <div style="font-size:15px;line-height:1.4;font-weight:700;color:${COULEURS.encre}">${t}</div>
+  <div style="font-size:14px;line-height:1.55;color:${COULEURS.encre};margin-top:6px">${esc(e.essentiel)}</div>
+  ${e.points.length ? `<table role="presentation" style="margin-top:6px;border-collapse:collapse">${e.points.map(p => `<tr><td style="vertical-align:top;padding:3px 8px 3px 0;color:${couleur};font-size:13px;line-height:1.5">●</td><td style="padding:3px 0;font-size:13px;line-height:1.5;color:${COULEURS.doux}">${esc(p)}</td></tr>`).join("")}</table>` : ""}
+  ${rubriqueCourte("Qui est concerné ·", e.concernes)}
+  ${rubriqueCourte("Rapport de force ·", e.rapport_de_force)}
+  ${rubriqueCourte("Et ensuite ·", e.suite)}
+  ${rubriqueCourte("L'enjeu ·", e.enjeu)}
+  ${i.meta ? `<div style="font-size:11px;color:${COULEURS.pale};margin-top:7px">${esc(i.meta)}</div>` : ""}
+</div>`;
+}
+
 /* ───────────────────────── Passage ───────────────────────── */
 
 async function main() {
   if (RYTHME !== "quotidien" && RYTHME !== "hebdo") throw new Error("--rythme=quotidien|hebdo");
   const maintenant = new Date();
   const h = parisHeure(maintenant);
-  if (!TEST && !APERCU && !FORCE) {
+  if (PREPARER && !FORCE && h >= 19) { console.log("[Digest] Préparation : l'envoi est déjà parti ou part maintenant, il rattrapera en direct."); return; }
+  if (PREPARER && !FORCE && RYTHME === "hebdo" && parisJourSemaine(maintenant) !== 0) { console.log("[Digest] Préparation hebdomadaire : le dimanche seulement."); return; }
+  if (!TEST && !APERCU && !FORCE && !PREPARER) {
     // Fenêtre de quelques heures : les crons GitHub partent souvent en retard. Le journal
     // digests_envoyes empêche tout second envoi sur la même période.
     if (RYTHME === "quotidien" && (h < 19 || h > 23)) { console.log(`[Digest] ${h} h à Paris : l'envoi quotidien part à partir de 19 h.`); return; }
@@ -185,10 +228,23 @@ async function main() {
   const neuf = <T extends Info>(l: T[]) => TEST || APERCU ? l : l.filter(i => !servis.has(i.cle));
   console.log(`[Digest ${RYTHME}] ${c.commissions.length} commission(s), ${c.textes.length} texte(s), ${c.jo.length} ligne(s) JO, ${c.europe.length} vote(s) UE, ${c.actus.length} actu(s), ${c.fil.length} info(s) locale(s).`);
 
+  const plafond = RYTHME === "quotidien" ? 12 : 20;
+  // Un même fait n'apparaît qu'une fois dans une rubrique.
+  const unique = <T extends Info>(l: T[]) => { const vus = new Set<string>(); return l.filter(i => i.titre && !vus.has(norm(i.titre).slice(0, 70)) && !!vus.add(norm(i.titre).slice(0, 70))); };
+
+  // Rubriques communes à tous : l'agent enrichit une fois ce qui partira (en lot une heure
+  // avant l'envoi, en direct pour ce qui est arrivé depuis), pour tous les membres.
+  const partagees: [Code, Info[]][] = [["commissions", c.commissions], ["textes", c.textes], ["jo", c.jo.filter(i => !i.cle.startsWith("jo:"))], ["europe", c.europe]];
+  const voulues = new Set(destinataires.flatMap(choisies));
+  const aEnrichir = partagees.filter(([k]) => voulues.has(k)).flatMap(([, l]) => unique(neuf(l)).slice(0, plafond))
+    .map(i => (i.ref ? { ...i, cle: i.ref } : i)).slice(0, MAX_IA);
+  const enr = await lireEnrichissements(aEnrichir.map(i => i.cle));
+  if (!SANS_IA) for (const [k, v] of await enrichir(aEnrichir.filter(i => !enr.has(i.cle)), { mode: PREPARER ? "lot" : "direct", budget: BUDGET_IA })) enr.set(k, v);
+  if (PREPARER) { console.log(`[Digest ${RYTHME}] Préparation faite : ${enr.size}/${aEnrichir.length} information(s) enrichie(s).`); return; }
+
   const adresses = await adressesDesMembres(destinataires);
   const { data: profils } = await supabase.from("profiles").select("id, display_name").in("id", destinataires);
   const prenom = new Map((profils || []).map((p: any) => [p.id, (p.display_name || "").split(" ")[0]]));
-  const plafond = RYTHME === "quotidien" ? 12 : 20;
   const aServir = new Set<string>();
   let envoyes = 0;
 
@@ -202,7 +258,8 @@ async function main() {
       let items: Info[] = []; let note: string | undefined; let vide = "Rien de nouveau sur cette période.";
       if (cat.code === "commissions") items = neuf(c.commissions);
       if (cat.code === "textes") items = neuf(c.textes);
-      if (cat.code === "jo") items = neuf(c.jo);
+      // La loi du JO est déjà dans « Lois et textes » quand le membre a choisi les deux.
+      if (cat.code === "jo") items = neuf(c.jo).filter(i => !(i.ref && cats.includes("textes")));
       if (cat.code === "europe") {
         // Position des eurodéputés suivis, vote par vote.
         const { data: f } = await supabase.from("user_follows").select("mep_id").eq("user_id", id).not("mep_id", "is", null);
@@ -247,15 +304,14 @@ async function main() {
         if (p.city) note = `${p.city} · périmètre : ${perimetre === "commune" ? "commune" : perimetre === "region" ? "région" : "département"}`;
       }
 
-      // Un même fait n'apparaît qu'une fois dans la rubrique.
-      const vus = new Set<string>();
-      items = items.filter(i => i.titre && !vus.has(norm(i.titre).slice(0, 70)) && !!vus.add(norm(i.titre).slice(0, 70)));
+      items = unique(items);
       const montres = items.slice(0, plafond);
       montres.forEach(i => aServir.add(`${i.cle}`));
       total += montres.length;
       if (montres.length) resume.push(`${montres.length} ${cat.intitule.toLowerCase()}`);
       const corps = montres.length
-        ? montres.map(i => ligne({ titre: resumeCourt(i.titre, 140), url: i.url, resume: i.resume, etiquette: i.etiquette, couleur: cat.couleur, meta: i.meta })).join("")
+        ? montres.map((i, n) => enr.has(i.ref || i.cle) ? ligneEnrichie(i, enr.get(i.ref || i.cle)!, cat.couleur, n >= COMPLETES)
+          : ligne({ titre: majuscule(resumeCourt(i.titre, 140)), url: i.url, resume: i.resume, etiquette: i.etiquette, couleur: cat.couleur, meta: i.meta })).join("")
           + (items.length > plafond ? `<div style="padding:10px 0;font-size:12px;color:${COULEURS.doux}">… et ${items.length - plafond} autre${items.length - plafond > 1 ? "s" : ""} dans votre espace Pro.</div>` : "")
         : `<div style="padding:12px 0;font-size:13px;color:${COULEURS.pale}">${esc(vide)}</div>`;
       blocs.push(rubrique(cat.emoji, cat.intitule, cat.couleur, corps + `<div style="padding-top:6px;font-size:11px"><a href="${esc(desabo(cat.code))}" style="color:${COULEURS.pale}">Ne plus recevoir cette rubrique</a></div>`, note));
@@ -270,7 +326,7 @@ async function main() {
       titre: quotidien ? "Votre journée <span style=\"color:#fbbf24\">politique</span>" : "Votre semaine <span style=\"color:#fbbf24\">politique</span>",
       sousTitre: `${prenom.get(id) ? `Bonjour ${esc(prenom.get(id))} — ` : ""}les rubriques que vous avez choisies${quotidien ? ", depuis hier 19 h" : ", sur les sept derniers jours"}.`,
       corps: blocs.join("") + bouton("Ouvrir mon espace Pro", `${SITE_URL}/premium`, "#b45309"),
-      pied: `Vous recevez cet e-mail car vous êtes membre Pro et l'avez demandé ${quotidien ? "chaque jour" : "chaque semaine"}.<br>
+      pied: `${enr.size ? "Les analyses sous chaque titre sont rédigées par une IA (Claude) à partir des textes officiels, des votes et des comptes rendus : vérifiez la source avant de citer.<br><br>" : ""}Vous recevez cet e-mail car vous êtes membre Pro et l'avez demandé ${quotidien ? "chaque jour" : "chaque semaine"}.<br>
         <a href="${SITE_URL}/premium#preferences" style="color:#64748b">Choisir mes rubriques</a> · <a href="${esc(desabo("tout"))}" style="color:#64748b">Ne plus rien recevoir de ces e-mails</a>`,
     });
     if (APERCU) { const fs = await import("node:fs"); fs.writeFileSync(APERCU, html); console.log(`[Digest] Aperçu écrit : ${APERCU} (${total} ligne(s)).`); return; }
