@@ -1,0 +1,36 @@
+name: E-mails Pro à la carte (quotidien et hebdomadaire)
+on:
+  schedule:
+    # Quotidien : 19 h à Paris (17 h UTC l'été, 18 h UTC l'hiver) — le script ne part qu'à 19 h locales.
+    - cron: '0 17,18 * * *'
+    # Hebdomadaire : dimanche 18 h à Paris (16 h UTC l'été, 17 h UTC l'hiver).
+    - cron: '0 16,17 * * 0'
+  workflow_dispatch:
+    inputs:
+      rythme:
+        description: "quotidien | hebdo"
+        default: quotidien
+concurrency:
+  group: digest-pro
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      SITE_URL: https://lapolitiquecestsimple.fr
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      # Le dimanche, les deux crons tournent : chaque script vérifie lui-même son heure.
+      - run: npm run automation:digest-pro -- --rythme=quotidien ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
+        if: github.event_name != 'workflow_dispatch' || inputs.rythme == 'quotidien'
+        continue-on-error: true
+      - run: npm run automation:digest-pro -- --rythme=hebdo ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
+        if: github.event_name != 'workflow_dispatch' || inputs.rythme == 'hebdo'

@@ -1,0 +1,22 @@
+name: Amendements de l'Assemblée (temps réel, Pro)
+on:
+  schedule:
+    # Toutes les heures : nouveaux amendements, sorts, détail (Eliasse, API publique de l'AN).
+    - cron: '7 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: amendements-an
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  amendements:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run data:amendements-an
