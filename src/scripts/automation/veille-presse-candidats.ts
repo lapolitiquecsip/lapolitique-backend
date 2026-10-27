@@ -1,6 +1,7 @@
 import "dotenv/config";
 import Parser from "rss-parser";
 import { supabase } from "../../config/supabase.js";
+import { PANEL_PRESSE } from "../../lib/panel-presse.js";
 
 /**
  * Veille presse des candidats à la présidentielle : combien d'articles les citent.
@@ -15,40 +16,8 @@ import { supabase } from "../../config/supabase.js";
  * quand il est sans ambiguïté (« Mélenchon », pas « Philippe » ni « Royal »).
  */
 
-const PANEL: Record<string, string[]> = {
-  "Le Monde": ["https://www.lemonde.fr/politique/rss_full.xml", "https://www.lemonde.fr/rss/une.xml"],
-  "Le Figaro": ["https://www.lefigaro.fr/rss/figaro_politique.xml", "https://www.lefigaro.fr/rss/figaro_actualites.xml"],
-  "Libération": ["https://www.liberation.fr/arc/outboundfeeds/rss-all/?outputType=xml"],
-  "franceinfo": ["https://www.francetvinfo.fr/politique.rss", "https://www.francetvinfo.fr/titres.rss"],
-  "20 Minutes": ["https://www.20minutes.fr/feeds/rss-politique.xml"],
-  "Le Parisien": ["https://feeds.leparisien.fr/leparisien/rss/politique"],
-  "BFMTV": ["https://www.bfmtv.com/rss/politique/"],
-  "TF1 Info": ["https://www.tf1info.fr/feeds/rss-une.xml"],
-  "Europe 1": ["https://www.europe1.fr/rss.xml"],
-  "France Inter": ["https://www.radiofrance.fr/franceinter/rss"],
-  "CNews": ["https://www.cnews.fr/rss/categorie/france"],
-  "L'Obs": ["https://www.nouvelobs.com/politique/rss.xml"],
-  "L'Express": ["https://www.lexpress.fr/arc/outboundfeeds/rss/politique.xml"],
-  "L'Opinion": ["https://www.lopinion.fr/index.rss"],
-  "Marianne": ["https://www.marianne.net/rss.xml"],
-  "Mediapart": ["https://www.mediapart.fr/articles/feed"],
-  "Le JDD": ["https://www.lejdd.fr/rss/politique.xml"],
-  "Valeurs actuelles": ["https://www.valeursactuelles.com/feed"],
-  "L'Humanité": ["https://www.humanite.fr/sections/politique/feed"],
-  "La Croix": ["https://www.la-croix.com/RSS/UNIVERS_WFRA"],
-  "HuffPost": ["https://www.huffingtonpost.fr/politique/rss_headline.xml"],
-  "Public Sénat": ["https://www.publicsenat.fr/feed"],
-  "France 24": ["https://www.france24.com/fr/france/rss"],
-  "RFI": ["https://www.rfi.fr/fr/france/rss"],
-  "Ouest-France": ["https://www.ouest-france.fr/rss/une"],
-  "Sud Ouest": ["https://www.sudouest.fr/politique/rss.xml"],
-  "La Dépêche": ["https://www.ladepeche.fr/rss.xml"],
-  "Midi Libre": ["https://www.midilibre.fr/rss.xml"],
-  "Le Progrès": ["https://www.leprogres.fr/politique/rss"],
-  "Le Dauphiné": ["https://www.ledauphine.com/politique/rss"],
-  "DNA": ["https://www.dna.fr/politique/rss"],
-  "Nice-Matin": ["https://www.nicematin.com/rss"],
-};
+// Le panel est partagé avec la veille des annonces du gouvernement (executif-annonces.ts).
+const PANEL = PANEL_PRESSE;
 
 // Noms de famille qui sont aussi des prénoms ou des mots courants : il faut le nom complet.
 const AMBIGUS = new Set(["philippe", "royal", "faure", "bertrand", "hollande", "brun", "roussel", "batho", "kazib", "labib", "massard", "arthaud", "maurel"]);

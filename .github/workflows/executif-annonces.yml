@@ -1,0 +1,25 @@
+name: Annonces du gouvernement (page Exécutif)
+on:
+  schedule:
+    # Toutes les 3 heures de 7 h à 23 h (heure de Paris) : collecte, tri, analyse des nouvelles annonces.
+    - cron: '20 5,8,11,14,17,20 * * *'
+  workflow_dispatch:
+concurrency:
+  group: executif-annonces
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  annonces:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Plafond de dépense de l'IA par jour, en dollars (choix du 28/10/2026).
+      EXECUTIF_IA_BUDGET_JOUR: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npm run automation:executif-annonces
