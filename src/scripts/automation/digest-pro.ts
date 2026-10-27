@@ -172,6 +172,11 @@ function ligneEnrichie(i: Info, e: Enrichissement, couleur: string, court = fals
   <div style="font-size:15px;line-height:1.4;font-weight:700;color:${COULEURS.encre}">${t}</div>
   <div style="font-size:14px;line-height:1.55;color:${COULEURS.encre};margin-top:6px">${esc(e.essentiel)}</div>
   ${e.points.length ? `<table role="presentation" style="margin-top:6px;border-collapse:collapse">${e.points.map(p => `<tr><td style="vertical-align:top;padding:3px 8px 3px 0;color:${couleur};font-size:13px;line-height:1.5">●</td><td style="padding:3px 0;font-size:13px;line-height:1.5;color:${COULEURS.doux}">${esc(p)}</td></tr>`).join("")}</table>` : ""}
+  ${!court && e.amendements?.length ? `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#faf8f3;border:1px solid ${COULEURS.filet}">
+    <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${couleur};margin-bottom:4px">Ce que proposaient les amendements</div>
+    ${e.amendements.map(a => `<div style="font-size:13px;line-height:1.5;color:${COULEURS.doux};padding:4px 0"><b style="color:${COULEURS.encre}">${esc(a.numero)}</b> · ${esc(a.auteur)} — ${esc(a.objet)}</div>`).join("")}
+  </div>` : ""}
+  ${e.amendements_texte ? `<div style="margin-top:8px"><a href="${esc(`${SITE_URL}/premium/?amdt-texte=${encodeURIComponent(e.amendements_texte)}#amendements`)}" style="display:inline-block;padding:8px 12px;border-radius:10px;background:${couleur};color:#ffffff;font-size:12px;font-weight:800;text-decoration:none">Lire le texte complet des amendements →</a></div>` : ""}
   ${rubriqueCourte("Qui est concerné ·", e.concernes)}
   ${rubriqueCourte("Rapport de force ·", e.rapport_de_force)}
   ${rubriqueCourte("Et ensuite ·", e.suite)}

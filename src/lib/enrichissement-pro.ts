@@ -19,9 +19,13 @@ export const MODELE = process.env.DIGEST_MODELE || "claude-opus-5-5";
 // Tarifs Claude Opus 5.5 ($ par million de jetons) ; recherche web : 10 $ les 1 000.
 const PRIX = { entree: 4, sortie: 20, cacheLu: 0.2, cacheEcrit: 5, recherche: 0.01 };
 
+export type Amendement = { numero: string; auteur: string; objet: string };
 export type Enrichissement = {
   essentiel: string; points: string[]; concernes: string; rapport_de_force: string; suite: string; enjeu: string;
+  // Réunions sur des amendements : les plus significatifs, et de quoi ouvrir la liste complète sur le site.
+  amendements?: Amendement[]; amendements_texte?: string; amendements_nb?: number;
 };
+type Source = { texte: string; web: boolean; amendementsTexte?: string; amendementsNb?: number };
 type Info = { cle: string; titre: string; resume?: string | null; url?: string | null; etiquette?: string | null; meta?: string | null };
 
 // Sites officiels que l'agent peut consulter (sous-domaines compris).
@@ -46,6 +50,8 @@ Rubriques :
 - rapport_de_force : votes et positions (résultat chiffré, groupes pour/contre, soutiens et oppositions déclarés). Une ou deux phrases, ou vide.
 - suite : prochaine étape datée si possible (navette, séance, entrée en vigueur, décrets attendus, saisine du Conseil constitutionnel). Une phrase, ou vide.
 - enjeu : pourquoi ça compte au-delà du texte (contexte, ce qui existait avant, débat de fond). Une phrase, ou vide.
+- amendements : seulement si le dossier contient « AMENDEMENTS EXAMINÉS ». Jusqu'à 8 amendements, les plus significatifs (ceux du Gouvernement et du rapporteur, puis la plus grande portée budgétaire ou politique, en couvrant plusieurs groupes). Pour chacun : numero tel qu'affiché, auteur avec son groupe (« Philippe Juvin (DR) », « Gouvernement »), objet = ce que l'amendement proposait concrètement, tiré de son dispositif et de son exposé (mesure, impôt ou crédit visé, montant), une phrase de 200 caractères au plus. Sinon [].
+  Dans ce cas, « points » porte sur le fond (thèmes, impôts et dispositifs visés, montants) plutôt que sur des listes de noms ou de numéros d'articles.
 
 Le sujet est toujours l'acte ou l'événement du jour. Un texte antérieur (décret précédent, loi modifiée) ne sert que de contexte, dans « enjeu », et n'est jamais décrit comme s'il était l'information du jour. Si tu ne trouves pas le contenu de l'acte du jour, tiens-toi à ce que dit l'explication fournie.
 
@@ -62,8 +68,9 @@ const SCHEMA = {
     rapport_de_force: { type: "string" },
     suite: { type: "string" },
     enjeu: { type: "string" },
+    amendements: { type: "array", items: { type: "object", properties: { numero: { type: "string" }, auteur: { type: "string" }, objet: { type: "string" } }, required: ["numero", "auteur", "objet"], additionalProperties: false } },
   },
-  required: ["essentiel", "points", "concernes", "rapport_de_force", "suite", "enjeu"],
+  required: ["essentiel", "points", "concernes", "rapport_de_force", "suite", "enjeu", "amendements"],
   additionalProperties: false,
 } as const;
 
@@ -71,6 +78,39 @@ const couper = (v: unknown, max: number) => { const s = typeof v === "string" ? 
 const fr = (d?: string | null) => (d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" }) : "");
 
 /* ───────────────────────── Dossier de sources, par type ───────────────────────── */
+
+const sansAccent = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/**
+ * Amendements cités dans un compte rendu de commission (tableau de l'article 91, « amendement
+ * CF123 »…) : numéro présent dans le compte rendu ET nom de l'auteur aussi, pour écarter les
+ * numéros d'articles ou de pages qui ressembleraient à un numéro d'amendement.
+ */
+async function amendementsCites(numeroTexte: string, organeRef: string | null, compteRendu: string) {
+  const mots = new Set(compteRendu.match(/\b[A-Z]{0,4}\d{1,5}\b/g) || []);
+  const cr = sansAccent(compteRendu);
+  const tous: any[] = [];
+  for (let de = 0; ; de += 1000) {
+    const { data } = await supabase.from("amendements_an").select("uid, numero, auteur, organe, organe_ref, texte_uid")
+      .eq("texte_numero", numeroTexte).range(de, de + 999);
+    tous.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  const retenus = tous.filter(a => {
+    if (organeRef && a.organe_ref !== organeRef && a.organe !== "Séance publique") return false;
+    const coeur = String(a.numero).replace(/\s*\(.*\)$/, "").replace(/^[IVX]+-/, "");
+    const nom = sansAccent(String(a.auteur || "").replace(/^(M\.|Mme|le|la)\s+/i, "").split(" ").pop() || "");
+    return mots.has(coeur) && nom.length > 2 && cr.includes(nom);
+  });
+  if (!retenus.length) return null;
+  const details: any[] = [];
+  for (let i = 0; i < Math.min(retenus.length, 80); i += 40) {
+    const { data } = await supabase.from("amendements_an").select("numero, auteur, groupe, division, sort, dispositif, expose")
+      .in("uid", retenus.slice(i, Math.min(i + 40, 80)).map(a => a.uid));
+    details.push(...(data || []));
+  }
+  return { texteUid: retenus[0].texte_uid as string, nb: retenus.length, details };
+}
 
 async function dossierLoi(dossierId: string): Promise<string[]> {
   const morceaux: string[] = [];
@@ -95,10 +135,11 @@ async function dossierLoi(dossierId: string): Promise<string[]> {
   return morceaux;
 }
 
-async function dossierSources(info: Info): Promise<{ texte: string; web: boolean }> {
+async function dossierSources(info: Info): Promise<Source> {
   const [type, id] = [info.cle.slice(0, info.cle.indexOf(":")), info.cle.slice(info.cle.indexOf(":") + 1)];
   const m: string[] = [`INFORMATION : ${info.titre}`, info.etiquette ? `NATURE : ${info.etiquette}` : "", info.meta ? `DÉTAIL : ${info.meta}` : "", info.resume ? `RÉSUMÉ PUBLIÉ : ${info.resume}` : ""].filter(Boolean);
   let web = false;
+  let amdts: Awaited<ReturnType<typeof amendementsCites>> = null;
   if (type === "loi") {
     const { data: l } = await supabase.from("promulgated_laws").select("title, promulgated_at, dossier_id, eli_url, source_url").eq("id", id).maybeSingle();
     if (l) { m.push(`LOI PROMULGUÉE : ${l.title}, publiée au JO le ${fr(l.promulgated_at)} ; ${l.eli_url || l.source_url || ""}`); if (l.dossier_id) m.push(...await dossierLoi(l.dossier_id)); }
@@ -106,17 +147,20 @@ async function dossierSources(info: Info): Promise<{ texte: string; web: boolean
   } else if (type === "depot") {
     m.push(...await dossierLoi(id)); web = true;
   } else if (type === "commission") {
-    const { data: c } = await supabase.from("commission_reports").select("chamber, commission, title, meeting_date, cr_url, summary, analysis, speakers").eq("ref", id).maybeSingle();
+    const { data: c } = await supabase.from("commission_reports").select("chamber, commission, organe_ref, title, meeting_date, cr_url, summary, analysis, speakers").eq("ref", id).maybeSingle();
     if (c) {
       m.push(`RÉUNION : ${c.chamber === "SENAT" ? "Sénat" : "Assemblée nationale"} · ${c.commission} · ${fr(c.meeting_date)} · ${c.cr_url || ""}`);
       if (c.summary) m.push(`RÉSUMÉ : ${couper(c.summary, 4000)}`);
       if (c.analysis) m.push(`ANALYSE DU COMPTE RENDU (votes, annonces, chiffres, suites) :\n${couper(c.analysis, 16000)}`);
       if (c.speakers) m.push(`INTERVENANTS : ${couper(c.speakers, 3000)}`);
-      // Analyse maigre : un extrait du compte rendu intégral.
-      if (!c.analysis || JSON.stringify(c.analysis).length < 2500) {
-        const { data: t } = await supabase.from("commission_transcripts").select("texte").eq("ref", id).maybeSingle();
-        if (t?.texte) m.push(`COMPTE RENDU (extrait) :\n${couper(t.texte, 30000)}`);
-      }
+      const { data: t } = await supabase.from("commission_transcripts").select("texte").eq("ref", id).maybeSingle();
+      // Réunion sur un texte de l'Assemblée : le contenu des amendements qu'elle a examinés.
+      const numeroTexte = c.chamber !== "SENAT" ? /\(n°\s*(\d+)\)/.exec(`${c.title} ${c.summary || ""} ${(t?.texte || "").slice(0, 3000)}`)?.[1] : undefined;
+      if (numeroTexte && t?.texte) amdts = await amendementsCites(numeroTexte, c.organe_ref, t.texte);
+      if (amdts) m.push(`AMENDEMENTS EXAMINÉS (${amdts.nb} cités dans le compte rendu${amdts.nb > amdts.details.length ? `, ${amdts.details.length} détaillés ici` : ""}) :\n${amdts.details.map((a: any) =>
+        `- ${a.numero} · ${a.auteur || "?"}${a.groupe ? ` (${a.groupe})` : ""} · ${a.division || ""}\n  Dispositif : ${couper(a.dispositif || "(non relevé)", 450)}\n  Exposé : ${couper(a.expose || "", 550)}`).join("\n")}`);
+      // Analyse maigre, ou tableau des avis sur les amendements : le compte rendu lui-même.
+      if (t?.texte && (amdts || !c.analysis || JSON.stringify(c.analysis).length < 2500)) m.push(`COMPTE RENDU (extrait) :\n${couper(t.texte, 30000)}`);
     }
   } else if (type === "jotexte") {
     const { data: j } = await supabase.from("jorf_texts").select("titre, nature, rubrique, groupe, edition_date, explication").eq("id", id).maybeSingle();
@@ -140,14 +184,14 @@ async function dossierSources(info: Info): Promise<{ texte: string; web: boolean
     }
     web = true;
   }
-  return { texte: m.join("\n\n"), web };
+  return { texte: m.join("\n\n"), web, amendementsTexte: amdts?.texteUid, amendementsNb: amdts?.nb };
 }
 
 /* ───────────────────────── Appel à Claude ───────────────────────── */
 
 const client = () => new Anthropic();
 
-function requete(source: { texte: string; web: boolean }): Anthropic.MessageCreateParamsNonStreaming {
+function requete(source: Source): Anthropic.MessageCreateParamsNonStreaming {
   return {
     model: MODELE,
     max_tokens: 16000,
@@ -179,6 +223,8 @@ function lire(message: Anthropic.Message): { contenu: Enrichissement | null; cou
     const contenu: Enrichissement = {
       essentiel: propre(j.essentiel), points: (Array.isArray(j.points) ? j.points : []).map(propre).filter(Boolean).slice(0, 4),
       concernes: propre(j.concernes), rapport_de_force: propre(j.rapport_de_force), suite: propre(j.suite), enjeu: propre(j.enjeu),
+      amendements: (Array.isArray(j.amendements) ? j.amendements : []).filter((a: any) => a?.numero && a?.objet)
+        .map((a: any) => ({ numero: propre(a.numero), auteur: propre(a.auteur), objet: propre(a.objet) })).slice(0, 8),
     };
     return { contenu: contenu.essentiel ? contenu : null, cout, sources: [...sources] };
   } catch { return { contenu: null, cout, sources: [...sources] }; }
@@ -222,11 +268,14 @@ export async function enrichir(infos: Info[], { mode = "direct", budget = 1.5, a
 
   const garder = async (cle: string, r: ReturnType<typeof lire>, facteur: number) => {
     total += r.cout * facteur;
+    // De quoi ouvrir, depuis l'e-mail, tous les amendements du texte dans l'espace Pro.
+    const s = sources.get(cle);
+    if (r.contenu && s?.amendementsTexte) Object.assign(r.contenu, { amendements_texte: s.amendementsTexte, amendements_nb: s.amendementsNb });
     if (r.contenu) res.set(cle, r.contenu);
     if (enregistrer) await supabase.from("digest_enrichissements").upsert({ cle, contenu: r.contenu, sources: r.sources, modele: MODELE, cout_usd: Number((r.cout * facteur).toFixed(5)) }, { onConflict: "cle" });
   };
 
-  const sources = new Map<string, { texte: string; web: boolean }>();
+  const sources = new Map<string, Source>();
   for (const i of retenues) sources.set(i.cle, await dossierSources(i));
 
   if (mode === "lot") {
