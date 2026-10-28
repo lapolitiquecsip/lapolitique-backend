@@ -151,19 +151,23 @@ export async function fetchAndParseVotes() {
       if (ventilationGroups) {
         const gList = Array.isArray(ventilationGroups) ? ventilationGroups : [ventilationGroups];
         gList.forEach((g: any) => {
+          // Codes d'organe des groupes de la XVIIe législature. L'ancienne table décalait les
+          // noms (PO845401, le RN, étiqueté « LFI-NFP »…) : vérifiée le 28/10/2026 par les
+          // effectifs (RN 121, EPR 90, LFI 70…) et alignée sur src/lib/data/partyGroups.ts du site.
           const GROUP_NAMES: Record<string, string> = {
-            'PO845401': 'LFI-NFP',
-            'PO845407': 'GDR (Gauche)',
-            'PO845413': 'Socialistes',
-            'PO845419': 'Écologistes',
-            'PO845425': 'LIOT',
-            'PO845439': 'Ensemble (Renaissance)',
+            'PO845401': 'RN',
+            'PO845407': 'EPR (Ensemble)',
+            'PO845413': 'LFI-NFP',
+            'PO845419': 'Socialistes',
+            'PO845425': 'Droite Républicaine',
+            'PO845439': 'Écologistes',
             'PO845454': 'MoDem',
             'PO845470': 'Horizons',
-            'PO845485': 'Droite Républicaine',
-            'PO845514': 'RN',
+            'PO845485': 'LIOT',
+            'PO845514': 'GDR',
             'PO872880': 'UDR (Ciotti)',
-            'PO840056': 'Non-inscrits'
+            'PO847173': 'UDR (Ciotti)',
+            'PO840056': 'Non-inscrits',
           };
           groupResults.push({
             group_id: g.organeRef,
