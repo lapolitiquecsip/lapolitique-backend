@@ -21,6 +21,7 @@
     "automation:suivis-notifications": "tsx src/scripts/automation/generate-suivis-notifications.ts",
     "automation:recap-hebdo": "tsx src/scripts/automation/recap-hebdo.ts",
     "automation:alertes-textes": "tsx src/scripts/automation/alertes-textes.ts",
+    "automation:votes-partis": "tsx src/scripts/automation/alertes-votes-partis.ts",
     "automation:executif-annonces": "tsx src/scripts/automation/executif-annonces.ts",
     "automation:digest-pro": "tsx src/scripts/automation/digest-pro.ts",
     "data:amendements-an": "tsx src/scripts/data/sync-amendements-an.ts",
