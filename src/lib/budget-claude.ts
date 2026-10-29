@@ -46,8 +46,10 @@ export async function disponible(poste: Poste): Promise<number> {
   const part = BUDGET_MOIS * PARTS[poste];
   const joursRestants = new Date(p.getFullYear(), p.getMonth() + 1, 0).getDate() - p.getDate() + 1;
   const duJour = Math.max(0, (part - avant) / joursRestants - aujourdhui);
-  // Jamais au-delà de la part du mois, ni du plafond global.
-  return Math.max(0, Math.min(duJour, part - avant - aujourdhui, BUDGET_MOIS - total));
+  // Pas plus du double d'une journée ordinaire, même en fin de mois avec un reste : la dépense
+  // reste régulière. Et jamais au-delà de la part du mois, ni du plafond global.
+  const plafondJour = 2 * part / new Date(p.getFullYear(), p.getMonth() + 1, 0).getDate() - aujourdhui;
+  return Math.max(0, Math.min(duJour, plafondJour, part - avant - aujourdhui, BUDGET_MOIS - total));
 }
 
 /** Inscrit une dépense réelle. */
