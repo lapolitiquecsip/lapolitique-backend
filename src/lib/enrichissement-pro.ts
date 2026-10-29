@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "../config/supabase.js";
+import { coutUsage, disponible, noter } from "./budget-claude.js";
 
 /**
  * Agent d'enrichissement des e-mails Pro.
@@ -7,17 +8,19 @@ import { supabase } from "../config/supabase.js";
  * Chaque information du jour (loi promulguée, texte déposé, réunion de commission, acte
  * du Journal officiel, vote européen) reçoit un dossier de sources tiré de la base (analyse
  * approfondie, étapes de la navette, votes par groupe, compte rendu analysé…), puis Claude
- * Opus en tire ce qu'un professionnel veut savoir : l'essentiel, les faits clés chiffrés,
- * qui est concerné, le rapport de force, la suite. Il peut compléter sur quelques sites
- * officiels (recherche web limitée) mais n'invente rien : un champ sans source reste vide.
+ * en tire ce qu'un professionnel veut savoir : l'essentiel, les faits clés chiffrés, qui est
+ * concerné, le rapport de force, la suite. Il n'invente rien : un champ sans source reste vide.
+ *
+ * Budget (29/10/2026) : 20 $ par mois pour tout Claude (budget-claude.ts), dont 10,60 $ pour
+ * ces e-mails. D'où Sonnet 5.5 en lot (moitié prix) au lieu d'Opus, et plus d'outils web : les
+ * pages lues par l'outil coûtaient trois fois le dossier lui-même, qui contient déjà le texte
+ * officiel analysé. Environ 2 centimes l'information, contre 12.
  *
  * Une information est enrichie une seule fois (table digest_enrichissements), puis servie
  * à tous les membres qui l'ont choisie. Aucune donnée d'abonné n'est envoyée à l'IA.
  * Lot (--preparer, 50 % moins cher) une heure avant l'envoi, appel direct en rattrapage.
  */
-export const MODELE = process.env.DIGEST_MODELE || "claude-opus-5-5";
-// Tarifs Claude Opus 5.5 ($ par million de jetons) ; recherche web : 10 $ les 1 000.
-const PRIX = { entree: 4, sortie: 20, cacheLu: 0.2, cacheEcrit: 5, recherche: 0.01 };
+export const MODELE = process.env.DIGEST_MODELE || "claude-sonnet-5-5";
 
 export type Amendement = { numero: string; auteur: string; objet: string };
 export type Enrichissement = {
@@ -27,10 +30,6 @@ export type Enrichissement = {
 };
 type Source = { texte: string; web: boolean; amendementsTexte?: string; amendementsNb?: number };
 type Info = { cle: string; titre: string; resume?: string | null; url?: string | null; etiquette?: string | null; meta?: string | null };
-
-// Sites officiels que l'agent peut consulter (sous-domaines compris).
-const DOMAINES = ["assemblee-nationale.fr", "senat.fr", "legifrance.gouv.fr", "vie-publique.fr", "service-public.fr", "info.gouv.fr",
-  "gouvernement.fr", "conseil-constitutionnel.fr", "conseil-etat.fr", "ccomptes.fr", "europarl.europa.eu", "eur-lex.europa.eu", "consilium.europa.eu", "insee.fr"];
 
 const SYSTEME = `Tu es l'analyste politique de « La politique, c'est simple », un site français d'information parlementaire. Tu prépares l'e-mail quotidien des abonnés Pro : collaborateurs parlementaires, élus locaux, journalistes, affaires publiques, juristes, citoyens très impliqués. Ils lisent vite et veulent ce qu'ils ne trouveront pas dans un simple titre.
 
@@ -54,8 +53,6 @@ Rubriques :
   Dans ce cas, « points » porte sur le fond (thèmes, impôts et dispositifs visés, montants) plutôt que sur des listes de noms ou de numéros d'articles.
 
 Le sujet est toujours l'acte ou l'événement du jour. Un texte antérieur (décret précédent, loi modifiée) ne sert que de contexte, dans « enjeu », et n'est jamais décrit comme s'il était l'information du jour. Si tu ne trouves pas le contenu de l'acte du jour, tiens-toi à ce que dit l'explication fournie.
-
-Web : quand le dossier donne l'adresse officielle du texte (Légifrance, Assemblée, Sénat), lis-la d'abord (web_fetch). Recherche (web_search) seulement si le dossier ne suffit pas pour l'essentiel ou la suite, sur les sites officiels permis, deux au plus.
 
 Réponds uniquement par l'objet JSON demandé.`;
 
@@ -104,9 +101,9 @@ async function amendementsCites(numeroTexte: string, organeRef: string | null, c
   });
   if (!retenus.length) return null;
   const details: any[] = [];
-  for (let i = 0; i < Math.min(retenus.length, 80); i += 40) {
+  for (let i = 0; i < Math.min(retenus.length, 40); i += 40) {
     const { data } = await supabase.from("amendements_an").select("numero, auteur, groupe, division, sort, dispositif, expose")
-      .in("uid", retenus.slice(i, Math.min(i + 40, 80)).map(a => a.uid));
+      .in("uid", retenus.slice(i, Math.min(i + 40, 40)).map(a => a.uid));
     details.push(...(data || []));
   }
   return { texteUid: retenus[0].texte_uid as string, nb: retenus.length, details };
@@ -126,7 +123,7 @@ async function dossierLoi(dossierId: string): Promise<string[]> {
     if (sur.length) morceaux.push(`VOTES À L'ASSEMBLÉE :\n${sur.map((s: any) => `- ${fr(s.date_scrutin)} · ${s.objet} : ${s.resultat} (${s.pour} pour, ${s.contre} contre, ${s.abstention} abstentions) · par groupe : ${couper(s.group_results, 1500)}`).join("\n")}`);
   }
   const { data: aa } = await supabase.from("dossier_analyses_approfondies").select("analyse_loi, cadre").eq("dossier_id", dossierId).maybeSingle();
-  if (aa?.analyse_loi) morceaux.push(`ANALYSE DÉTAILLÉE DU TEXTE (lue dans le texte adopté et l'étude d'impact) :\n${couper(aa.analyse_loi, 24000)}`);
+  if (aa?.analyse_loi) morceaux.push(`ANALYSE DÉTAILLÉE DU TEXTE (lue dans le texte adopté et l'étude d'impact) :\n${couper(aa.analyse_loi, 14000)}`);
   if (aa?.cadre) morceaux.push(`CADRE EXISTANT :\n${couper(aa.cadre, 5000)}`);
   if (!aa?.analyse_loi) {
     const { data: la } = await supabase.from("legislative_analyses").select("audience, summary").eq("dossier_id", dossierId).order("generated_at", { ascending: false }).limit(2);
@@ -151,7 +148,7 @@ async function dossierSources(info: Info): Promise<Source> {
     if (c) {
       m.push(`RÉUNION : ${c.chamber === "SENAT" ? "Sénat" : "Assemblée nationale"} · ${c.commission} · ${fr(c.meeting_date)} · ${c.cr_url || ""}`);
       if (c.summary) m.push(`RÉSUMÉ : ${couper(c.summary, 4000)}`);
-      if (c.analysis) m.push(`ANALYSE DU COMPTE RENDU (votes, annonces, chiffres, suites) :\n${couper(c.analysis, 16000)}`);
+      if (c.analysis) m.push(`ANALYSE DU COMPTE RENDU (votes, annonces, chiffres, suites) :\n${couper(c.analysis, 12000)}`);
       if (c.speakers) m.push(`INTERVENANTS : ${couper(c.speakers, 3000)}`);
       const { data: t } = await supabase.from("commission_transcripts").select("texte").eq("ref", id).maybeSingle();
       // Réunion sur un texte de l'Assemblée : le contenu des amendements qu'elle a examinés.
@@ -160,7 +157,7 @@ async function dossierSources(info: Info): Promise<Source> {
       if (amdts) m.push(`AMENDEMENTS EXAMINÉS (${amdts.nb} cités dans le compte rendu${amdts.nb > amdts.details.length ? `, ${amdts.details.length} détaillés ici` : ""}) :\n${amdts.details.map((a: any) =>
         `- ${a.numero} · ${a.auteur || "?"}${a.groupe ? ` (${a.groupe})` : ""} · ${a.division || ""}\n  Dispositif : ${couper(a.dispositif || "(non relevé)", 450)}\n  Exposé : ${couper(a.expose || "", 550)}`).join("\n")}`);
       // Analyse maigre, ou tableau des avis sur les amendements : le compte rendu lui-même.
-      if (t?.texte && (amdts || !c.analysis || JSON.stringify(c.analysis).length < 2500)) m.push(`COMPTE RENDU (extrait) :\n${couper(t.texte, 30000)}`);
+      if (t?.texte && (amdts || !c.analysis || JSON.stringify(c.analysis).length < 2500)) m.push(`COMPTE RENDU (extrait) :\n${couper(t.texte, 14000)}`);
     }
   } else if (type === "jotexte") {
     const { data: j } = await supabase.from("jorf_texts").select("titre, nature, rubrique, groupe, edition_date, explication").eq("id", id).maybeSingle();
@@ -197,19 +194,12 @@ function requete(source: Source): Anthropic.MessageCreateParamsNonStreaming {
     max_tokens: 16000,
     system: [{ type: "text", text: SYSTEME, cache_control: { type: "ephemeral" } }],
     output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA as any } },
-    ...(source.web ? { tools: [
-      { type: "web_fetch_20260209", name: "web_fetch", max_uses: 2, allowed_domains: DOMAINES, max_content_tokens: 15000 } as any,
-      { type: "web_search_20260209", name: "web_search", max_uses: 2, allowed_domains: DOMAINES } as any,
-    ] } : {}),
     messages: [{ role: "user", content: `<dossier>\n${source.texte}\n</dossier>\n\nRédige l'enrichissement de cette information pour l'e-mail Pro.` }],
   };
 }
 
-function lire(message: Anthropic.Message): { contenu: Enrichissement | null; cout: number; sources: string[] } {
-  const u: any = message.usage || {};
-  const recherches = u.server_tool_use?.web_search_requests || 0;
-  const cout = ((u.input_tokens || 0) * PRIX.entree + (u.output_tokens || 0) * PRIX.sortie + (u.cache_read_input_tokens || 0) * PRIX.cacheLu
-    + (u.cache_creation_input_tokens || 0) * PRIX.cacheEcrit) / 1e6 + recherches * PRIX.recherche;
+function lire(message: Anthropic.Message, lot: boolean): { contenu: Enrichissement | null; cout: number; sources: string[] } {
+  const cout = coutUsage(MODELE, message.usage, { lot });
   const sources = new Set<string>();
   for (const b of message.content as any[]) {
     if (b.type === "web_search_tool_result" && Array.isArray(b.content)) for (const r of b.content) if (r.url) sources.add(r.url);
@@ -245,7 +235,7 @@ export async function lireEnrichissements(cles: string[]): Promise<Map<string, E
  * d'abord), jusqu'au budget. mode « lot » : API Batches (moitié prix, attente ≤ attenteMin).
  * enregistrer=false : rien n'est écrit en base (aperçus, essais).
  */
-export async function enrichir(infos: Info[], { mode = "direct", budget = 1.5, attenteMin = 35, enregistrer = true, parallele = 4 }:
+export async function enrichir(infos: Info[], { mode = "direct", budget, attenteMin = 35, enregistrer = true, parallele = 4 }:
   { mode?: "direct" | "lot"; budget?: number; attenteMin?: number; enregistrer?: boolean; parallele?: number } = {}): Promise<Map<string, Enrichissement>> {
   const res = new Map<string, Enrichissement>();
   if (!process.env.ANTHROPIC_API_KEY) { console.log("::warning::[Enrichissement] ANTHROPIC_API_KEY absente : e-mail sans enrichissement."); return res; }
@@ -259,20 +249,24 @@ export async function enrichir(infos: Info[], { mode = "direct", budget = 1.5, a
   }
   const aFaire = uniques.filter(i => !faits.has(i.cle));
   if (!aFaire.length) return res;
-  // Coût estimé d'avance (≈ 0,08 $ en direct, moitié en lot) pour ne pas dépasser le budget.
-  const parInfo = mode === "lot" ? 0.04 : 0.08;
-  const retenues = aFaire.slice(0, Math.max(0, Math.floor(budget / parInfo)));
-  if (retenues.length < aFaire.length) console.log(`::warning::[Enrichissement] budget ${budget} $ : ${aFaire.length - retenues.length} info(s) laissée(s) sans enrichissement.`);
+  // Budget du jour (part « digest » des 20 $ mensuels), borné par le plafond du passage s'il y en a
+  // un. Coût estimé d'avance par information : ≈ 0,025 $ en lot, 0,05 $ en direct.
+  const permis = Math.min(await disponible("digest"), budget ?? Infinity);
+  const parInfo = mode === "lot" ? 0.025 : 0.05;
+  const retenues = aFaire.slice(0, Math.max(0, Math.floor(permis / parInfo)));
+  if (retenues.length < aFaire.length) console.log(`::warning::[Enrichissement] budget du jour ${permis.toFixed(2)} $ : ${aFaire.length - retenues.length} info(s) laissée(s) sans enrichissement.`);
+  if (!retenues.length) return res;
   console.log(`[Enrichissement] ${retenues.length} info(s) à enrichir (${mode}, ${MODELE}).`);
   let total = 0;
 
-  const garder = async (cle: string, r: ReturnType<typeof lire>, facteur: number) => {
-    total += r.cout * facteur;
+  const garder = async (cle: string, r: ReturnType<typeof lire>) => {
+    total += r.cout;
+    await noter("digest", MODELE, r.cout, cle);
     // De quoi ouvrir, depuis l'e-mail, tous les amendements du texte dans l'espace Pro.
     const s = sources.get(cle);
     if (r.contenu && s?.amendementsTexte) Object.assign(r.contenu, { amendements_texte: s.amendementsTexte, amendements_nb: s.amendementsNb });
     if (r.contenu) res.set(cle, r.contenu);
-    if (enregistrer) await supabase.from("digest_enrichissements").upsert({ cle, contenu: r.contenu, sources: r.sources, modele: MODELE, cout_usd: Number((r.cout * facteur).toFixed(5)) }, { onConflict: "cle" });
+    if (enregistrer) await supabase.from("digest_enrichissements").upsert({ cle, contenu: r.contenu, sources: r.sources, modele: MODELE, cout_usd: Number(r.cout.toFixed(5)) }, { onConflict: "cle" });
   };
 
   const sources = new Map<string, Source>();
@@ -284,17 +278,23 @@ export async function enrichir(infos: Info[], { mode = "direct", budget = 1.5, a
     const fin = Date.now() + attenteMin * 60_000;
     let etat = lot;
     while (etat.processing_status !== "ended" && Date.now() < fin) { await new Promise(r => setTimeout(r, 30_000)); etat = await client().messages.batches.retrieve(lot.id); }
-    if (etat.processing_status !== "ended") { console.log(`::warning::[Enrichissement] lot ${lot.id} pas fini en ${attenteMin} min : annulé, l'envoi rattrapera en direct.`); await client().messages.batches.cancel(lot.id); return res; }
+    if (etat.processing_status !== "ended") {
+      // Annulé : ce qui est déjà fait reste facturé, donc on le lit (et l'inscrit au budget).
+      console.log(`::warning::[Enrichissement] lot ${lot.id} pas fini en ${attenteMin} min : annulé, l'envoi rattrapera en direct.`);
+      await client().messages.batches.cancel(lot.id);
+      for (const fin2 = Date.now() + 3 * 60_000; etat.processing_status !== "ended" && Date.now() < fin2;) { await new Promise(r => setTimeout(r, 15_000)); etat = await client().messages.batches.retrieve(lot.id); }
+      if (etat.processing_status !== "ended") return res;
+    }
     for await (const r of await client().messages.batches.results(lot.id)) {
       const cle = ids.get(r.custom_id)!;
-      if (r.result.type === "succeeded") await garder(cle, lire(r.result.message), 0.5);
+      if (r.result.type === "succeeded") await garder(cle, lire(r.result.message, true));
       else console.log(`[Enrichissement] ${cle} : ${r.result.type}`);
     }
   } else {
     const file = [...retenues];
     await Promise.all(Array.from({ length: Math.min(parallele, file.length) }, async () => {
       for (let i = file.shift(); i; i = file.shift()) {
-        try { await garder(i.cle, lire(await client().messages.create(requete(sources.get(i.cle)!))), 1); }
+        try { await garder(i.cle, lire(await client().messages.create(requete(sources.get(i.cle)!)), false)); }
         catch (e: any) { console.log(`[Enrichissement] ${i.cle} : échec ${e?.status || ""} ${String(e?.message || e).slice(0, 160)}`); }
       }
     }));

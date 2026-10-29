@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { coutUsage, disponible, noter } from "./budget-claude.js";
 
 /**
  * Lecture d'une page de site officiel (programme de candidat), avec une voie de secours.
@@ -28,12 +29,15 @@ export async function lirePageOfficielle(url: string, { secours = true } = {}): 
     refus = `HTTP ${r.status}`;
   } catch (e: any) { refus = e?.message || String(e); }
   if (!secours || !process.env.ANTHROPIC_API_KEY) throw new Error(refus);
+  // Part « programmes » des 20 $ mensuels (budget-claude.ts) : 1 $, soit une centaine de pages.
+  if (await disponible("programmes") < 0.03) throw new Error(`${refus} ; secours web_fetch : budget Claude du jour épuisé`);
 
   const msg = await new Anthropic().messages.stream({
     model: "claude-haiku-5-5", max_tokens: 512,
     tools: [{ type: "web_fetch_20260209", name: "web_fetch", max_uses: 1, allowed_domains: [new URL(url).hostname], max_content_tokens: 100000 } as any],
     messages: [{ role: "user", content: `Ouvre ${url} avec l'outil web_fetch, puis réponds seulement « lu ».` }],
   }).finalMessage();
+  await noter("programmes", "claude-haiku-5-5", coutUsage("claude-haiku-5-5", msg.usage), url);
   for (const b of msg.content as any[]) {
     if (b.type !== "web_fetch_tool_result") continue;
     const c = b.content;

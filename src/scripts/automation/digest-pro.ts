@@ -41,6 +41,7 @@ const PREPARER = process.argv.includes("--preparer");
 const SANS_IA = process.argv.includes("--sans-ia");
 const MAX_IA = Number(arg("max-ia") || 0) || Infinity;
 // Plafond de dépense de l'agent par passage (en $) ; le lot du soir coûte moitié moins.
+// Plafond d'un passage, en plus du budget mensuel partagé (budget-claude.ts).
 const BUDGET_IA = Number(process.env.DIGEST_IA_BUDGET || 2);
 const JOUR = 864e5;
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -241,7 +242,11 @@ async function main() {
   // avant l'envoi, en direct pour ce qui est arrivé depuis), pour tous les membres.
   const partagees: [Code, Info[]][] = [["commissions", c.commissions], ["textes", c.textes], ["jo", c.jo.filter(i => !i.cle.startsWith("jo:"))], ["europe", c.europe]];
   const voulues = new Set(destinataires.flatMap(choisies));
-  const aEnrichir = partagees.filter(([k]) => voulues.has(k)).flatMap(([, l]) => unique(neuf(l)).slice(0, plafond))
+  // Entrelacées (1re commission, 1er texte, 1er acte, 1er vote UE, puis les 2es…) : le budget
+  // du jour (20 $ par mois pour tout Claude) bénéficie ainsi à chaque rubrique, au lieu d'être
+  // épuisé par la première.
+  const listes = partagees.filter(([k]) => voulues.has(k)).map(([, l]) => unique(neuf(l)).slice(0, plafond));
+  const aEnrichir = Array.from({ length: Math.max(0, ...listes.map(l => l.length)) }, (_, n) => listes.map(l => l[n]).filter(Boolean)).flat()
     .map(i => (i.ref ? { ...i, cle: i.ref } : i)).slice(0, MAX_IA);
   const enr = await lireEnrichissements(aEnrichir.map(i => i.cle));
   if (!SANS_IA) for (const [k, v] of await enrichir(aEnrichir.filter(i => !enr.has(i.cle)), { mode: PREPARER ? "lot" : "direct", budget: BUDGET_IA })) enr.set(k, v);

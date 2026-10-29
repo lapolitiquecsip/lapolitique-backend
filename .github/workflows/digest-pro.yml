@@ -26,6 +26,7 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_BUDGET_MOIS: '20'   # tout Claude confondu, voir src/lib/budget-claude.ts
       # Plafond de dépense de l'agent par passage, en dollars.
       DIGEST_IA_BUDGET: '2'
       EMAIL_FROM: ${{ secrets.EMAIL_FROM }}

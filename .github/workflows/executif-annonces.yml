@@ -17,8 +17,9 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      # Plafond de dépense de l'IA par jour, en dollars (choix du 28/10/2026).
-      EXECUTIF_IA_BUDGET_JOUR: '1'
+      # Plafond : 20 $ par MOIS pour tout Claude, dont 8,40 $ pour cette page (budget-claude.ts,
+      # choix de l'éditeur du 29/10/2026). Ne pas relever sans son accord.
+      CLAUDE_BUDGET_MOIS: '20'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
