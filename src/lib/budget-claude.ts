@@ -1,8 +1,9 @@
 import { supabase } from "../config/supabase.js";
 
 /**
- * Budget de l'API Claude : 20 $ par MOIS au plus, tous usages confondus (29/10/2026 — l'éditeur
- * est étudiant ; ne jamais relever ce plafond sans son accord).
+ * Budget de l'IA rédactionnelle payante (Claude ET DeepSeek V4-Pro, voir redaction-ia.ts) :
+ * 20 $ par MOIS au plus, tous usages confondus (29/10/2026 — l'éditeur est étudiant ; ne jamais
+ * relever ce plafond sans son accord).
  *
  * Chaque poste a sa part du mois. Chaque jour, il peut dépenser ce qui reste de sa part divisé
  * par le nombre de jours restants : un jour calme laisse davantage aux jours chargés, et le
@@ -21,8 +22,28 @@ export const PRIX: Record<string, [number, number]> = {
   "claude-opus-5-5": [4, 20], "claude-sonnet-5-5": [2, 10], "claude-haiku-5-5": [0.1, 0.5],
 };
 
+/**
+ * DeepSeek ($ par million de jetons, tarif de pointe : entrée hors cache, entrée en cache,
+ * sortie, réflexion comprise). Tarif divisé par deux en heures creuses : tout sauf 01h-04h et
+ * 06h-10h UTC en semaine (api-docs.deepseek.com, relevé le 29/10/2026). Les anciens noms
+ * deepseek-v4-flash / deepseek-chat sont servis et facturés comme deepseek-flash.
+ */
+const PRIX_DEEPSEEK: Record<string, [number, number, number]> = {
+  "deepseek-v4-pro": [1.32, 0.044, 3.96], "deepseek-flash": [0.3, 0.006, 1.2],
+};
+export const heurePleineDeepSeek = (d = new Date()) => {
+  const h = d.getUTCHours(), j = d.getUTCDay();
+  return j >= 1 && j <= 5 && ((h >= 1 && h < 4) || (h >= 6 && h < 10));
+};
+
 /** Coût réel d'un appel, d'après l'usage renvoyé par l'API. `lot` : API Batches, moitié prix. */
 export function coutUsage(modele: string, u: any, { lot = false } = {}): number {
+  if (modele.startsWith("deepseek")) {
+    const [miss, hit, sortie] = PRIX_DEEPSEEK[modele] || PRIX_DEEPSEEK["deepseek-flash"];
+    const enCache = Number(u?.cache_hit_tokens || 0);
+    const brut = ((Number(u?.input_tokens || 0) - enCache) * miss + enCache * hit + Number(u?.output_tokens || 0) * sortie) / 1e6;
+    return heurePleineDeepSeek() ? brut : brut / 2;
+  }
   const [e, s] = PRIX[modele] || PRIX["claude-opus-5-5"];
   const jetons = ((u?.input_tokens || 0) * e + (u?.cache_creation_input_tokens || 0) * e * 1.25
     + (u?.cache_read_input_tokens || 0) * e * 0.1 + (u?.output_tokens || 0) * s) / 1e6;

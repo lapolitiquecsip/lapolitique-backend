@@ -1,6 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "../config/supabase.js";
-import { coutUsage, disponible, noter } from "./budget-claude.js";
+import { disponible } from "./budget-claude.js";
+import { redigerJSON, verifierJSON } from "./redaction-ia.js";
 
 /**
  * Agent d'enrichissement des e-mails Pro.
@@ -11,16 +11,15 @@ import { coutUsage, disponible, noter } from "./budget-claude.js";
  * en tire ce qu'un professionnel veut savoir : l'essentiel, les faits clés chiffrés, qui est
  * concerné, le rapport de force, la suite. Il n'invente rien : un champ sans source reste vide.
  *
- * Budget (29/10/2026) : 20 $ par mois pour tout Claude (budget-claude.ts), dont 10,60 $ pour
- * ces e-mails. D'où Sonnet 5.5 en lot (moitié prix) au lieu d'Opus, et plus d'outils web : les
- * pages lues par l'outil coûtaient trois fois le dossier lui-même, qui contient déjà le texte
- * officiel analysé. Environ 2 centimes l'information, contre 12.
+ * Budget (29/10/2026) : 20 $ par mois pour toute l'IA payante (budget-claude.ts), dont 10,60 $
+ * pour ces e-mails. Rédaction par DeepSeek V4-Pro avec réflexion, vérification par Claude Haiku
+ * (redaction-ia.ts) : ≈ 2,5 centimes l'information, contre 12 en Claude Opus. Plus d'outils web :
+ * le dossier contient déjà le texte officiel analysé.
  *
  * Une information est enrichie une seule fois (table digest_enrichissements), puis servie
  * à tous les membres qui l'ont choisie. Aucune donnée d'abonné n'est envoyée à l'IA.
  * Lot (--preparer, 50 % moins cher) une heure avant l'envoi, appel direct en rattrapage.
  */
-export const MODELE = process.env.DIGEST_MODELE || "claude-sonnet-5-5";
 
 export type Amendement = { numero: string; auteur: string; objet: string };
 export type Enrichissement = {
@@ -184,40 +183,19 @@ async function dossierSources(info: Info): Promise<Source> {
   return { texte: m.join("\n\n"), web, amendementsTexte: amdts?.texteUid, amendementsNb: amdts?.nb };
 }
 
-/* ───────────────────────── Appel à Claude ───────────────────────── */
+/* ───────────────────────── Rédaction et vérification ───────────────────────── */
 
-const client = () => new Anthropic();
-
-function requete(source: Source): Anthropic.MessageCreateParamsNonStreaming {
-  return {
-    model: MODELE,
-    max_tokens: 16000,
-    system: [{ type: "text", text: SYSTEME, cache_control: { type: "ephemeral" } }],
-    output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA as any } },
-    messages: [{ role: "user", content: `<dossier>\n${source.texte}\n</dossier>\n\nRédige l'enrichissement de cette information pour l'e-mail Pro.` }],
+/** Remet l'enrichissement en forme (longueurs, nombre de points et d'amendements). */
+function normaliser(j: any): Enrichissement | null {
+  if (!j) return null;
+  const propre = (x: unknown) => String(x ?? "").replace(/\s+/g, " ").trim();
+  const contenu: Enrichissement = {
+    essentiel: propre(j.essentiel), points: (Array.isArray(j.points) ? j.points : []).map(propre).filter(Boolean).slice(0, 4),
+    concernes: propre(j.concernes), rapport_de_force: propre(j.rapport_de_force), suite: propre(j.suite), enjeu: propre(j.enjeu),
+    amendements: (Array.isArray(j.amendements) ? j.amendements : []).filter((a: any) => a?.numero && a?.objet)
+      .map((a: any) => ({ numero: propre(a.numero), auteur: propre(a.auteur), objet: propre(a.objet) })).slice(0, 8),
   };
-}
-
-function lire(message: Anthropic.Message, lot: boolean): { contenu: Enrichissement | null; cout: number; sources: string[] } {
-  const cout = coutUsage(MODELE, message.usage, { lot });
-  const sources = new Set<string>();
-  for (const b of message.content as any[]) {
-    if (b.type === "web_search_tool_result" && Array.isArray(b.content)) for (const r of b.content) if (r.url) sources.add(r.url);
-    if (b.type === "web_fetch_tool_result" && b.content?.url) sources.add(b.content.url);
-  }
-  if (message.stop_reason === "refusal" || message.stop_reason === "max_tokens") return { contenu: null, cout, sources: [...sources] };
-  const texte = (message.content as any[]).filter(b => b.type === "text").map(b => b.text).join("").trim();
-  try {
-    const j = JSON.parse(texte.slice(texte.indexOf("{"), texte.lastIndexOf("}") + 1));
-    const propre = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
-    const contenu: Enrichissement = {
-      essentiel: propre(j.essentiel), points: (Array.isArray(j.points) ? j.points : []).map(propre).filter(Boolean).slice(0, 4),
-      concernes: propre(j.concernes), rapport_de_force: propre(j.rapport_de_force), suite: propre(j.suite), enjeu: propre(j.enjeu),
-      amendements: (Array.isArray(j.amendements) ? j.amendements : []).filter((a: any) => a?.numero && a?.objet)
-        .map((a: any) => ({ numero: propre(a.numero), auteur: propre(a.auteur), objet: propre(a.objet) })).slice(0, 8),
-    };
-    return { contenu: contenu.essentiel ? contenu : null, cout, sources: [...sources] };
-  } catch { return { contenu: null, cout, sources: [...sources] }; }
+  return contenu.essentiel ? contenu : null;
 }
 
 /** Enrichissements déjà faits, par clé. */
@@ -232,13 +210,14 @@ export async function lireEnrichissements(cles: string[]): Promise<Map<string, E
 
 /**
  * Enrichit les informations qui ne le sont pas encore, dans l'ordre (les plus importantes
- * d'abord), jusqu'au budget. mode « lot » : API Batches (moitié prix, attente ≤ attenteMin).
+ * d'abord), jusqu'au budget du jour. `mode` est gardé pour les appelants (préparation à 16 h,
+ * rattrapage à l'envoi) : DeepSeek n'a pas de lot, les deux rédigent pareil.
  * enregistrer=false : rien n'est écrit en base (aperçus, essais).
  */
-export async function enrichir(infos: Info[], { mode = "direct", budget, attenteMin = 35, enregistrer = true, parallele = 4 }:
+export async function enrichir(infos: Info[], { budget, enregistrer = true, parallele = 4 }:
   { mode?: "direct" | "lot"; budget?: number; attenteMin?: number; enregistrer?: boolean; parallele?: number } = {}): Promise<Map<string, Enrichissement>> {
   const res = new Map<string, Enrichissement>();
-  if (!process.env.ANTHROPIC_API_KEY) { console.log("::warning::[Enrichissement] ANTHROPIC_API_KEY absente : e-mail sans enrichissement."); return res; }
+  if (!process.env.DEEPSEEK_API_KEY) { console.log("::warning::[Enrichissement] DEEPSEEK_API_KEY absente : e-mail sans enrichissement."); return res; }
   const uniques = [...new Map(infos.map(i => [i.cle, i])).values()];
   const faits = new Set<string>();
   for (let i = 0; i < uniques.length; i += 200) {
@@ -250,55 +229,34 @@ export async function enrichir(infos: Info[], { mode = "direct", budget, attente
   const aFaire = uniques.filter(i => !faits.has(i.cle));
   if (!aFaire.length) return res;
   // Budget du jour (part « digest » des 20 $ mensuels), borné par le plafond du passage s'il y en a
-  // un. Coût estimé d'avance par information : ≈ 0,025 $ en lot, 0,05 $ en direct.
+  // un. Coût estimé d'avance : ≈ 0,025 $ l'information (rédaction + vérification).
   const permis = Math.min(await disponible("digest"), budget ?? Infinity);
-  const parInfo = mode === "lot" ? 0.025 : 0.05;
-  const retenues = aFaire.slice(0, Math.max(0, Math.floor(permis / parInfo)));
+  const retenues = aFaire.slice(0, Math.max(0, Math.floor(permis / 0.025)));
   if (retenues.length < aFaire.length) console.log(`::warning::[Enrichissement] budget du jour ${permis.toFixed(2)} $ : ${aFaire.length - retenues.length} info(s) laissée(s) sans enrichissement.`);
   if (!retenues.length) return res;
-  console.log(`[Enrichissement] ${retenues.length} info(s) à enrichir (${mode}, ${MODELE}).`);
+  console.log(`[Enrichissement] ${retenues.length} info(s) à enrichir (DeepSeek V4-Pro, vérifié par Claude Haiku).`);
   let total = 0;
 
-  const garder = async (cle: string, r: ReturnType<typeof lire>) => {
-    total += r.cout;
-    await noter("digest", MODELE, r.cout, cle);
-    // De quoi ouvrir, depuis l'e-mail, tous les amendements du texte dans l'espace Pro.
-    const s = sources.get(cle);
-    if (r.contenu && s?.amendementsTexte) Object.assign(r.contenu, { amendements_texte: s.amendementsTexte, amendements_nb: s.amendementsNb });
-    if (r.contenu) res.set(cle, r.contenu);
-    if (enregistrer) await supabase.from("digest_enrichissements").upsert({ cle, contenu: r.contenu, sources: r.sources, modele: MODELE, cout_usd: Number(r.cout.toFixed(5)) }, { onConflict: "cle" });
-  };
+  const file = [...retenues];
+  await Promise.all(Array.from({ length: Math.min(parallele, file.length) }, async () => {
+    for (let i = file.shift(); i; i = file.shift()) {
+      try {
+        const source = await dossierSources(i);
+        const r = await redigerJSON("digest", { system: SYSTEME, user: `<dossier>
+${source.texte}
+</dossier>
 
-  const sources = new Map<string, Source>();
-  for (const i of retenues) sources.set(i.cle, await dossierSources(i));
-
-  if (mode === "lot") {
-    const ids = new Map(retenues.map((i, n) => [`e${n}`, i.cle]));
-    const lot = await client().messages.batches.create({ requests: [...ids].map(([custom_id, cle]) => ({ custom_id, params: requete(sources.get(cle)!) })) });
-    const fin = Date.now() + attenteMin * 60_000;
-    let etat = lot;
-    while (etat.processing_status !== "ended" && Date.now() < fin) { await new Promise(r => setTimeout(r, 30_000)); etat = await client().messages.batches.retrieve(lot.id); }
-    if (etat.processing_status !== "ended") {
-      // Annulé : ce qui est déjà fait reste facturé, donc on le lit (et l'inscrit au budget).
-      console.log(`::warning::[Enrichissement] lot ${lot.id} pas fini en ${attenteMin} min : annulé, l'envoi rattrapera en direct.`);
-      await client().messages.batches.cancel(lot.id);
-      for (const fin2 = Date.now() + 3 * 60_000; etat.processing_status !== "ended" && Date.now() < fin2;) { await new Promise(r => setTimeout(r, 15_000)); etat = await client().messages.batches.retrieve(lot.id); }
-      if (etat.processing_status !== "ended") return res;
+Rédige l'enrichissement de cette information pour l'e-mail Pro.`, schema: SCHEMA, detail: i.cle });
+        let contenu = normaliser(r.json), cout = r.usd, verifie = false;
+        if (contenu) { const v = await verifierJSON("digest", { json: contenu, sources: source.texte, schema: SCHEMA, detail: i.cle }); contenu = normaliser(v.json) ?? contenu; verifie = v.verifie; cout += v.usd; }
+        total += cout;
+        // De quoi ouvrir, depuis l'e-mail, tous les amendements du texte dans l'espace Pro.
+        if (contenu && source.amendementsTexte) Object.assign(contenu, { amendements_texte: source.amendementsTexte, amendements_nb: source.amendementsNb });
+        if (contenu) res.set(i.cle, contenu);
+        if (enregistrer) await supabase.from("digest_enrichissements").upsert({ cle: i.cle, contenu, sources: [], modele: verifie ? `${r.modele} + claude-haiku-5-5` : r.modele, cout_usd: Number(cout.toFixed(5)) }, { onConflict: "cle" });
+      } catch (e: any) { console.log(`[Enrichissement] ${i.cle} : échec ${e?.status || ""} ${String(e?.message || e).slice(0, 160)}`); }
     }
-    for await (const r of await client().messages.batches.results(lot.id)) {
-      const cle = ids.get(r.custom_id)!;
-      if (r.result.type === "succeeded") await garder(cle, lire(r.result.message, true));
-      else console.log(`[Enrichissement] ${cle} : ${r.result.type}`);
-    }
-  } else {
-    const file = [...retenues];
-    await Promise.all(Array.from({ length: Math.min(parallele, file.length) }, async () => {
-      for (let i = file.shift(); i; i = file.shift()) {
-        try { await garder(i.cle, lire(await client().messages.create(requete(sources.get(i.cle)!)), false)); }
-        catch (e: any) { console.log(`[Enrichissement] ${i.cle} : échec ${e?.status || ""} ${String(e?.message || e).slice(0, 160)}`); }
-      }
-    }));
-  }
+  }));
   console.log(`[Enrichissement] ${res.size}/${retenues.length} enrichie(s), coût ≈ ${total.toFixed(3)} $.`);
   return res;
 }

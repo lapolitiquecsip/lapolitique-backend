@@ -25,6 +25,8 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      # Rédaction : DeepSeek V4-Pro ; vérification : Claude Haiku (src/lib/redaction-ia.ts).
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_BUDGET_MOIS: '20'   # tout Claude confondu, voir src/lib/budget-claude.ts
       # Plafond de dépense de l'agent par passage, en dollars.
