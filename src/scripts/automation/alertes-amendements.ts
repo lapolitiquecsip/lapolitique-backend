@@ -19,7 +19,7 @@ const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
 const court = (t: string, n: number) => (t.length > n ? `${t.slice(0, t.lastIndexOf(" ", n))}…` : t);
 // Exposés relevés avec leurs entités HTML ; auteurs de commission notés « rapporteur null ».
 const propre = (t: string | null) => (t || "").replace(/&amp;/g, "&").replace(/&nbsp;|&#160;/g, " ").replace(/&#0?39;|&rsquo;/g, "’").replace(/&quot;/g, "\"").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-  .replace(/\s*null/g, "").replace(/\s+/g, " ").trim();
+  .replace(/\s*\bnull\b/g, "").replace(/\s+/g, " ").trim();
 
 async function main() {
   const pros = new Set((await fetchAll("profiles", "id", q => q.eq("subscription_tier", "pro"))).map((p: any) => p.id));
