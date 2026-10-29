@@ -1,4 +1,5 @@
 import Parser from 'rss-parser';
+import { texteDecode } from '../lib/decodage.js';
 import * as cheerio from 'cheerio';
 import { supabase } from '../config/supabase.js';
 import * as Sentry from '@sentry/node';
@@ -148,7 +149,7 @@ async function extractContent(item: any, sourceUrl: string): Promise<string> {
       signal: AbortSignal.timeout(12000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const html = await res.text();
+    const html = await texteDecode(res);
     const $ = cheerio.load(html);
     $('script, style, nav, footer, header, aside, .sidebar, .pub, .cookie-banner').remove();
     const main = $('article').length
@@ -230,7 +231,10 @@ async function processSource(
   console.log(`\n[Pipeline] ▶ ${source.defaultSourceName} (${source.url})`);
   let feed;
   try {
-    feed = await parser.parseURL(source.url);
+    // Flux lu et décodé ici (le Sénat publie en iso-8859-15) : parseURL le lisait en UTF-8.
+    const r = await fetch(source.url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LaPolitiqueBot/1.0)' }, signal: AbortSignal.timeout(20000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    feed = await parser.parseString(await texteDecode(r));
   } catch (err: any) {
     console.error(`[Pipeline] ✗ Failed to parse RSS for ${source.defaultSourceName}: ${err.message}`);
     return;
