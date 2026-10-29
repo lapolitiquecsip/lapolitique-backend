@@ -13,7 +13,7 @@ permissions:
 jobs:
   presidentielles:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -29,14 +29,19 @@ jobs:
       # 1) Détecte et ajoute les nouveaux candidats déclarés
       - run: npm run automation:presidential
         if: steps.budget.outputs.has_budget == 'true'
-      # 2) Met à jour le fil d'actualité de chaque candidat (mode brut sans IA si solde épuisé).
-      - run: npm run automation:presidential-news
-      # 2bis) Fil vidéo de chaque candidat (YouTube officiel, RSS — aucun coût IA).
-      - run: npm run data:sync-candidate-videos
-      # 2ter) Propositions/idées de chaque candidat (site officiel du mouvement — sans IA).
+      # 2) Programmes AVANT la presse (29/10/2026) : la collecte de presse dure jusqu'à 40 min ;
+      #    placée devant, elle faisait couper le passage par la limite de temps, et les
+      #    programmes n'étaient plus relevés un jour sur deux (21, 23, 26 et 28/10).
+      #    Propositions/idées de chaque candidat (site officiel du mouvement).
       - run: npm run data:sync-candidate-proposals
-      # 2quater) Explique chaque proposition (le « ? ») avec chiffres nationaux vérifiés.
+      # 2bis) Explique chaque proposition (le « ? ») avec chiffres nationaux vérifiés.
       - run: npm run data:explain-proposals
+      # 3) Fil d'actualité de chaque candidat (mode brut sans IA si solde épuisé), borné dans le temps.
+      - run: npm run automation:presidential-news
+        timeout-minutes: 25
+        continue-on-error: true
+      # 3bis) Fil vidéo de chaque candidat (YouTube officiel, RSS — aucun coût IA).
+      - run: npm run data:sync-candidate-videos
       # 3) Positions sourcées (Wikipédia) des candidats sur les grands enjeux
       - run: npm run automation:candidate-positions
         if: steps.budget.outputs.has_budget == 'true'

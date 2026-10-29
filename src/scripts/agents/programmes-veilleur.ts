@@ -4,6 +4,7 @@ import * as cheerio from "cheerio";
 import { supabase } from "../../config/supabase.js";
 import { lireCycle, signaler, sansAccent } from "../../lib/cycles.js";
 import { PROGRAMS } from "../data/sync-candidate-proposals.js";
+import { lirePageOfficielle, liensDuTexte } from "../../lib/lecture-officielle.js";
 
 /**
  * CYCLE PROGRAMMES — agent 1 : le veilleur.
@@ -56,14 +57,6 @@ for (const [nom, p] of Object.entries(PROGRAMS)) {
 
 const propre = (u: string) => u.split("#")[0].split("?")[0].replace(/\/+$/, "") + "/";
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
-
-async function page(url: string): Promise<cheerio.CheerioAPI | null> {
-  try {
-    const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(25000) });
-    if (!r.ok) { console.warn(`  ! HTTP ${r.status} ${url}`); return null; }
-    return cheerio.load(await r.text());
-  } catch (e: any) { console.warn(`  ! ${url} : ${e.message}`); return null; }
-}
 
 /** Liens situés SOUS une page d'index : ses sous-pages, et rien d'autre du site. */
 function sousPages($: cheerio.CheerioAPI, index: string): { url: string; titre: string }[] {
@@ -133,11 +126,39 @@ async function main() {
       const enLigne = new Set((lignes ?? []).map((l: any) => propre(l.source_url || "")));
 
       for (const index of site.index) {
-        const $ = await page(index);
-        if (!$) continue;
-        let pages = sousPages($, index);
+        // Une page d'index illisible rendait le veilleur aveugle EN SILENCE : le plan
+        // « Enseignement supérieur » de J.-L. Mélenchon (26/10/2026) n'a jamais été vu, le site
+        // refusant les serveurs de GitHub. Désormais : voie de secours, puis alerte si rien ne passe.
+        const cleIndex = `index:${index}`;
+        let pages: { url: string; titre: string }[];
+        let titreIndex = "";
+        try {
+          const lue = await lirePageOfficielle(index);
+          if (lue.html !== undefined) {
+            const $ = cheerio.load(lue.html);
+            pages = sousPages($, index);
+            titreIndex = $("h1").first().text().trim();
+          } else {
+            pages = liensDuTexte(lue.texte, index).map(propre)
+              .filter(h => h.startsWith(propre(index)) && h !== propre(index) && !/\/(page|feed|tag|category)\//.test(h) && !/pole-de-travail|idees\/?$/i.test(h))
+              .filter((h, i, t) => t.indexOf(h) === i).map(url => ({ url, titre: "" }));
+            console.log(`  (index lu par la voie de secours : ${pages.length} sous-page(s))`);
+          }
+          const panne = suivi.get(cleIndex);
+          if (panne && panne.etape !== "en_ligne" && !DRY)
+            await signaler(AGENT, panne, { cycle: "programmes", cle: cleIndex, etape: "en_ligne", erreur: null });
+        } catch (e: any) {
+          console.warn(`  ! index illisible ${index} : ${e.message}`);
+          if (!DRY) await signaler(AGENT, suivi.get(cleIndex), {
+            cycle: "programmes", cle: cleIndex, etape: "a_revoir", sujet: c.slug, titre: `Page programme illisible — ${c.full_name}`,
+            source_url: index, date_objet: new Date().toISOString().slice(0, 10),
+            erreur: `Le veilleur ne voit plus les parutions : ${e.message}`.slice(0, 500),
+            donnees: { signal: "index" },
+          });
+          continue;
+        }
         // Programme tenu sur une seule page : c'est elle qu'on suit.
-        if (!pages.length) pages = [{ url: propre(index), titre: $("h1").first().text().trim() }];
+        if (!pages.length) pages = [{ url: propre(index), titre: titreIndex }];
         for (const p of pages) {
           const connu = suivi.get(p.url);
           const etape = enLigne.has(p.url) ? "en_ligne" : (connu && connu.etape !== "en_ligne" ? connu.etape : "detecte");

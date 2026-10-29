@@ -73,13 +73,17 @@ const CANDIDATE_SEED: Detected[] = [
 // Candidat·e·s de PRIMAIRE — déclaré·e·s à une primaire (gauche unitaire, socialiste, droite),
 // pas directement à la présidentielle. Inclus·e·s à la demande de l'éditeur, mais SIGNALÉ·E·S
 // comme tel·le·s via `category` (« Primaire … ») pour rester honnête. Un seul·e ira au scrutin.
+// 29/10/2026 : la primaire de la gauche unitaire est abandonnée depuis juillet et aucune primaire
+// de droite n'existe (voir les notes de primaires.json côté site). Ce script réimposait chaque
+// matin la pastille « Primaire » aux fiches de Tondelier, Ruffin, Massard et Lisnard : ils
+// repassent « Chef de file ». Rattacher de nouveau un candidat le jour où une primaire repart.
 const PRIMARY_SEED: Detected[] = [
-  { full_name: "Marine Tondelier", party: "Les Écologistes", political_side: "gauche", category: "Primaire de la gauche unitaire", declared_at: null, confidence: 1 },
-  { full_name: "François Ruffin", party: "Debout !", political_side: "gauche", category: "Primaire de la gauche unitaire", declared_at: null, confidence: 1 },
-  { full_name: "Lydie Massard", party: "Union démocratique bretonne", political_side: "gauche", category: "Primaire de la gauche unitaire", declared_at: null, confidence: 1,
+  { full_name: "Marine Tondelier", party: "Les Écologistes", political_side: "gauche", category: "Chef de file", declared_at: null, confidence: 1 },
+  { full_name: "François Ruffin", party: "Debout !", political_side: "gauche", category: "Chef de file", declared_at: null, confidence: 1 },
+  { full_name: "Lydie Massard", party: "Union démocratique bretonne", political_side: "gauche", category: "Chef de file", declared_at: null, confidence: 1,
     fallback_summary: "Lydie Massard, responsable de l'Union démocratique bretonne (UDB), est candidate à la primaire de la gauche unitaire en vue de l'élection présidentielle de 2027." },
   { full_name: "Ségolène Royal", party: "Parti socialiste", political_side: "gauche", category: "Primaire Choisir 2027", declared_at: "2026-07-10", confidence: 1 },
-  { full_name: "David Lisnard", party: "Nouvelle Énergie", political_side: "droite", category: "Primaire de la droite", declared_at: null, confidence: 1 },
+  { full_name: "David Lisnard", party: "Nouvelle Énergie", political_side: "droite", category: "Chef de file", declared_at: null, confidence: 1 },
 ];
 
 // Personnes à EXCLURE : faux positifs de la détection presse. (Les candidat·e·s de primaire ne

@@ -2,6 +2,7 @@ import "dotenv/config";
 import * as cheerio from "cheerio";
 import { enAttente, signaler, echec, type Item } from "../../lib/cycles.js";
 import { extractIdeas, NOISE } from "../data/sync-candidate-proposals.js";
+import { lirePageOfficielle, estRefus } from "../../lib/lecture-officielle.js";
 
 /**
  * CYCLE PROGRAMMES — agent 2 : le rédacteur.
@@ -26,16 +27,15 @@ const AGENT = "programmes-redacteur";
 const arg = (n: string) => process.argv.find(a => a.startsWith(`--${n}=`))?.split("=").slice(1).join("=");
 const MAX = Number(arg("max") || 2);
 const URL_ESSAI = arg("url");
-const UA = { "User-Agent": "Mozilla/5.0 (compatible; LaPolitiqueBot/1.0)" };
 const TAILLE_SECTION = 8000;
 
 export type Brouillon = { theme: string; contexte: string | null; propositions: string[] }[];
 
 /** La page, découpée en sections : chaque intertitre (niveaux 2 à 4) ouvre un thème. */
 export async function lireSections(url: string): Promise<{ titre: string; sections: { theme: string; texte: string }[]; texte: string }> {
-  const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(30000) });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  const $ = cheerio.load(await r.text());
+  const lue = await lirePageOfficielle(url);
+  if (lue.texte !== undefined) return sectionsDuTexte(lue.texte);
+  const $ = cheerio.load(lue.html);
   $("nav, header, footer, script, style, form, aside").remove();
   const titre = $("h1").first().text().replace(/\s+/g, " ").trim().slice(0, 120);
   const sections: { theme: string; texte: string }[] = [];
@@ -54,7 +54,7 @@ export async function lireSections(url: string): Promise<{ titre: string; sectio
     // Un <li> qui contient des <p> serait lu deux fois.
     if (tag === "li" && $(el).find("p, li").length) return;
     if (tag !== "p" && tag !== "li") {
-      const intitule = t.replace(/^\s*(?:[IVX]+\.|\d+(?:\.\d+)*\.?)\s+/, "").slice(0, 80);
+      const intitule = t.replace(/^\s*(?:[IVX]+\.|\d+(?:\.\d+)*\.?)\s+/, "").slice(0, 160);
       // Un intertitre ouvre un thème — sauf si le précédent n'a presque rien dit : un titre
       // suivi d'un sous-titre forme un seul thème, pas un thème vide puis un autre.
       if (!courante.texte.trim()) { courante.theme = intitule; return; }
@@ -65,6 +65,34 @@ export async function lireSections(url: string): Promise<{ titre: string; sectio
     }
     courante.texte += `${t}\n`;
   });
+  if (courante.texte.trim()) sections.push(courante);
+  return { titre, sections, texte: sections.map(x => `# ${x.theme}\n${x.texte}`).join("\n") };
+}
+
+/**
+ * Même découpage, pour une page lue par la voie de secours (texte, intertitres en « # »).
+ * Sans intertitre reconnu, la page forme une seule section, que `morceaux` coupera.
+ */
+function sectionsDuTexte(brut: string): { titre: string; sections: { theme: string; texte: string }[]; texte: string } {
+  const lignes = brut.split("\n").map(l => l.replace(/\s+/g, " ").replace(/[↓↑→]/g, "").trim()).filter(Boolean);
+  const titre = (lignes.find(l => /^#\s/.test(l)) ?? lignes[0] ?? "").replace(/^#+\s*/, "").slice(0, 120);
+  const sections: { theme: string; texte: string }[] = [];
+  let courante = { theme: titre, texte: "" };
+  for (const l of lignes) {
+    const h = l.match(/^#{1,4}\s+(.+)/);
+    if (h) {
+      const intitule = h[1].replace(/[*_]/g, "").replace(/^\s*(?:[IVX]+\.|\d+(?:\.\d+)*\.?)\s+/, "").slice(0, 160);
+      if (!courante.texte.trim()) { courante.theme = intitule; continue; }
+      if (courante.texte.length < 300) { courante.texte += `\n## ${intitule}\n`; continue; }
+      sections.push(courante);
+      courante = { theme: intitule, texte: "" };
+      continue;
+    }
+    // Liens Markdown réduits à leur texte ; menus et mentions répétées écartés comme en HTML.
+    const t = l.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^[-*]\s+/, "").replace(/\*\*/g, "").trim();
+    if (t.length < 8 || NOISE.test(t)) continue;
+    courante.texte += `${t}\n`;
+  }
   if (courante.texte.trim()) sections.push(courante);
   return { titre, sections, texte: sections.map(x => `# ${x.theme}\n${x.texte}`).join("\n") };
 }
@@ -126,7 +154,9 @@ async function main() {
 
   console.log("=== Programmes · rédacteur ===");
   const file = (await enAttente("programmes", "detecte", 50))
-    .filter((i: Item) => i.donnees?.filiere === "agents" && i.source_url && i.tentatives < 4)
+    // Un refus du site (403, panne) se retente dix jours (deux passages par jour) : c'était la
+    // limite de quatre essais qui avait figé le plan « Automobile » en octobre 2026.
+    .filter((i: Item) => i.donnees?.filiere === "agents" && i.source_url && i.tentatives < (estRefus(i.erreur) ? 20 : 4))
     .slice(0, MAX);
   if (!file.length) { console.log("  Rien à rédiger."); return; }
 

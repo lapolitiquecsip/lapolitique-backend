@@ -1,7 +1,7 @@
 # Cycles d'agents
 
-Mis en place le 11 octobre 2026, en **mode d'observation** : rien de ce qui est décrit ici ne
-modifie le site tant que le drapeau de publication n'est pas levé.
+Mis en place le 11 octobre 2026 en mode d'observation. Depuis le 29 octobre 2026, le cycle
+« programmes » **publie seul** les brouillons validés par le vérificateur (demande de l'éditeur).
 
 ## Le principe
 
@@ -43,9 +43,16 @@ thématiques et d'investissement de Jean-Luc Mélenchon, qui paraissent un par u
 l'adresse de la page d'index de son programme. Pour les candidats sans page connue, seul le
 signal de presse joue : il demande un regard humain, il ne déclenche aucune rédaction.
 
-**Passer en publication automatique** : variable de dépôt GitHub
-`PROGRAMMES_PUBLICATION_AUTO=1`. Les brouillons vérifiés en attente sont alors publiés au
-passage suivant. Sans elle, le contrôleur les liste dans son rapport.
+**Publication automatique** (par défaut depuis le 29/10/2026) : le workflow vaut
+`PROGRAMMES_PUBLICATION_AUTO=1` sauf si la variable de dépôt GitHub du même nom vaut `0` ; dans
+ce cas, le contrôleur liste les brouillons vérifiés dans son rapport sans les publier.
+
+**Site qui refuse les serveurs de GitHub** (melenchon2027.fr depuis la mi-octobre 2026, HTTP 403
+alors que son robots.txt autorise tous les robots) : `src/lib/lecture-officielle.ts` lit alors
+la page par l'outil web_fetch de l'API Claude (secret `ANTHROPIC_API_KEY`, ~1 centime la page).
+Si même cette voie échoue, le veilleur inscrit `index:<adresse>` à l'étape « a_revoir » et le
+contrôleur alerte : le veilleur n'est plus jamais aveugle en silence. Un refus se retente
+20 fois (dix jours) au lieu de 4.
 
 ## Cycle « auditions »
 

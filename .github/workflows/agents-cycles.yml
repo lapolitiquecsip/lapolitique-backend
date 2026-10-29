@@ -5,9 +5,11 @@ name: Cycles d'agents (programmes, auditions)
 #   vérificateur → confronte le brouillon au texte source, mot à mot (sans IA)
 #   contrôleur → dit ce qui est en ligne, ce qui est bloqué, et alerte une fois par blocage
 #
-# MODE D'OBSERVATION : rien n'est publié sur le site tant que la variable de dépôt
-# PROGRAMMES_PUBLICATION_AUTO ne vaut pas 1. Les tâches existantes (relevé hebdomadaire des
-# sites, comptes rendus de commission, analyses) tournent comme avant, sans modification.
+# PUBLICATION AUTOMATIQUE depuis le 29/10/2026 (demande de l'éditeur : un programme publié par
+# un candidat doit s'afficher sur sa fiche sans intervention). Seul un brouillon validé par le
+# vérificateur est mis en ligne. Pour revenir au mode d'observation : variable de dépôt
+# PROGRAMMES_PUBLICATION_AUTO = 0. Les tâches existantes (relevé hebdomadaire des sites,
+# comptes rendus de commission, analyses) tournent comme avant, sans modification.
 # Voir docs/agents-cycles.md.
 on:
   schedule:
@@ -31,7 +33,9 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      PROGRAMMES_PUBLICATION_AUTO: ${{ vars.PROGRAMMES_PUBLICATION_AUTO }}
+      PROGRAMMES_PUBLICATION_AUTO: ${{ vars.PROGRAMMES_PUBLICATION_AUTO || '1' }}
+      # Voie de secours des pages de programme refusées aux serveurs de GitHub (lecture-officielle.ts).
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
