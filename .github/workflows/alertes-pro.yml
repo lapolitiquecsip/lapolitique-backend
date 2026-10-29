@@ -45,7 +45,8 @@ jobs:
       - run: npm run automation:interest-notifications
         if: env.ETAPE == 'alertes'
         continue-on-error: true
-      - run: npm run automation:send-notification-emails -- --mode=immediat
+      # Les amendements partent avec leur relevé (amendements-an.yml), pas ici.
+      - run: npm run automation:send-notification-emails -- --mode=immediat --sauf=amendements
         if: env.ETAPE == 'alertes'
       - run: npm run automation:send-notification-emails -- --mode=quotidien
         if: env.ETAPE == 'soir'

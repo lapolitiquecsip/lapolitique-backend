@@ -19,6 +19,11 @@ import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc,
  */
 const MODE = (process.argv.find(a => a.startsWith("--mode="))?.split("=")[1] || "quotidien") as "immediat" | "quotidien";
 const LOOKBACK_DAYS = Number(process.env.EMAIL_LOOKBACK_DAYS || 7);
+// --categorie=amendements : seulement cette catégorie (envoi juste après le relevé horaire des
+// amendements) ; --sauf=amendements : toutes les autres (cron horaire des alertes). Deux
+// passages ne se disputent ainsi jamais la même alerte.
+const SEULE_CAT = process.argv.find(a => a.startsWith("--categorie="))?.split("=")[1];
+const SAUF_CAT = process.argv.find(a => a.startsWith("--sauf="))?.split("=")[1];
 // Essai : --seul=adresse → ce seul membre, traité comme Pro, alertes laissées en attente.
 const SEUL = process.argv.find(a => a.startsWith("--seul="))?.split("=")[1]?.toLowerCase();
 const RYTHMES_DEFAUT: Record<string, string> = { votes: "immediat", local: "quotidien", suivis: "quotidien", lois: "hebdo" };
@@ -63,6 +68,7 @@ const INTITULES: Record<string, [string, string, string]> = {
   local: ["📍", "Près de chez vous", "#e11d48"],
   suivis: ["⭐", "Ce que vous suivez", "#d97706"],
   lois: ["📜", "Lois", "#059669"],
+  amendements: ["✍️", "Nouveaux amendements", "#7c3aed"],
 };
 const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? "#e11d48" : p === "ABSTENTION" ? "#d97706" : "#64748b");
 
@@ -70,7 +76,7 @@ function html(prenom: string, alertes: any[]): string {
   const parCat = new Map<string, any[]>();
   for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
   const textes = (parCat.get("textes") || []).map(carteTexte).join("");
-  const blocs = (textes ? rubrique("📜", "Un texte vous concerne", "#7c3aed", textes) : "") + ["votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
+  const blocs = (textes ? rubrique("📜", "Un texte vous concerne", "#7c3aed", textes) : "") + ["amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
     const [emoji, intitule, couleur] = INTITULES[c];
     const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
       ? ligne({ titre: n.detail || n.title, url: n.url, resume: n.detail ? n.title : null, etiquette: `Vote : ${n.position}`, couleur: couleurVote(n.position) })
@@ -99,6 +105,7 @@ async function main() {
     if (bloques.length) await supabase.from("user_notifications").update({ emailed_at: new Date().toISOString() }).in("id", bloques);
     notifs?.splice(0, notifs.length, ...notifs.filter(n => n.type !== "sondage"));
   }
+  if (notifs && (SEULE_CAT || SAUF_CAT)) notifs.splice(0, notifs.length, ...notifs.filter(n => (SEULE_CAT ? categorieDe(n) === SEULE_CAT : true) && (SAUF_CAT ? categorieDe(n) !== SAUF_CAT : true)));
   if (!notifs?.length) { console.log("Aucune alerte en attente."); return; }
 
   const parMembre = new Map<string, any[]>();
@@ -131,7 +138,8 @@ async function main() {
     // qu'il suit aussi ; tout le reste attend le récap du samedi.
     const rythme = (n: any): string => {
       const c = categorieDe(n);
-      if (c === "textes") return "immediat";
+      // Amendements des textes et groupes suivis (Pro) : dès le relevé horaire, c'est leur raison d'être.
+      if (c === "textes" || c === "amendements") return "immediat";
       if (pro) return c === "suivis" && (n.importance ?? 0) >= 5 ? "immediat" : "hebdo";
       return "quotidien";
     };
@@ -143,7 +151,7 @@ async function main() {
 
     const optIn = p ? p.notify_email !== false : abonne.get(id)?.preferences?.suivi_depute !== false;
     const seuil = p?.email_min_importance ?? 3;
-    const aEnvoyer = duMode.filter(a => (a.importance ?? 3) >= seuil || categorieDe(a) === "votes");
+    const aEnvoyer = duMode.filter(a => (a.importance ?? 3) >= seuil || categorieDe(a) === "votes" || categorieDe(a) === "amendements");
     const adresse = abonne.get(id)?.email || adresses.get(id);
     if (!optIn || !adresse || !aEnvoyer.length) { ignores++; continue; }
     const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");

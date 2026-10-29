@@ -16,7 +16,13 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      SITE_URL: https://lapolitiquecestsimple.fr
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:amendements-an
+      # Alertes des membres Pro qui suivent un texte ou un groupe, envoyées dans la foulée.
+      - run: npx tsx src/scripts/automation/alertes-amendements.ts
+      - run: npm run automation:send-notification-emails -- --mode=immediat --categorie=amendements
