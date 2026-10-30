@@ -41,10 +41,14 @@ jobs:
       - run: npm run automation:presidential-news
         timeout-minutes: 25
         continue-on-error: true
+        env:
+          LLM_SECOURS_PAYANT: "1"   # quota Gemini épuisé : DeepSeek, plutôt qu'un fil à l'arrêt
       # 3ter) Preuve de candidature de chaque personne (le lundi).
       - run: npm run automation:candidatures-preuves
         timeout-minutes: 15
         continue-on-error: true
+        env:
+          LLM_SECOURS_PAYANT: "1"
       # 3bis) Fil vidéo de chaque candidat (YouTube officiel, RSS — aucun coût IA).
       - run: npm run data:sync-candidate-videos
       # 3) Positions sourcées (Wikipédia) des candidats sur les grands enjeux
