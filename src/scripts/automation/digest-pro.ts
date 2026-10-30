@@ -14,6 +14,8 @@ import { enrichir, lireEnrichissements, type Enrichissement } from "../../lib/en
  *   textes       lois promulguées, projets et propositions de loi déposés
  *   jo           Journal officiel (synthèse de chaque numéro + lois, ordonnances, décrets)
  *   elus         actualités et votes des élus et organisations suivis
+ *   amendements_elus  pour chaque élu suivi, ses votes sur les amendements en scrutin public
+ *                (nombre, pour / contre / abstention, exemples adoptés d'abord) — 30/10/2026
  *   europe       votes du Parlement européen (et la position des eurodéputés suivis)
  *   territoire   actualités de sa commune, son département, sa région
  *
@@ -51,6 +53,7 @@ export const CATEGORIES = [
   { code: "textes", emoji: "📜", intitule: "Lois et textes déposés", couleur: "#e11d48" },
   { code: "jo", emoji: "📰", intitule: "Journal officiel", couleur: "#0284c7" },
   { code: "elus", emoji: "⭐", intitule: "Vos élus et suivis", couleur: "#d97706" },
+  { code: "amendements_elus", emoji: "✍️", intitule: "Votes de vos élus sur les amendements", couleur: "#7c3aed" },
   { code: "europe", emoji: "🇪🇺", intitule: "Votes au Parlement européen", couleur: "#2563eb" },
   { code: "territoire", emoji: "📍", intitule: "Votre territoire", couleur: "#059669" },
 ] as const;
@@ -67,6 +70,56 @@ const parisJour = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: 
 const parisJourSemaine = (d = new Date()) => new Date(`${parisJour(d)}T12:00:00Z`).getUTCDay();
 const fmtJour = (d: Date | string) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 const fmtCourt = (d: Date | string) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" });
+
+/* ─────────────── Votes des élus suivis sur les amendements ─────────────── */
+
+const court = (t: string, n: number) => (t.length > n ? `${t.slice(0, t.lastIndexOf(" ", n))}…` : t);
+// « l'amendement n° 2121 de Mme Bentorki après l'article 15 du projet de loi… » → l'essentiel.
+const objetCourt = (o: string) => court(String(o || "").replace(/^sur\s+/i, "").replace(/\s+(du|de la)\s+(projet|proposition) de loi.*$/i, "").replace(/^./, c => c.toUpperCase()), 120);
+const POSITION: Record<string, "pour" | "contre" | "abstention" | "absent"> = { POUR: "pour", FOR: "pour", CONTRE: "contre", AGAINST: "contre", ABSTENTION: "abstention", ABSTAIN: "abstention" };
+
+/**
+ * Pour chaque élu suivi (députés et sénateurs), ses votes sur des amendements en scrutin public
+ * arrivés depuis `depuis` et pas encore envoyés à ce rythme (clé par élu et par scrutin : un vote
+ * relevé avec retard part quand même, et une seule fois). Une ligne par élu.
+ */
+async function recapAmendementsElus(dIds: string[], sIds: string[], depuis: Date, dejaServi: (cle: string) => boolean) {
+  const items: Info[] = []; const cles: string[] = [];
+  const ajouter = (nom: string, etiquette: string, url: string, votes: { cle: string; pos: string; objet: string; adopte: boolean }[]) => {
+    const neufs = votes.filter(v => !dejaServi(v.cle));
+    if (!neufs.length) return;
+    const n = (k: string) => neufs.filter(v => v.pos === k).length;
+    const exemples = [...neufs].sort((a, b) => Number(b.adopte) - Number(a.adopte)).slice(0, 3)
+      .map(v => `${v.objet} — ${v.pos === "absent" ? "non-votant" : v.pos}, ${v.adopte ? "adopté" : "rejeté"}`);
+    items.push({ cle: `amdt-recap:${url}:${neufs[0].cle}`, titre: `${nom} : ${neufs.length} vote${neufs.length > 1 ? "s" : ""} sur des amendements`,
+      resume: `${n("pour")} pour · ${n("contre")} contre · ${n("abstention")} abstention${n("abstention") > 1 ? "s" : ""}. Dont : ${exemples.join(" ; ")}.`,
+      url, etiquette, importance: 3 });
+    cles.push(...neufs.map(v => v.cle));
+  };
+  if (dIds.length) {
+    const deputes = (await supabase.from("deputies").select("id, an_id, slug, first_name, last_name, party").in("id", dIds)).data || [];
+    const anIds = deputes.map((d: any) => d.an_id).filter(Boolean);
+    const votes = anIds.length ? await fetchAll("deputy_votes", "deputy_an_id, scrutin_id, position, scrutins!inner(objet, resultat, type)",
+      q => q.in("deputy_an_id", anIds).eq("scrutins.type", "AMENDEMENT").gte("created_at", depuis.toISOString())) : [];
+    for (const d of deputes) ajouter(`${d.first_name} ${d.last_name}`, `Député·e${d.party ? ` · ${d.party}` : ""}`, `${SITE_URL}/deputes/${d.slug}/#votes`,
+      votes.filter((v: any) => v.deputy_an_id === d.an_id).map((v: any) => ({
+        cle: `amdt-vote:${d.an_id}:${v.scrutin_id}`, pos: POSITION[String(v.position).toUpperCase()] || "absent", objet: objetCourt(v.scrutins?.objet),
+        adopte: /adopt/i.test(v.scrutins?.resultat || "") && !/n'a pas adopt|pas adopt/i.test(v.scrutins?.resultat || ""),
+      })));
+  }
+  if (sIds.length) {
+    const senateurs = (await supabase.from("senators").select("id, senate_matricule, slug, first_name, last_name, party").in("id", sIds)).data || [];
+    const mats = senateurs.map((x: any) => x.senate_matricule).filter(Boolean);
+    const votes = mats.length ? await fetchAll("legislative_votes", "voter_official_id, position, legislative_scrutins!inner(id, title, for_count, against_count, voted_at, chamber)",
+      q => q.in("voter_official_id", mats).eq("legislative_scrutins.chamber", "SENAT").ilike("legislative_scrutins.title", "sur %amendement%").gte("legislative_scrutins.voted_at", depuis.toISOString())) : [];
+    for (const x of senateurs) ajouter(`${x.first_name} ${x.last_name}`, `Sénateur·rice${x.party ? ` · ${x.party}` : ""}`, `${SITE_URL}/senateurs/${x.slug}/`,
+      votes.filter((v: any) => v.voter_official_id === x.senate_matricule).map((v: any) => ({
+        cle: `amdt-vote:${x.senate_matricule}:${v.legislative_scrutins.id}`, pos: POSITION[String(v.position).toUpperCase()] || "absent",
+        objet: objetCourt(v.legislative_scrutins.title), adopte: (v.legislative_scrutins.for_count || 0) > (v.legislative_scrutins.against_count || 0),
+      })));
+  }
+  return { items, cles };
+}
 
 /* ───────────────────────── Partie commune ───────────────────────── */
 
@@ -300,6 +353,17 @@ async function main() {
           ...actus,
         ];
         if (!dIds.length && !sIds.length && !(notifs || []).length) vide = "Vous ne suivez encore aucun élu : ajoutez-en depuis leur fiche (bouton « Suivre »).";
+      }
+      if (cat.code === "amendements_elus") {
+        const { data: f } = await supabase.from("user_follows").select("deputy_id, senator_id").eq("user_id", id);
+        const dIds = (f || []).map((x: any) => x.deputy_id).filter(Boolean); const sIds = (f || []).map((x: any) => x.senator_id).filter(Boolean);
+        if (!dIds.length && !sIds.length) vide = "Vous ne suivez encore aucun élu : ajoutez-en depuis leur fiche (bouton « Suivre »).";
+        else {
+          const r = await recapAmendementsElus(dIds, sIds, recul, cle => !TEST && !APERCU && servis.has(cle));
+          items = r.items;
+          r.cles.forEach(k => aServir.add(k));
+          if (!items.length) vide = "Aucun vote de vos élus sur un amendement en scrutin public sur cette période (les amendements votés à main levée n'ont pas de décompte par élu).";
+        }
       }
       if (cat.code === "territoire") {
         const loc = await resolveLocation(p.city || null, p.department || null);
