@@ -1,11 +1,11 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
-import { dureeEtSousTitres, transcrireGemini } from "../../lib/transcription.js";
+import { dureeEtSousTitres, transcrireSecours } from "../../lib/transcription.js";
 
 /**
  * Résumé des vidéos des candidats (chaîne officielle) et de leurs débats télévisés, à
- * partir de ce qui est RÉELLEMENT dit : transcription (sous-titres, sinon Gemini), puis
+ * partir de ce qui est RÉELLEMENT dit : transcription (sous-titres, Agentik, sinon Gemini), puis
  * résumé factuel attribué (« Marine Le Pen annonce… »). Garde-fou anti-fausse info :
  * un résumé dont un chiffre n'apparaît pas dans la transcription est rejeté.
  * Remplace, dans le récap Pro et sur le site, la description publicitaire des chaînes.
@@ -72,7 +72,7 @@ async function main() {
     let { duree, texte } = dureeEtSousTitres(t.url);
     // Moins d'une minute : clip, rien à résumer.
     if (duree && duree < 60) { await marquer(t, ""); vides++; continue; }
-    if (texte.length < 600) texte = await transcrireGemini(t.url);
+    if (texte.length < 600) texte = await transcrireSecours(t.url);
     if (texte.length < 600) { echecs++; continue; }   // retenté au prochain passage
     const r = await resumer(t.nom, t.titre, texte);
     if (r === null) { echecs++; continue; }

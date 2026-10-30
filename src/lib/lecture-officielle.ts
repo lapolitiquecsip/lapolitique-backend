@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { lirePageAgentik } from "./agentik.js";
 import { coutUsage, disponible, noter } from "./budget-claude.js";
 
 /**
@@ -12,11 +13,14 @@ import { coutUsage, disponible, noter } from "./budget-claude.js";
  * sous sa propre identité de robot. On récupère alors le TEXTE de la page tel que l'outil l'a
  * lu — jamais une reformulation du modèle (on ne lui demande rien d'autre que d'ouvrir la page).
  * Coût : une lecture par Haiku, environ un centime pour un plan de quarante pages.
+ *
+ * Depuis le 30/10/2026, Agentik (Firecrawl, 0,0025 $ la page) passe avant cette voie : il ne
+ * dépend pas du crédit Anthropic, et lit les sites qui refusent aussi le robot de Claude.
  */
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; LaPolitiqueBot/1.0)" };
 const REFUS = /HTTP (403|429|5\d\d)|fetch failed|timeout|aborted/i;
 
-export type PageLue = { html: string; texte?: undefined; via: "direct" } | { html?: undefined; texte: string; via: "web_fetch" };
+export type PageLue = { html: string; texte?: undefined; via: "direct" } | { html?: undefined; texte: string; via: "web_fetch" | "agentik" };
 
 /** Erreur réseau ou refus du site : à retenter, et à lire par la voie de secours. */
 export const estRefus = (message: string | null | undefined) => REFUS.test(message || "");
@@ -28,7 +32,10 @@ export async function lirePageOfficielle(url: string, { secours = true } = {}): 
     if (r.ok) return { html: await r.text(), via: "direct" };
     refus = `HTTP ${r.status}`;
   } catch (e: any) { refus = e?.message || String(e); }
-  if (!secours || !process.env.ANTHROPIC_API_KEY) throw new Error(refus);
+  if (!secours) throw new Error(refus);
+  const parAgentik = await lirePageAgentik(url);
+  if (parAgentik) return { texte: parAgentik, via: "agentik" };
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error(refus);
   // Part « programmes » des 20 $ mensuels (budget-claude.ts) : 1 $, soit une centaine de pages.
   if (await disponible("programmes") < 0.03) throw new Error(`${refus} ; secours web_fetch : budget Claude du jour épuisé`);
 

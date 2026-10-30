@@ -62,3 +62,19 @@ export async function executer(outil: string, input: Record<string, unknown>, { 
   if (r.statut >= 200 && r.statut < 300 && r.json?.ok !== false && r.json?.status === "COMPLETED") return { ok: true, sortie: r.json.output, usd, run: r.json.run_id ?? null };
   return { ok: false, raison: `HTTP ${r.statut} ${String(r.json?.error?.message ?? r.json?.status ?? r.texte).slice(0, 160)}`, usd };
 }
+
+/** Page web en texte Markdown (Firecrawl, 0,0025 $), pour les sites qui bloquent nos serveurs. */
+export async function lirePageAgentik(url: string): Promise<string | null> {
+  const r = await executer("firecrawl/scrape", { url, onlyMainContent: true });
+  if (r.ok === false) { if (r.raison !== "pas de clé") console.log(`[Agentik] lecture de ${url} : ${r.raison}`); return null; }
+  const texte = r.sortie?.markdown;
+  return typeof texte === "string" && texte.trim() ? texte : null;
+}
+
+/** Sous-titres d'une vidéo YouTube (ScrapeCreators, 0,00188 $), quand yt-dlp n'y arrive pas. */
+export async function transcriptionAgentik(url: string): Promise<string> {
+  const r = await executer("scrapecreators/get-v1-youtube-video-transcript", { url, language: "fr" });
+  if (r.ok === false) { if (r.raison !== "pas de clé") console.log(`[Agentik] transcription de ${url} : ${r.raison}`); return ""; }
+  const texte = r.sortie?.transcript_only_text;
+  return typeof texte === "string" ? texte.replace(/\[[^\]]*\]/g, " ").replace(/\s+/g, " ").trim() : "";
+}

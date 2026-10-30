@@ -3,6 +3,7 @@ import Parser from "rss-parser";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "../../config/supabase.js";
 import { PANEL_PRESSE } from "../../lib/panel-presse.js";
+import { lirePageAgentik } from "../../lib/agentik.js";
 import { coutUsage, disponible, noter } from "../../lib/budget-claude.js";
 import { redigerJSON, verifierJSON } from "../../lib/redaction-ia.js";
 
@@ -159,7 +160,15 @@ async function trier(sources: Source[], depense: { usd: number }) {
 /* ───────────────────────── 3. Analyste et 4. Vérificateur ───────────────────────── */
 
 // Le texte d'un article (paragraphes de la page), pour les médias que l'analyste ne peut pas ouvrir.
+// Média qui nous refuse ou page sans texte exploitable : lecture par Agentik (0,0025 $).
 async function lirePage(url: string): Promise<string | null> {
+  const direct = await lirePageDirecte(url);
+  if (direct) return direct;
+  const md = await lirePageAgentik(url);
+  return md && md.length > 400 ? md.slice(0, 5000) : null;
+}
+
+async function lirePageDirecte(url: string): Promise<string | null> {
   try {
     const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36" }, signal: AbortSignal.timeout(12000) });
     if (!r.ok) return null;

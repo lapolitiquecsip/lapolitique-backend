@@ -2,7 +2,7 @@ import "dotenv/config";
 import crypto from "crypto";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
-import { dureeEtSousTitres, transcrireGemini } from "../../lib/transcription.js";
+import { dureeEtSousTitres, transcrireSecours } from "../../lib/transcription.js";
 
 /**
  * Programmes présentés en VIDÉO sur la chaîne officielle d'un candidat (ex. Marine Le Pen,
@@ -93,9 +93,9 @@ async function traiter(v: { candidate_id: string; url: string; title: string; no
   let { duree, texte } = dureeEtSousTitres(v.url);
   let methode = "sous-titres";
   if (duree && duree < 600) { console.log(`  · ${Math.round(duree / 60)} min : trop court pour un programme.`); return; }
-  if (texte.length < 3000) { texte = await transcrireGemini(v.url); methode = "gemini"; }
+  if (texte.length < 3000) { texte = await transcrireSecours(v.url, 3000); methode = "secours"; }
   if (texte.length < 3000) {
-    console.log("  ! transcription impossible (sous-titres et Gemini).");
+    console.log("  ! transcription impossible (sous-titres, Agentik et Gemini).");
     await supabase.from("programmes_sources").upsert({ source_url: v.url, candidate_id: v.candidate_id, titre: v.title, statut: "transcription_impossible" });
     return;
   }

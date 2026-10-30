@@ -36,6 +36,7 @@ jobs:
       PROGRAMMES_PUBLICATION_AUTO: ${{ vars.PROGRAMMES_PUBLICATION_AUTO || '1' }}
       # Voie de secours des pages de programme refusées aux serveurs de GitHub (lecture-officielle.ts).
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      AGENTIK_API_KEY: ${{ secrets.AGENTIK_API_KEY }}
       CLAUDE_BUDGET_MOIS: '20'   # tout Claude confondu, voir src/lib/budget-claude.ts
     steps:
       - uses: actions/checkout@v4

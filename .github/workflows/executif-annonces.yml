@@ -20,6 +20,7 @@ jobs:
       # Rédaction : DeepSeek V4-Pro ; vérification : Claude Haiku (src/lib/redaction-ia.ts).
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      AGENTIK_API_KEY: ${{ secrets.AGENTIK_API_KEY }}
       # Plafond : 20 $ par MOIS pour tout Claude, dont 8,40 $ pour cette page (budget-claude.ts,
       # choix de l'éditeur du 29/10/2026). Ne pas relever sans son accord.
       CLAUDE_BUDGET_MOIS: '20'

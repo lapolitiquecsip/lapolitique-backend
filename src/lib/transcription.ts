@@ -2,10 +2,12 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { execFileSync } from "child_process";
+import { transcriptionAgentik } from "./agentik.js";
 
 /**
  * Transcription d'une vidéo YouTube publique : sous-titres (manuels ou automatiques) via
- * yt-dlp ; secours : Gemini lit la vidéo elle-même (clé gratuite LLM_FREE_API_KEY).
+ * yt-dlp ; secours : les sous-titres via Agentik, puis Gemini qui lit la vidéo elle-même (clé
+ * gratuite LLM_FREE_API_KEY, quota limité : on le garde pour les vidéos sans sous-titres).
  */
 
 export function dureeEtSousTitres(url: string): { duree: number; texte: string } {
@@ -22,6 +24,12 @@ export function dureeEtSousTitres(url: string): { duree: number; texte: string }
     return { duree, texte: texte.replace(/\s+/g, " ").trim() };
   } catch { return { duree, texte: "" }; }
   finally { fs.rmSync(dossier, { recursive: true, force: true }); }
+}
+
+/** Secours de yt-dlp : sous-titres via Agentik, sinon Gemini. `minimum` : longueur jugée suffisante. */
+export async function transcrireSecours(url: string, minimum = 600): Promise<string> {
+  const texte = await transcriptionAgentik(url);
+  return texte.length >= minimum ? texte : transcrireGemini(url);
 }
 
 /** Secours : Gemini lit la vidéo YouTube et en donne la transcription. */
