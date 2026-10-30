@@ -199,7 +199,7 @@ async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
 
   // d) actualités des candidats à la présidentielle.
   try {
-    const cand = await fetchAll("candidate_news", "title, summary, news_type, source_url, date", q => q.gte("date", sinceDate));
+    const cand = await fetchAll("candidate_news", "title, summary, news_type, source_url, date", q => q.gte("date", sinceDate).not("verifie_le", "is", null));
     for (const x of cand) out.push({ title: x.title, summary: x.summary, url: x.source_url, date: x.date, scope: "thematic", importance: x.news_type === "programme" ? 4 : 3, type: "candidat" });
     console.log(`  · candidate_news : ${cand.length}`);
   } catch (e: any) { console.warn("  ! candidate_news:", e.message); }

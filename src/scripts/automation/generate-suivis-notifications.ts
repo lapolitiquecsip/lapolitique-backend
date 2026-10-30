@@ -161,7 +161,7 @@ export async function generateSuivisNotifications() {
   const accueil = await fetchAll("content", "titre_simplifie, titre_original, resume_flash, source_url, date_publication",
     q => q.gte("created_at", depuis));
   const candidats = await fetchAll("candidate_news", "candidate_id, title, summary, source_url, date, news_type",
-    q => q.gte("date", depuis.slice(0, 10)));
+    q => q.gte("date", depuis.slice(0, 10)).not("verifie_le", "is", null));
   const commissions = await fetchAll("commission_reports", "chamber, commission, title, summary, cr_url, meeting_date",
     q => q.gte("meeting_date", depuis.slice(0, 10)));
   const partis = new Map((await fetchAll("political_parties", "slug, name, abbrev", q => q)).map((p: any) => [p.slug, p]));

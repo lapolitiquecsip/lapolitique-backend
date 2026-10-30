@@ -80,6 +80,7 @@
     "automation:content": "tsx src/scripts/automation/content-pipeline.ts",
     "automation:presidential": "tsx src/scripts/automation/presidential-candidates.ts",
     "automation:presidential-news": "tsx src/scripts/automation/presidential-news.ts",
+    "automation:candidatures-preuves": "tsx src/scripts/automation/candidatures-preuves.ts",
     "data:sync-candidate-videos": "tsx src/scripts/data/sync-candidate-videos.ts",
     "data:sync-candidate-proposals": "tsx src/scripts/data/sync-candidate-proposals.ts",
     "data:explain-proposals": "tsx src/scripts/data/explain-proposals.ts",

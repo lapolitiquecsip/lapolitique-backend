@@ -21,6 +21,8 @@ const BASE = "https://api.agentik.cc/v1";
 
 export type ResultatAgentik = { ok: true; sortie: any; usd: number; run: string | null } | { ok: false; raison: string; usd: number };
 
+let depenseOperation = 0;
+
 export const agentikActif = () => !!process.env.AGENTIK_API_KEY;
 
 async function appeler(chemin: string, corps?: unknown, entetes: Record<string, string> = {}) {
@@ -51,13 +53,23 @@ export async function prixMax(outil: string): Promise<number | null> {
  */
 export async function executer(outil: string, input: Record<string, unknown>, { maxUsd = 0.05 } = {}): Promise<ResultatAgentik> {
   if (!agentikActif()) return { ok: false, raison: "pas de clé", usd: 0 };
-  if ((await disponible("agentik")) < maxUsd) return { ok: false, raison: "budget Agentik du jour épuisé", usd: 0 };
+  // Opération ponctuelle décidée par l'éditeur (`AGENTIK_PLAFOND_OPERATION`, en $) : ce plafond remplace
+  // celui du jour, pour ce seul lancement. Sinon, la part du jour du budget mensuel.
+  const operation = Number(process.env.AGENTIK_PLAFOND_OPERATION || 0);
+  if (operation ? depenseOperation >= operation : (await disponible("agentik")) < maxUsd) return { ok: false, raison: "budget Agentik épuisé", usd: 0 };
   const cle = randomUUID();   // une exécution voulue = une clé ; un nouvel essai réseau réutilise la même
   let r = await appeler("/run", { tool_id: outil, input }, { "Idempotency-Key": cle }).catch(() => null);
   if (!r) r = await appeler("/run", { tool_id: outil, input }, { "Idempotency-Key": cle }).catch(() => null);
   if (!r) return { ok: false, raison: "réseau", usd: 0 };
+  // Exécution longue : on interroge le même run, sans jamais relancer l'outil.
+  for (let i = 0; i < 12 && r.json?.run_id && /RUNNING|PENDING|QUEUED/i.test(String(r.json?.status)); i++) {
+    await new Promise(ok => setTimeout(ok, 5000));
+    const suivant = await appeler(`/runs/${r.json.run_id}`).catch(() => null);
+    if (suivant && suivant.statut === 200) r = suivant;
+  }
   // Réponse : { ok, run_id, status, price_billed_usd, output, … } (relevé sur un vrai appel, 30/10/2026).
   const usd = Number(r.json?.price_billed_usd ?? 0) || 0;
+  depenseOperation += usd;
   if (usd > 0) await noter("agentik", "agentik", usd, outil);
   if (r.statut >= 200 && r.statut < 300 && r.json?.ok !== false && r.json?.status === "COMPLETED") return { ok: true, sortie: r.json.output, usd, run: r.json.run_id ?? null };
   return { ok: false, raison: `HTTP ${r.statut} ${String(r.json?.error?.message ?? r.json?.status ?? r.texte).slice(0, 160)}`, usd };
@@ -65,10 +77,15 @@ export async function executer(outil: string, input: Record<string, unknown>, { 
 
 /** Page web en texte Markdown (Firecrawl, 0,0025 $), pour les sites qui bloquent nos serveurs. */
 export async function lirePageAgentik(url: string): Promise<string | null> {
+  // Firecrawl garde les liens (utile pour un sommaire de programme) ; Exa en secours : Firecrawl a
+  // été suspendu par Agentik le 30/10/2026 (« provider billing »).
   const r = await executer("firecrawl/scrape", { url, onlyMainContent: true });
-  if (r.ok === false) { if (r.raison !== "pas de clé") console.log(`[Agentik] lecture de ${url} : ${r.raison}`); return null; }
-  const texte = r.sortie?.markdown;
-  return typeof texte === "string" && texte.trim() ? texte : null;
+  const texte = r.ok === true ? r.sortie?.markdown : null;
+  if (typeof texte === "string" && texte.trim()) return texte;
+  const e = await executer("exa/contents", { urls: [url], text: true });
+  if (e.ok === false) { if (e.raison !== "pas de clé") console.log(`[Agentik] lecture de ${url} : ${e.raison}`); return null; }
+  const lu = e.sortie?.results?.[0]?.text;
+  return typeof lu === "string" && lu.trim() ? lu : null;
 }
 
 /** Sous-titres d'une vidéo YouTube (ScrapeCreators, 0,00188 $), quand yt-dlp n'y arrive pas. */

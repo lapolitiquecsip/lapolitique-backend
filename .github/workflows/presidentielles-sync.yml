@@ -18,6 +18,7 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      AGENTIK_API_KEY: ${{ secrets.AGENTIK_API_KEY }}
       LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}   # recherche web des positions candidats
     steps:
@@ -36,9 +37,13 @@ jobs:
       - run: npm run data:sync-candidate-proposals
       # 2bis) Explique chaque proposition (le « ? ») avec chiffres nationaux vérifiés.
       - run: npm run data:explain-proposals
-      # 3) Fil d'actualité de chaque candidat (mode brut sans IA si solde épuisé), borné dans le temps.
+      # 3) Fil d'actualité de chaque candidat : chaque article est lu et contrôlé avant publication.
       - run: npm run automation:presidential-news
         timeout-minutes: 25
+        continue-on-error: true
+      # 3ter) Preuve de candidature de chaque personne (le lundi).
+      - run: npm run automation:candidatures-preuves
+        timeout-minutes: 15
         continue-on-error: true
       # 3bis) Fil vidéo de chaque candidat (YouTube officiel, RSS — aucun coût IA).
       - run: npm run data:sync-candidate-videos

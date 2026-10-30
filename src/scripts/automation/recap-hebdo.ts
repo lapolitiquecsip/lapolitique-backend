@@ -57,7 +57,7 @@ async function semaine(depuis: string) {
     fetchAll("content", "titre_simplifie, titre_original, resume_flash, source_url, institution, date_publication, source_name", q => q.gte("created_at", depuis)),
     // Veille et jour du vote : ni sondage ni commentaire de sondage (loi de 1977, art. 11), y compris dans l'édito.
     silenceSondages() ? Promise.resolve([]) : fetchAll("sondages", "institut, commanditaire, echantillon, date_debut, date_fin, hypothese, resultats, tour", q => q.eq("tour", 1).gte("date_fin", jour)),
-    fetchAll("candidate_news", "title, summary, source_url, date, news_type", q => q.gte("date", jour)),
+    fetchAll("candidate_news", "title, summary, source_url, date, news_type", q => q.gte("date", jour).not("verifie_le", "is", null)),
   ]);
   // Nom lisible d'un ministère (le fil ne porte qu'un identifiant : « ministere-de-l-interieur »).
   const slug = (t: string) => norm(t).replace(/[’']/g, " ").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");

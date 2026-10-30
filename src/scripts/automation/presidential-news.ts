@@ -1,131 +1,91 @@
 import "dotenv/config";
-import Parser from "rss-parser";
 import { supabase } from "../../config/supabase.js";
-import { resilientDeepSeek } from "../../lib/deepseek-client.js";
+import { agentikActif, executer } from "../../lib/agentik.js";
+import { mediaReconnu, verifierArticle } from "../../lib/verification-article.js";
 
-const parser = new Parser({ timeout: 15000 });
-const MAX_ITEMS_PER_CANDIDATE = 5;
+/**
+ * Fil d'actualité de chaque candidat (réécrit le 30/10/2026). Rien n'est publié sans contrôle :
+ * voir lib/verification-article.ts. La recherche passe par Serper (Agentik), qui donne l'adresse
+ * réelle de l'article ; celle de Google Actualités est une redirection illisible.
+ *
+ * Les articles refusés sont gardés, masqués, avec leur motif (`rejet_motif`) : on ne les relit pas
+ * et on peut contrôler les refus. Sans clé Agentik ou sans modèle, rien n'est publié.
+ *   --rattrapage  reconstruit le fil sur 30 jours (plus d'articles par candidat)
+ *   --seul=slug   un seul candidat
+ */
+const RATTRAPAGE = process.argv.includes("--rattrapage");
+const SEUL = process.argv.find(a => a.startsWith("--seul="))?.split("=")[1];
+const MAX_PUBLIES = RATTRAPAGE ? 12 : 5;
+const MAX_LUS = RATTRAPAGE ? 20 : 8;
 
-// Résume une actualité concernant un candidat, avec valeur ajoutée et classification.
-async function summariseNews(candidate: string, title: string, snippet: string) {
-  const response = await resilientDeepSeek.createMessage({
-    // deepseek-chat (non-raisonneur) : appelé en boucle sur chaque actu → bien moins cher
-    // et pas de risque de troncature par raisonnement (flash pouvait rendre un JSON vide).
-    model: "deepseek-chat",
-    max_tokens: 1200,
-    responseFormat: "json_object",
-    system: `Tu alimentes le fil d'actualité d'un candidat à la présidentielle 2027 (${candidate}). À partir du titre et de l'extrait d'un article, produis une entrée courte et à valeur ajoutée.
-
-RÈGLES :
-- "should_publish" = false si l'article ne concerne PAS réellement ${candidate}, ou n'a aucun intérêt informatif.
-- "title" : titre reformulé, factuel, accrocheur (max 14 mots).
-- "summary" : 1-2 phrases (40 mots max), avec un fait/chiffre concret si présent. En français.
-- "news_type" : un parmi interview | soutien | programme | declaration | sondage | actualite.
-
-Réponds en JSON strict : { "should_publish": true, "title": "...", "summary": "...", "news_type": "actualite" }`,
-    messages: [{ role: "user", content: `Candidat : ${candidate}\nTitre : ${title}\nExtrait : ${snippet}` }],
-  });
-  const text = response.content[0]?.text ?? "";
-  const match = text.match(/\{[\s\S]*\}/);
-  return match ? JSON.parse(match[0]) : null;
-}
-
-function sourceFromTitle(title: string): { clean: string; source: string } {
-  // Google News formate souvent « Titre - Source ».
-  const idx = title.lastIndexOf(" - ");
-  if (idx > 0) return { clean: title.slice(0, idx).trim(), source: title.slice(idx + 3).trim() };
-  return { clean: title.trim(), source: "" };
-}
-
-// Solde DeepSeek disponible ? (léger, ne déclenche pas le garde-fou qui coupe le process).
-async function deepseekAvailable(): Promise<boolean> {
-  try {
-    const r = await fetch("https://api.deepseek.com/user/balance", {
-      headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` }, signal: AbortSignal.timeout(10000),
-    });
-    if (!r.ok) return false;
-    return !!(await r.json()).is_available;
-  } catch { return false; }
+function titreSansMedia(titre: string): string {
+  const i = titre.lastIndexOf(" - ");
+  return i > 20 ? titre.slice(0, i).trim() : titre.trim();
 }
 
 export async function syncPresidentialNews() {
-  const { data: candidates, error } = await supabase
-    .from("presidential_candidates")
-    .select("id, full_name")
-    .eq("status", "declared");
+  if (!agentikActif()) { console.log("[Presidential-News] Pas de clé Agentik : aucune publication sans contrôle."); return 0; }
+  let q = supabase.from("presidential_candidates").select("id, slug, full_name").eq("status", "declared");
+  if (SEUL) q = q.eq("slug", SEUL);
+  const { data: candidates, error } = await q;
   if (error) throw error;
-  // Si le solde IA est épuisé, on continue quand même en MODE BRUT (titre + extrait, sans
-  // reformulation) : le fil ne s'arrête plus jamais. L'IA n'est utilisée que si du crédit existe.
-  const aiOn = await deepseekAvailable();
-  console.log(`[Presidential-News] ${candidates?.length ?? 0} candidat(s). IA : ${aiOn ? "activée" : "épuisée → mode brut"}.`);
 
-  let inserted = 0;
+  let publies = 0, refuses = 0;
+  const motifs = new Map<string, number>();
   for (const candidate of candidates ?? []) {
-    const feedUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(`"${candidate.full_name}"`)}&hl=fr&gl=FR&ceid=FR:fr`;
-    let feed;
-    try {
-      feed = await parser.parseURL(feedUrl);
-    } catch (err: any) {
-      console.warn(`[Presidential-News] Flux illisible pour ${candidate.full_name}: ${err.message}`);
-      continue;
+    // 10 résultats au plus par recherche, classés par pertinence et non par date : on vise le mois.
+    const mois = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    const nom = `"${candidate.full_name}"`;
+    const requetes = RATTRAPAGE ? [`${nom} ${mois}`, `${nom} présidentielle ${mois}`, `${nom} interview ${mois}`, nom] : [`${nom} ${mois}`];
+    const trouves = new Map<string, any>();
+    for (const q of requetes) {
+      const r = await executer("serper/news", { q, gl: "fr", hl: "fr", num: 10 });
+      if (r.ok === false) { console.warn(`[Presidential-News] ${candidate.full_name} : ${r.raison}`); continue; }
+      // Médias non reconnus écartés dès ici : ni lecture ni dépense.
+      for (const n of r.sortie?.news ?? []) if (n.link && n.title && mediaReconnu(n.link)) trouves.set(n.link, n);
     }
+    const items = [...trouves.values()];
+    const urls = items.map((n: any) => n.link);
+    const { data: connus } = urls.length
+      ? await supabase.from("candidate_news").select("source_url").eq("candidate_id", candidate.id).in("source_url", urls)
+      : { data: [] as any[] };
+    const deja = new Set((connus ?? []).map((x: any) => x.source_url));
 
-    let processed = 0;
-    for (const item of feed.items) {
-      if (processed >= MAX_ITEMS_PER_CANDIDATE) break;
-      const url = item.link;
-      if (!url) continue;
-
-      // Déduplication par (candidat, url).
-      const { data: existing } = await supabase
-        .from("candidate_news")
-        .select("id")
-        .eq("candidate_id", candidate.id)
-        .eq("source_url", url)
-        .maybeSingle();
-      if (existing) continue;
-
-      const { clean, source } = sourceFromTitle(item.title || "");
-      // Titre coupé par Google News ou « teaser » à points de suspension : illisible pour le
-      // lecteur (« … participera à la primaire de l ... »). Jamais publié tel quel.
-      if (/(…|\.\.\.)\s*$/.test(clean)) continue;
-      const snippet = (item.contentSnippet || item.content || "").slice(0, 500);
-
+    let nbPublies = 0, nbLus = 0;
+    for (const item of items) {
+      if (deja.has(item.link)) continue;
+      if (nbPublies >= MAX_PUBLIES || nbLus >= MAX_LUS) break;
+      nbLus++;
+      const titre = titreSansMedia(item.title);
       try {
-        let row: { title: string; summary: string | null; news_type: string };
-        if (aiOn) {
-          const summary = await summariseNews(candidate.full_name, clean, snippet);
-          if (!summary || summary.should_publish === false) continue;
-          row = { title: summary.title || clean, summary: summary.summary || null, news_type: summary.news_type || "actualite" };
-          await new Promise(r => setTimeout(r, 600));
+        const v = await verifierArticle(candidate.full_name, titre, item.link);
+        if (v.ok === true) {
+          const { error: e } = await supabase.from("candidate_news").insert({
+            candidate_id: candidate.id, date: v.date.slice(0, 10), title: v.titre, summary: v.resume, news_type: v.type,
+            source_name: v.media, source_url: item.link, citation: v.citation, verifie_le: new Date().toISOString(),
+          });
+          if (e) { console.error(`[Presidential-News] insert : ${e.message}`); continue; }
+          nbPublies++; publies++;
         } else {
-          // Mode brut (sans IA) : filtre minimal de pertinence (le nom du candidat dans le titre).
-          const last = candidate.full_name.split(" ").pop()?.toLowerCase() || "";
-          if (last && !clean.toLowerCase().includes(last)) continue;
-          // L'extrait Google News n'est que « titre  source » : pas de résumé plutôt qu'une redite.
-          const extrait = snippet.replace(/\s+/g, " ").trim();
-          const redite = extrait.toLowerCase().startsWith(clean.toLowerCase().slice(0, 40));
-          row = { title: clean, summary: extrait && !redite ? extrait.slice(0, 400) : null, news_type: "actualite" };
+          // Panne passagère (lecture ou modèle) : pas de trace, on réessaiera au prochain passage.
+          if (/illisible|sans réponse/.test(v.motif)) { motifs.set(v.motif, (motifs.get(v.motif) || 0) + 1); continue; }
+          await supabase.from("candidate_news").insert({
+            candidate_id: candidate.id, date: (v.date || new Date().toISOString()).slice(0, 10), title: titre, summary: null, news_type: "actualite",
+            source_name: v.media || "Inconnu", source_url: item.link, rejet_motif: v.motif,
+          });
+          refuses++;
+          const famille = v.motif.replace(/\s*\(.*$/, "");
+          motifs.set(famille, (motifs.get(famille) || 0) + 1);
         }
-
-        const { error: insertError } = await supabase.from("candidate_news").insert({
-          candidate_id: candidate.id,
-          date: item.pubDate ? new Date(item.pubDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
-          title: row.title, summary: row.summary, news_type: row.news_type,
-          source_name: source || "Presse", source_url: url,
-        });
-        if (insertError) { console.error(`[Presidential-News] insert:`, insertError.message); continue; }
-        processed++;
-        inserted++;
       } catch (cause: any) {
-        console.error(`[Presidential-News] ${candidate.full_name}:`, cause.message);
+        console.error(`[Presidential-News] ${candidate.full_name} : ${cause.message}`);
       }
     }
-    console.log(`[Presidential-News] ${candidate.full_name}: ${processed} actu(s).`);
+    console.log(`[Presidential-News] ${candidate.full_name} : ${nbPublies} publié(s) sur ${nbLus} lu(s).`);
   }
-
-  console.log(`[Presidential-News] Terminé. ${inserted} actualité(s) insérée(s).`);
-  return inserted;
+  console.log(`[Presidential-News] Terminé : ${publies} publié(s), ${refuses} refusé(s).`);
+  for (const [m, n] of [...motifs].sort((a, b) => b[1] - a[1])) console.log(`  · ${n} : ${m}`);
+  return publies;
 }
 
 if (process.argv[1] && process.argv[1].endsWith("presidential-news.ts")) {
