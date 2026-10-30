@@ -30,6 +30,9 @@ jobs:
         run: npm run automation:budget-check
       # 1) Importe les scrutins + votes individuels (open data AN) → tables du front (gratuit)
       - run: npm run automation:fetch-votes
+      # Chaque amendement tranché en scrutin public est relié à ce scrutin (vote de chaque député).
+      - run: npx tsx src/scripts/data/lier-amendements-scrutins.ts
+        continue-on-error: true
       # 2) Résume/explique les nouveaux scrutins (IA, heures creuses)
       - run: npm run automation:summarize
         continue-on-error: true

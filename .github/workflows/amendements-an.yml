@@ -23,6 +23,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npm run data:amendements-an
+      # Sort connu → scrutin public qui l'a tranché, s'il y en a un (sinon main levée / commission).
+      - run: npx tsx src/scripts/data/lier-amendements-scrutins.ts
+        continue-on-error: true
       # Alertes des membres Pro qui suivent un texte ou un groupe, envoyées dans la foulée.
       - run: npx tsx src/scripts/automation/alertes-amendements.ts
       - run: npm run automation:send-notification-emails -- --mode=immediat --categorie=amendements
