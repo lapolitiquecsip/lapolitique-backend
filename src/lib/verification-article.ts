@@ -29,7 +29,35 @@ export const MEDIAS_RECONNUS: Record<string, string> = {
   "ladepeche.fr": "La Dépêche", "midilibre.fr": "Midi Libre", "leprogres.fr": "Le Progrès", "ledauphine.com": "Le Dauphiné",
   "dna.fr": "DNA", "nicematin.com": "Nice-Matin", "lavoixdunord.fr": "La Voix du Nord", "letelegramme.fr": "Le Télégramme",
   "lamontagne.fr": "La Montagne", "ici.fr": "ici", "vie-publique.fr": "Vie publique",
+  "lindependant.fr": "L'Indépendant", "lanouvellerepublique.fr": "La Nouvelle République", "lejsl.com": "Le JSL",
+  "estrepublicain.fr": "L'Est Républicain", "republicain-lorrain.fr": "Le Républicain Lorrain", "lalsace.fr": "L'Alsace",
+  "bienpublic.com": "Le Bien Public", "courrier-picard.fr": "Courrier picard", "paris-normandie.fr": "Paris-Normandie",
+  "lunion.fr": "L'Union", "charentelibre.fr": "Charente Libre", "larepubliquedespyrenees.fr": "La République des Pyrénées",
+  "corsematin.com": "Corse-Matin", "actu.fr": "actu.fr", "parismatch.com": "Paris Match",
 };
+
+/** Presse people, contenus à clics et agrégateurs : jamais publiés, même dans un fil local. */
+const EXCLUS = /(^|\.)(gala\.fr|voici\.fr|closermag\.fr|public\.fr|ohmymag\.com|gentside\.com|purepeople\.com|planet\.fr|melty\.fr|aufeminin\.com|msn\.com|yahoo\.com|orange\.fr|wansquare\.com)$/i;
+export const mediaExclu = (url: string) => { try { return EXCLUS.test(new URL(url).hostname); } catch { return true; } };
+
+/**
+ * Bing Actualités (RSS, gratuit) : contrairement à Google Actualités, il donne l'adresse réelle de
+ * l'article, sa date et un vrai extrait. Pas de OR entre deux expressions entre guillemets (0 résultat) : une requête par terme.
+ */
+export async function presseBing(requete: string): Promise<ResultatPresse[] | null> {
+  try {
+    const r = await fetch(`https://www.bing.com/news/search?q=${encodeURIComponent(requete)}&format=rss&setlang=fr-FR&cc=FR`, { headers: UA, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return null;
+    const xml = await r.text();
+    const dec = (t: string) => t.replace(/<!\[CDATA\[|\]\]>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).trim();
+    return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(([, i]) => {
+      const champ = (n: string) => dec(i.match(new RegExp(`<${n}>([\\s\\S]*?)</${n}>`))?.[1] ?? "");
+      let link = champ("link");
+      try { link = new URL(link).searchParams.get("url") || link; } catch { /* adresse telle quelle */ }
+      return { link, title: champ("title"), snippet: champ("description").replace(/<[^>]+>/g, " ").trim(), date: dateValide(champ("pubDate")) ?? undefined };
+    }).filter(x => x.link && x.title);
+  } catch { return null; }
+}
 
 export function mediaReconnu(url: string): string | null {
   try {
@@ -80,20 +108,21 @@ export function dateDansHtml(html: string): string | null {
 function texteDuHtml(html: string): string {
   const net = html.replace(/<(script|style|noscript|nav|footer|aside)[\s\S]*?<\/\1>/gi, " ");
   return [...net.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
-    .map(m => m[1].replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&rsquo;|&apos;/g, "'").replace(/&quot;|&laquo;|&raquo;/g, '"').replace(/\s+/g, " ").trim())
+    .map(m => m[1].replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&rsquo;|&apos;/g, "'").replace(/&quot;|&laquo;|&raquo;/g, '"').replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim())
     .filter(t => t.length > 40).join("\n");
 }
 
 export type Article = { texte: string; date: string | null; via: "direct" | "agentik" };
 
 /** Lecture gratuite d'abord ; Agentik (0,0025 $) si le site refuse ou ne livre pas son texte. */
-export async function lireArticle(url: string): Promise<Article | null> {
+export async function lireArticle(url: string, { gratuit = false } = {}): Promise<Article | null> {
   let date: string | null = null, texte = "";
   try {
-    const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(20000), redirect: "follow" });
+    const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(gratuit ? 10000 : 20000), redirect: "follow" });
     if (r.ok) { const html = await r.text(); date = dateDansHtml(html); texte = texteDuHtml(html); }
   } catch { /* lecture par Agentik */ }
   if (date && texte.length >= 800) return { texte, date, via: "direct" };
+  if (gratuit) return texte.length >= 500 ? { texte, date, via: "direct" } : null;
   // Exa d'abord (0,001 $, date de publication fournie), Firecrawl en secours (0,0025 $).
   const exa: ResultatAgentik = await executer("exa/contents", { urls: [url], text: true });
   const lu = exa.ok === true ? exa.sortie?.results?.[0] : null;
@@ -156,7 +185,7 @@ export type Verdict =
   | { ok: false; motif: string; date?: string | null; media: string | null };
 
 /** Tous les contrôles, du moins cher au plus cher. */
-export async function verifierArticle(nom: string, titre: string, url: string, { joursMax = 30 } = {}): Promise<Verdict> {
+export async function verifierArticle(nom: string, titre: string, url: string, { joursMax = 30, termes = [] as string[], role = "personnalité de la présidentielle 2027" } = {}): Promise<Verdict> {
   const media = mediaReconnu(url);
   if (!media) return { ok: false, motif: "média non reconnu", media };
   const article = await lireArticle(url);
@@ -165,13 +194,15 @@ export async function verifierArticle(nom: string, titre: string, url: string, {
   const age = (Date.now() - Date.parse(article.date)) / JOUR;
   if (age > joursMax) return { ok: false, motif: `article ancien (${article.date.slice(0, 10)})`, date: article.date, media };
   if (age < -1) return { ok: false, motif: "date dans le futur", date: article.date, media };
-  if (!norm(article.texte).includes(norm(nomDeFamille(nom)))) return { ok: false, motif: "personne absente du texte", date: article.date, media };
+  const lu = norm(article.texte);
+  const cherches = termes.length ? [nom, ...termes] : [nomDeFamille(nom)];
+  if (!cherches.some(t => lu.includes(norm(t)))) return { ok: false, motif: "personne absente du texte", date: article.date, media };
 
   // Phrases numérotées : le modèle désigne la preuve et le programme la recopie, donc la citation est
   // forcément mot pour mot (recopiée par le modèle, une sur trois était légèrement altérée).
   const phrases = article.texte.replace(/\s+/g, " ").split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«"])/).filter(p => p.length >= 50 && p.length <= 400).slice(0, 80);
   if (phrases.length < 3) return { ok: false, motif: "article illisible", date: article.date, media };
-  const j = await jsonDuModele(`Tu contrôles un article de presse pour le fil d'actualité de ${nom}, personnalité de la présidentielle 2027, sur un site d'information neutre. Nous sommes le ${new Date().toISOString().slice(0, 10)}. L'article est daté du ${article.date.slice(0, 10)}.
+  const j = await jsonDuModele(`Tu contrôles un article de presse pour le fil d'actualité de ${nom}, ${role}, sur un site d'information neutre. Nous sommes le ${new Date().toISOString().slice(0, 10)}. L'article est daté du ${article.date.slice(0, 10)}.
 
 N'utilise QUE le texte fourni, jamais tes connaissances. Réponds en JSON strict :
 { "concerne": bool, "actuel": bool, "sensible": bool, "entretien": bool, "titre": "...", "resume": "...", "preuve": 0, "type": "interview|soutien|programme|declaration|sondage|actualite" }
@@ -195,4 +226,50 @@ N'utilise QUE le texte fourni, jamais tes connaissances. Réponds en JSON strict
   if (!j.entretien && (j.sensible || SENSIBLE.test(j.titre)) && !(await confirmeAilleurs(nom, j.titre, media))) return { ok: false, motif: "annonce sensible sans second média", date: article.date, media };
   const types = ["interview", "soutien", "programme", "declaration", "sondage", "actualite"];
   return { ok: true, date: article.date, titre: j.titre, resume: j.resume, citation, type: types.includes(j.type) ? j.type : "actualite", media };
+}
+
+/**
+ * Une entrée de « Controverses » est-elle confirmée par de vrais articles ? Une affaire nouvelle : deux
+ * médias reconnus au moins ; un développement d'une affaire établie : un seul suffit. Chaque source
+ * renvoyée a été lue, avec une phrase recopiée du texte.
+ */
+export async function verifierControverse(nom: string, texte: string, { developpement = false, joursMax = 400 } = {}): Promise<
+  { ok: true; sources: { media: string; url: string; date: string | null; titre: string; citation: string }[] } | { ok: false; motif: string }
+> {
+  const besoin = developpement ? 1 : 2;
+  const fam = norm(nomDeFamille(nom));
+  const mots = [...new Set(norm(texte.replace(/^[^:]{0,25}:/, "")).split(/[^a-z0-9]+/))].filter(m => m.length >= 6 && m !== fam && !MOTS_VIDES.has(m)).slice(0, 5);
+  const trouves = new Map<string, ResultatPresse>();
+  const ajouter = (l: ResultatPresse[] | null) => { for (const n of l ?? []) { const m = mediaReconnu(n.link); if (m && ![...trouves.values()].some(x => mediaReconnu(x.link) === m)) trouves.set(n.link, n); } };
+  ajouter(await presseBing(`"${nom}" ${mots.join(" ")}`));
+  if (trouves.size < besoin + 1) ajouter(await presseBing(`"${nom}" ${mots.slice(0, 2).join(" ")}`));
+  if (trouves.size < besoin) ajouter(await chercherPresse(`"${nom}" ${mots.slice(0, 3).join(" ")}`));
+  if (trouves.size < besoin) return { ok: false, motif: `moins de ${besoin} média(s) reconnu(s) trouvé(s)` };
+
+  const lus: { n: ResultatPresse; media: string; date: string | null; phrases: string[] }[] = [];
+  for (const n of [...trouves.values()].slice(0, 5)) {
+    if (lus.length >= 4) break;
+    const a = await lireArticle(n.link);
+    if (!a || !norm(a.texte).includes(fam)) continue;
+    if (a.date && Date.now() - Date.parse(a.date) > joursMax * JOUR) continue;
+    const phrases = a.texte.replace(/\s+/g, " ").split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«"])/).filter(p => p.length >= 40 && p.length <= 400).slice(0, 40);
+    if (phrases.length >= 2) lus.push({ n, media: mediaReconnu(n.link)!, date: a.date, phrases });
+  }
+  if (lus.length < besoin) return { ok: false, motif: `moins de ${besoin} article(s) lisible(s) de médias reconnus` };
+
+  const j = await jsonDuModele(`Tu vérifies une entrée de la rubrique « Controverses » d'une fiche sur ${nom}, sur un site d'information neutre. N'utilise QUE les articles fournis, phrase par phrase, jamais tes connaissances.
+Réponds en JSON strict : { "articles": [{ "article": 0, "confirme": bool, "phrase": 0 }], "tout_confirme": bool, "non_confirme": "..." }
+- articles : pour chaque article, s'il rapporte le même fait principal, à propos de cette même personne, et le numéro de la phrase qui le prouve.
+- tout_confirme : true seulement si chaque fait, date, nom et chiffre de l'entrée se retrouve dans au moins un article.
+- non_confirme : ce qui ne s'y retrouve pas, en quelques mots (chaîne vide sinon).`,
+    `Entrée à vérifier : ${texte}\n\n${lus.map((l, i) => `ARTICLE ${i} (${l.media}, ${l.date?.slice(0, 10) ?? "date inconnue"})\n${l.phrases.map((p, k) => `[${k}] ${p}`).join("\n")}`).join("\n\n")}`);
+  if (!j) return { ok: false, motif: "contrôle IA sans réponse" };
+  const sources = (Array.isArray(j.articles) ? j.articles : []).filter((a: any) => a?.confirme && lus[Number(a.article)]?.phrases[Number(a.phrase)]).map((a: any) => {
+    const l = lus[Number(a.article)];
+    return { media: l.media, url: l.n.link, date: l.date, titre: l.n.title, citation: l.phrases[Number(a.phrase)] };
+  });
+  const medias = new Set(sources.map((x: any) => x.media));
+  if (medias.size < besoin) return { ok: false, motif: `confirmée par ${medias.size} média(s) sur ${besoin} requis` };
+  if (!j.tout_confirme) return { ok: false, motif: `en partie non confirmée : ${String(j.non_confirme || "").slice(0, 160)}` };
+  return { ok: true, sources };
 }

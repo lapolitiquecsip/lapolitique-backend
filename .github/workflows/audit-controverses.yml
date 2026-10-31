@@ -1,0 +1,28 @@
+name: Relecture des controverses
+
+# Opération ponctuelle du 31/10/2026, à retirer ensuite. Coût plafonné ci-dessous.
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/audit-controverses.yml"]
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      AGENTIK_API_KEY: ${{ secrets.AGENTIK_API_KEY }}
+      LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+      VERIF_PAYANT: "1"
+      AGENTIK_PLAFOND_OPERATION: "0.5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/data/audit-controverses.ts
+      - run: npx tsx src/scripts/automation/veille-controverses.ts
+        env:
+          VEILLE_APPLIQUER_SEUL: "1"

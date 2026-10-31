@@ -15,12 +15,14 @@ permissions:
 jobs:
   partis:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
+      AGENTIK_API_KEY: ${{ secrets.AGENTIK_API_KEY }}
+      LLM_SECOURS_PAYANT: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job

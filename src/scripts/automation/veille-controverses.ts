@@ -2,6 +2,7 @@ import "dotenv/config";
 import Parser from "rss-parser";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
+import { verifierControverse } from "../../lib/verification-article.js";
 
 /**
  * Veille des controverses : tient à jour la rubrique « Controverses » des fiches
@@ -227,9 +228,14 @@ async function main() {
       // établie peut, lui, ne venir que d'une source.
       if (!remplace && medias.size < 2) { console.log(`[Veille] ${p.nom} : écarté (un seul média) — ${avis.texte}`); continue; }
 
+      // L'IA n'a vu que des titres : l'entrée doit se confirmer dans de vrais articles de médias
+      // reconnus, sinon elle n'entre pas (31/10/2026).
+      const controle = await verifierControverse(p.nom, String(avis.texte), { developpement: !!remplace }).catch(e => ({ ok: false as const, motif: String(e?.message) }));
+      if (controle.ok === false) { console.log(`[Veille] ${p.nom} : écarté (${controle.motif}) — ${avis.texte}`); continue; }
+
       const date = /^\d{4}-\d{2}-\d{2}$/.test(avis.date || "") ? avis.date : new Date().toISOString().slice(0, 10);
       const { error } = await supabase.from("controverses_veille").insert({
-        personne_cle: p.cle, personne: p.nom, texte: String(avis.texte).trim(), date_faits: date, sources, remplace,
+        personne_cle: p.cle, personne: p.nom, texte: String(avis.texte).trim(), date_faits: date, sources: controle.sources, remplace, verifie_le: new Date().toISOString(),
       });
       if (error) { console.warn(`[Veille] ${p.nom} : enregistrement impossible (${error.message})`); continue; }
       if (remplace) complements++; else ajouts++;

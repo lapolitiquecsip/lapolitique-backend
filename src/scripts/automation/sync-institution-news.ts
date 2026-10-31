@@ -4,11 +4,18 @@ import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { recouper, OFFICIEL } from "../../lib/recoupement.js";
 import { quasiDoublon } from "../../lib/quasi-doublon.js";
+import { chiffresDansTexte, lireArticle, mediaExclu, mediaReconnu, presseBing, verifierArticle } from "../../lib/verification-article.js";
 
 // Brique #4 — Fil d'actualité par institution (ministères, départements).
 // Flux gratuits (RSS officiels + Google News) → filtre heuristique (AVANT LLM, pour économiser
 // les tokens) → résumé DeepSeek court → table entity_feed. Droit d'auteur : on ne stocke que le
 // titre reformulé, un résumé de ≤40 mots et le lien — jamais le texte intégral. Quotidien (cron).
+//
+// CONTRÔLE (31/10/2026) : résumer un titre, c'est inventer ; l'« extrait » de Google Actualités n'est que
+// le titre, et son lien est une redirection illisible. La presse vient donc d'abord de Bing (adresse
+// réelle, date, vrai extrait). Partis : même contrôle complet que les candidats (verification-article) ;
+// rien n'est publié sans lecture. Communes, départements, régions : lecture gratuite ; article lu =
+// résumé autorisé (verifie_le) ; sinon le titre du journal, sans résumé.
 
 const parser = new Parser({ timeout: 15000, headers: { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitique.fr)" } });
 const MAX_ITEMS_PER_SOURCE = 5;   // borne le coût LLM par entité et par passe
@@ -39,33 +46,28 @@ function termesRequete(feedUrl: string): string[] {
   } catch { return []; }
 }
 
-/** Même recherche sur Bing Actualités (RSS public, sans clé). */
-function urlBing(feedUrl: string): string | null {
-  const termes = termesRequete(feedUrl);
-  if (!termes.length) return null;
-  return `https://www.bing.com/news/search?q=${encodeURIComponent(termes.map(t => `"${t}"`).join(" OR "))}&format=rss&setlang=fr-FR&cc=FR`;
+/** Requêtes Bing d'une source : il ne comprend pas les requêtes composées de Google. */
+function requetesBing(src: any): string[] {
+  if (src.entity_type === "party") return termesRequete(src.feed_url).slice(0, 2).map(t => `"${t}"`);
+  const motif = src.entity_type === "commune" ? " mairie" : src.entity_type === "department" ? " préfecture" : src.entity_type === "region" ? " conseil régional" : "";
+  return [`"${src.entity_name}"${motif}`];
 }
 
-async function lireFlux(src: any) {
+type Article0 = { link: string; title: string; snippet: string; date: string | null; reel: boolean };
+
+/** Bing d'abord (adresses réelles), Google Actualités si Bing ne donne rien. */
+async function lireFlux(src: any): Promise<Article0[]> {
+  if (src.kind === "google_news") {
+    const vus = new Map<string, Article0>();
+    for (const q of requetesBing(src)) {
+      for (const x of (await presseBing(q)) ?? []) vus.set(x.link, { link: x.link, title: x.title, snippet: x.snippet || "", date: x.date ?? null, reel: true });
+    }
+    if (vus.size) return [...vus.values()].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  }
   try {
     const f = await parser.parseURL(src.feed_url);
-    if ((f.items || []).length) return f;
-  } catch { /* on tente le secours */ }
-  const bing = src.entity_type === "party" && src.kind === "google_news" ? urlBing(src.feed_url) : null;
-  if (!bing) return null;
-  try { const f = await parser.parseURL(bing); console.log(`  ↪ ${src.entity_name} : Google News muet, relevé via Bing.`); return f; }
-  catch { return null; }
-}
-
-/** Avis, réaction ou commentaire d'un tiers : pas un fait de la vie du parti. */
-const AVIS = /\b(selon|pour (?:[A-ZÉ][\wéèàç-]+ ){1,3}[,:]|estime|juge|jugent|dénonce|dénoncent|fustige|tacle|réagit|réagissent|critique|accuse|charge contre|s'en prend|tribune|édito|chronique|opinion|analyse|décryptage|sondage|qu'en pensez|faut-il)\b|\?\s*$|^«|^"/i;
-
-/** Publication sans IA : le titre doit nommer le parti (ou un terme de sa requête) et ne pas être un avis. */
-function brutPubliable(titre: string, src: any): boolean {
-  if (AVIS.test(titre)) return false;
-  if (/(…|\.\.\.)\s*$/.test(titre)) return false;   // titre coupé : jamais publié tel quel
-  const t = deacc(titre);
-  return termesRequete(src.feed_url).some(x => x.length >= 3 && t.includes(deacc(x))) || mentionsEntity(titre, src.entity_name);
+    return (f.items || []).map(i => ({ link: i.link || "", title: i.title || "", snippet: i.contentSnippet || i.content || "", date: i.isoDate ?? null, reel: src.kind !== "google_news" }));
+  } catch { return []; }
 }
 
 function cleanGoogleTitle(title: string): { title: string; source: string } {
@@ -180,14 +182,12 @@ export async function syncInstitutionNews() {
   // le quota gratuit du jour était épuisé à l'heure du passage, chaque résumé échouait
   // en silence et le fil des communes ne recevait plus rien, passage « réussi ».
   let inserted = 0, scanned = 0, echecs = 0, quotaVide = 0, arret = false;
-  // Quota gratuit épuisé : les partis continuent (DeepSeek payant, puis titres bruts) ;
-  // les autres fils s'arrêtent et reprennent au prochain passage.
-  let gratuitVide = false, payantVide = false, bruts = 0, payes = 0;
+  // Partis : articles refusés mémorisés, pour ne pas les relire à chaque passage.
+  let lus = 0, refuses = 0;
   for (const src of sources || []) {
-    if (arret && src.entity_type !== "party") continue;
-    const feed = await lireFlux(src);
-    if (!feed) continue;
-    const items = (feed.items || []).slice(0, 20);
+    if (arret) continue;
+    const items = (await lireFlux(src)).slice(0, 20);
+    if (!items.length) continue;
 
     // URLs déjà connues pour cette entité (déduplication).
     const urls = items.map(i => i.link).filter(Boolean) as string[];
@@ -196,6 +196,10 @@ export async function syncInstitutionNews() {
       const { data: existing } = await supabase.from("entity_feed")
         .select("url").eq("entity_type", src.entity_type).eq("entity_id", src.entity_id).in("url", urls);
       for (const r of existing || []) known.add(r.url);
+      if (src.entity_type === "party") {
+        const { data: vus } = await supabase.from("controverses_articles_vus").select("url").in("url", urls.map(u => `parti:${src.entity_id}:${u}`));
+        for (const r of vus || []) known.add(r.url.slice(`parti:${src.entity_id}:`.length));
+      }
     }
     // Titres récents de cette entité, toutes sources confondues : un même fait
     // repris par deux journaux (donc deux adresses) ne doit entrer qu'une fois.
@@ -207,51 +211,77 @@ export async function syncInstitutionNews() {
     // Les PARTIS font l'actualité moins souvent que les communes/ministères : fenêtre de
     // fraîcheur élargie (60 j au lieu de 14) pour ne pas les laisser sans fil d'actu.
     const freshDays = src.entity_type === "party" ? 60 : FRESH_DAYS;
-    let perSource = 0;
+    let perSource = 0, luesSource = 0;
     for (const item of items) {
-      if (perSource >= MAX_ITEMS_PER_SOURCE) break;
-      const link = item.link || "";
+      if (perSource >= MAX_ITEMS_PER_SOURCE || luesSource >= 8) break;
+      const link = item.link;
       if (!link || known.has(link)) continue;
 
       // Fraîcheur
-      const pub = item.isoDate ? new Date(item.isoDate) : null;
+      let pub = item.date ? new Date(item.date) : null;
       if (pub && (Date.now() - pub.getTime()) / 86400000 > freshDays) continue;
 
-      const { title: rawTitle, source: media } = cleanGoogleTitle(item.title || "");
+      const { title: rawTitle, source: mediaGoogle } = item.reel ? { title: item.title.replace(/^Accueil\b[^-]*-[^-]*-\s*/, "").trim(), source: "" } : cleanGoogleTitle(item.title);
       if (!rawTitle || rawTitle.length < 12) continue;
+      const media = mediaGoogle || (item.reel ? mediaReconnu(link) || new URL(link).hostname.replace(/^www\./, "") : "");
+      if (item.reel && mediaExclu(link)) continue;
+
+      // PARTIS : seulement un article de média reconnu, lu et contrôlé. Lien Google illisible : écarté.
+      if (src.entity_type === "party") {
+        if (!item.reel || !mediaReconnu(link)) continue;
+        luesSource++; lus++;
+        let v;
+        try { v = await verifierArticle(src.entity_name, rawTitle, link, { termes: termesRequete(src.feed_url), role: "parti politique français" }); }
+        catch (e: any) { echecs++; console.warn(`[Institution-News] ${src.entity_name} : ${e.message}`); continue; }
+        if (v.ok === false) {
+          if (!/illisible|sans réponse/.test(v.motif)) { await supabase.from("controverses_articles_vus").upsert({ url: `parti:${src.entity_id}:${link}`, personne_cle: `parti:${src.entity_id}` }, { onConflict: "url" }); refuses++; }
+          continue;
+        }
+        if (titresRecents.some(t => quasiDoublon(t, v.titre, src.entity_name))) continue;
+        let recoupe: { etat: string; medias: string[] } | null = null;
+        try { recoupe = await recouper(rawTitle, v.media); } catch { /* l'agent y reviendra */ }
+        const { error: upErr } = await supabase.from("entity_feed").upsert({
+          entity_type: src.entity_type, entity_id: src.entity_id, source_name: src.source_name, source_kind: src.kind,
+          media: v.media, titre_origine: rawTitle.slice(0, 400), extrait_origine: item.snippet.slice(0, 500) || null,
+          recoupement: recoupe?.etat ?? null, autres_medias: recoupe ? recoupe.medias.length : null, recoupe_le: recoupe ? new Date().toISOString() : null,
+          url: link, title: v.titre, summary: v.resume, news_type: v.type, topic: null, published_at: v.date, place: null, place_scope: null,
+          verifie_le: new Date().toISOString(), citation: v.citation,
+        }, { onConflict: "entity_type,entity_id,url" });
+        if (upErr) { console.warn("upsert:", upErr.message); continue; }
+        titresRecents.push(v.titre); inserted++; perSource++;
+        continue;
+      }
 
       // Filtre heuristique AVANT LLM (surtout pour Google News : désambiguïsation). Sauté pour les
       // PARTIS (noms souvent ambigus + articles centrés sur le dirigeant) : l'IA tranche la pertinence.
       if (src.kind === "google_news" && src.entity_type !== "party" && !mentionsEntity(rawTitle, src.entity_name)) continue;
 
       scanned++;
-      const snippet = (item.contentSnippet || item.content || "").slice(0, 500);
+      // Lecture gratuite de l'article. Le résumé ne s'écrit que sur le texte réellement lu.
+      luesSource++;
+      const article = item.reel && src.kind === "google_news" ? await lireArticle(link, { gratuit: true }) : null;
+      if (article?.date) {
+        pub = new Date(article.date);
+        if ((Date.now() - pub.getTime()) / 86400000 > freshDays) continue;   // vieil article réindexé
+      }
+      const snippet = (article?.texte || item.snippet).slice(0, article ? 4000 : 500);
       let ai;
-      if (src.entity_type === "party" && (gratuitVide || arret)) {
-        // Secours 2 : DeepSeek payant (quelques centimes par mois) ; secours 3 : titre brut.
-        if (!payantVide) {
-          try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type, true); payes++; }
-          catch { payantVide = true; }
-        }
-        if (!ai) {
-          if (!brutPubliable(rawTitle, src)) continue;
-          ai = { should_publish: true, title: rawTitle.slice(0, 160), summary: snippet && !snippet.startsWith(rawTitle) ? snippet.slice(0, 220) : null, news_type: "actualite", brut: true };
-          bruts++;
-        }
-      } else try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); quotaVide = 0; }
+      try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); quotaVide = 0; }
       catch (e: any) {
         echecs++;
         // Toutes les lignées gratuites refusent : on laisse passer les pauses de 5 min
         // une fois ; si ça refuse encore, c'est le quota du JOUR — inutile d'insister.
         if (/Aucun modèle gratuit disponible/.test(String(e?.message))) {
-          // Un parti n'attend pas : il passe tout de suite aux secours (payant, puis brut).
-          if (src.entity_type === "party") { gratuitVide = true; continue; }
           if (++quotaVide >= 2) { arret = true; break; }
           console.warn("[Institution-News] Modèles gratuits tous saturés — pause de 5 min.");
           await sleep(300000);
         } else await sleep(500);
         continue;
       }
+      // Presse non lue, ou résumé avec un chiffre absent du texte : le titre du journal, sans résumé.
+      const presse = src.kind === "google_news";
+      const lue = !!article && !!article.date && !!ai?.summary && chiffresDansTexte(`${ai.title} ${ai.summary}`, article.texte);
+      if (ai && presse && !lue) { ai.title = rawTitle.slice(0, 160); ai.summary = null; ai.brut = true; }
       if (!ai || ai.should_publish === false || !ai.title || (!ai.summary && !ai.brut)) continue;
       // Même fait, autre journal. Pas pour les ministères : leurs actes du Journal
       // officiel ont des intitulés récurrents (« Nomination … ») qui se ressemblent
@@ -287,6 +317,7 @@ export async function syncInstitutionNews() {
         published_at: pub ? pub.toISOString() : null,
         place,
         place_scope: src.entity_type === "commune" || surUneCommune ? "commune" : territorial ? "territoire" : null,
+        verifie_le: presse && lue ? new Date().toISOString() : null,
       };
       const { error: upErr } = await supabase.from("entity_feed").upsert(row, { onConflict: "entity_type,entity_id,url" });
       if (upErr) { console.warn("upsert:", upErr.message); continue; }
@@ -295,7 +326,7 @@ export async function syncInstitutionNews() {
     }
   }
   console.log(`[Institution-News] Terminé. ${scanned} items analysés (LLM), ${inserted} publiés, ${echecs} échec(s) de l'IA.`);
-  if (payes || bruts) console.log(`[Institution-News] Partis en secours : ${payes} résumé(s) DeepSeek payant, ${bruts} titre(s) publié(s) sans IA.`);
+  if (lus) console.log(`[Institution-News] Partis : ${lus} article(s) lu(s), ${refuses} refusé(s) au contrôle.`);
   if (arret) console.log("::warning::Quota gratuit du jour épuisé : passage interrompu, reprise au prochain.");
   else if (scanned >= 10 && echecs > scanned / 2) console.log(`::warning::${echecs} résumés sur ${scanned} ont échoué : le fil est à l'arrêt.`);
   return inserted;
