@@ -29,6 +29,8 @@ const LIEN_EXT = `<svg class="ext" viewBox="0 0 24 24" fill="none" stroke="curre
 export const CSS = (dossier: string) => `
 @font-face { font-family: Archivo; src: url("${dossier}/archivo-latin-standard-normal.woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
 @font-face { font-family: ArchivoExt; src: url("${dossier}/archivo-latin-ext-standard-normal.woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
+@font-face { font-family: Anton; src: url("${dossier}/anton-latin-400-normal.woff2"); }
+@font-face { font-family: AntonExt; src: url("${dossier}/anton-latin-ext-400-normal.woff2"); }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: #fff; }
 .slide { --fond: #0B5A45; --accent: #0B7A4B; --clair: #D3F59A; --encre: #0A1230;
@@ -40,20 +42,21 @@ html, body { background: #fff; }
 .marque { font-weight: 700; font-size: 31px; line-height: 1.08; letter-spacing: -.01em; }
 .rubrique { margin-left: auto; font-size: 20px; letter-spacing: .05em; text-transform: uppercase; opacity: .72; }
 .page { font-size: 25px; margin-left: 36px; font-variant-numeric: tabular-nums; }
-.titre { font-weight: 900; font-stretch: 62%; line-height: .95; letter-spacing: -.008em; }
-.geant { font-size: 214px; text-transform: uppercase; }
-.grand { font-size: 186px; }
+.titre { font-family: Anton, AntonExt, sans-serif; font-weight: 400; line-height: 1.24; letter-spacing: .003em; text-transform: uppercase; }
+.geant { font-size: 176px; text-transform: uppercase; }
+.grand { font-size: 150px; }
 .corps { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; position: relative; z-index: 2; }
 .etiquette { display: inline-block; align-self: flex-start; background: var(--clair); color: var(--encre); font-weight: 800; font-stretch: 85%;
   font-size: 36px; padding: 6px 22px; border-radius: 6px; letter-spacing: .01em; text-transform: uppercase; margin-bottom: 26px; }
 .surligne { display: inline-block; background: #14A04F; color: #fff; padding: 4px 26px 10px; margin-left: -10px; margin-top: 8px; }
+.filet { width: 190px; height: 16px; background: var(--clair); margin-top: 30px; flex: none; }
 .clair { color: var(--clair); }
-.sous { font-size: 50px; font-weight: 500; font-stretch: 85%; line-height: 1.14; }
-.petit { font-size: 32px; opacity: .85; font-stretch: 90%; }
+.sous { font-size: 46px; font-weight: 500; font-stretch: 100%; line-height: 1.14; }
+.petit { font-size: 30px; opacity: .85; }
 .points { margin-top: 30px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
 .point { display: flex; align-items: center; gap: 34px; padding: 34px 0; border-top: 3px solid color-mix(in srgb, var(--accent) 45%, #c9d0dc); }
 .point:first-child { border-top: 0; }
-.num { font-weight: 900; font-stretch: 62%; font-size: 136px; line-height: 1; color: var(--accent); min-width: 130px; }
+.num { font-family: Anton, AntonExt, sans-serif; font-weight: 400; font-size: 136px; line-height: 1; color: var(--accent); min-width: 130px; }
 .point .txt { border-left: 3px solid #c9d0dc; padding-left: 34px; }
 .point b { display: block; font-size: 50px; font-weight: 700; font-stretch: 88%; line-height: 1.12; }
 .point span { display: block; font-size: 38px; line-height: 1.22; margin-top: 8px; color: #27304f; }
@@ -62,10 +65,10 @@ html, body { background: #fff; }
 .fleche { width: 34px; height: 34px; flex: none; }
 .ext { width: 36px; height: 36px; flex: none; }
 .site { font-size: 27px; font-weight: 500; }
-.ligne-res { display: flex; align-items: center; gap: 42px; padding: 20px 0; border-top: 3px solid #c9d0dc; font-weight: 900; font-stretch: 62%; }
+.ligne-res { display: flex; align-items: center; gap: 42px; padding: 20px 0; border-top: 3px solid #c9d0dc; font-family: Anton, AntonExt, sans-serif; font-weight: 400; }
 .ligne-res:first-child { border-top: 0; }
-.ligne-res .n { font-size: 148px; line-height: 1; min-width: 215px; font-variant-numeric: tabular-nums; }
-.ligne-res .l { font-size: 116px; line-height: 1; border-left: 3px solid #c9d0dc; padding-left: 42px; text-transform: uppercase; }
+.ligne-res .n { font-size: 130px; line-height: 1; min-width: 215px; font-variant-numeric: tabular-nums; }
+.ligne-res .l { font-size: 112px; line-height: 1; border-left: 3px solid #c9d0dc; padding-left: 42px; text-transform: uppercase; }
 table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 22px; font-size: 32px; }
 th { color: #fff; font-weight: 800; font-stretch: 85%; padding: 13px 8px; font-size: 27px; }
 th:first-child { background: #e8ebf1; color: var(--encre); text-align: left; padding-left: 20px; }
@@ -79,7 +82,7 @@ td.maj { font-weight: 800; }
 .fond-image { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
 .batiment { position: absolute; left: -60px; bottom: 0; width: 1200px; max-width: none; z-index: 1; filter: grayscale(1) contrast(1.05); }
 .bande { position: absolute; left: 0; bottom: 0; z-index: 3; background: var(--encre); color: #fff; font-size: 27px; font-weight: 600; padding: 12px 26px 12px 64px; }
-.chiffre { font-weight: 900; font-stretch: 62%; font-size: 400px; line-height: 1; letter-spacing: -.015em; }
+.chiffre { font-family: Anton, AntonExt, sans-serif; font-weight: 400; font-size: 320px; line-height: 1; letter-spacing: -.015em; }
 .comparaison { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 40px; }
 .comparaison > div { padding: 0 34px; border-left: 3px solid #c9d0dc; }
 .comparaison > div:first-child { padding-left: 0; border-left: 0; }
@@ -87,7 +90,7 @@ td.maj { font-weight: 800; }
 .encart { background: color-mix(in srgb, var(--clair) 70%, #fff); border-radius: 16px; padding: 26px 32px; font-size: 34px; font-weight: 600; font-stretch: 90%; line-height: 1.2; margin-top: 40px; }
 .source { border: 3px solid var(--accent); border-radius: 12px; padding: 14px 22px; font-size: 26px; font-stretch: 92%; line-height: 1.25; }
 .source b { font-weight: 800; }
-.li .tete .lpcs { font-weight: 900; font-stretch: 62%; font-size: 66px; line-height: 1; }
+.li .tete .lpcs { font-family: Anton, AntonExt, sans-serif; font-weight: 400; font-size: 66px; line-height: 1; }
 .li .tete .sep { width: 3px; height: 54px; background: var(--accent); }
 .li .tete .brief { font-size: 27px; letter-spacing: .05em; }
 .li .pilier { flex: 1; display: flex; flex-direction: column; justify-content: center; }
@@ -95,7 +98,7 @@ td.maj { font-weight: 800; }
 .li .trois { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 72px; }
 .li .trois > div { border-left: 3px solid #c9d0dc; padding: 0 26px; }
 .li .trois > div:first-child { border-left: 0; padding-left: 0; }
-.li .trois .v { white-space: nowrap; font-weight: 900; font-stretch: 62%; font-size: 100px; line-height: 1; color: var(--accent); }
+.li .trois .v { white-space: nowrap; font-family: Anton, AntonExt, sans-serif; font-weight: 400; font-size: 100px; line-height: 1; color: var(--accent); }
 .li .trois .t { font-size: 32px; line-height: 1.18; margin-top: 12px; font-stretch: 90%; }
 .li .pied { display: flex; justify-content: space-between; align-items: center; font-size: 30px; font-weight: 800; font-stretch: 85%; }
 .li .pied span:last-child { font-weight: 500; font-size: 25px; }
@@ -156,7 +159,7 @@ export function carrouselVote(d: DonneesVote, dossier: string): Slide[] {
 
   fabriques.push((i, n) => cadre(p, "pleine", `${entete(dossier, rubrique, i, n)}
     <div class="corps" style="margin-top:38px">
-      <div class="titre geant" data-ajuster style="font-size:182px">L’Assemblée<br>a voté.<br><span class="surligne">${verdict}</span></div>
+      <div class="titre geant" data-ajuster style="font-size:150px">L’Assemblée<br>a voté.<br><span class="surligne">${verdict}</span></div>
       <div class="sous" style="margin-top:26px;font-size:44px" data-ajuster>${echapper(d.titreCourt)}</div>
       <div class="petit" style="margin-top:14px">${echapper(d.date)}${d.etape ? ` · ${echapper(d.etape)}` : ""}</div>
     </div>
@@ -173,7 +176,7 @@ export function carrouselVote(d: DonneesVote, dossier: string): Slide[] {
 
   fabriques.push((i, n) => cadre(p, "", `${entete(dossier, rubrique, i, n)}
     <div class="corps" style="margin-top:38px">
-      <div class="titre" style="font-size:150px">Le résultat<br>du scrutin.</div>
+      <div class="titre" style="font-size:120px">Le résultat<br>du scrutin.</div>
       <div style="margin-top:24px">
         <div class="ligne-res" style="color:#0B7A4B"><div class="n">${nombre(d.pour)}</div><div class="l">Pour</div></div>
         <div class="ligne-res" style="color:#E01E2B"><div class="n">${nombre(d.contre)}</div><div class="l">Contre</div></div>
@@ -185,7 +188,7 @@ export function carrouselVote(d: DonneesVote, dossier: string): Slide[] {
 
   fabriques.push((i, n) => cadre(p, "", `${entete(dossier, rubrique, i, n)}
     <div class="corps" style="margin-top:28px">
-      <div class="titre" style="font-size:150px">Qui a voté quoi ?</div>
+      <div class="titre" style="font-size:120px">Qui a voté quoi ?</div>
       <div class="sous" style="font-size:36px;margin-top:8px">Par groupe parlementaire, en nombre de députés.</div>
       <table><thead><tr><th>Groupe</th><th style="background:#0B7A4B;width:150px">Pour</th><th style="background:#E01E2B;width:150px">Contre</th><th style="background:#8B93A5;width:150px">Abst.</th></tr></thead>
       <tbody>${d.groupes.map(g => {
@@ -206,7 +209,7 @@ export function carrouselVote(d: DonneesVote, dossier: string): Slide[] {
 
   fabriques.push((i, n) => cadre(p, "pleine", `${entete(dossier, rubrique, i, n)}
     <div class="corps" style="margin-top:44px">
-      <div class="titre geant" data-ajuster style="font-size:220px">Comprendre.<br>Vérifier.<br>Suivre.</div>
+      <div class="titre geant" data-ajuster style="font-size:176px">Comprendre.<br>Vérifier.<br>Suivre.</div>
       <div class="sous" style="margin-top:44px;font-weight:600">Le scrutin et les sources :</div>
       <div class="liens">
         <div class="lien">${LIEN_EXT} Scrutin public n° ${d.numero}, assemblee-nationale.fr</div>
@@ -250,7 +253,7 @@ export function carrouselChiffre(d: DonneesChiffre, dossier: string): Slide[] {
       <div class="corps" style="margin-top:34px">
         <div class="etiquette">En clair</div>
         <div class="titre grand">Ce que dit<br>le chiffre.</div>
-        <div class="comparaison">${d.comparaison.map(c => `<div><div class="p">${echapper(c.periode)}</div><div class="titre" style="font-size:165px;white-space:nowrap;color:var(--accent)">${echapper(c.valeur)}</div></div>`).join("")}</div>
+        <div class="comparaison">${d.comparaison.map(c => `<div><div class="p">${echapper(c.periode)}</div><div class="titre" style="font-size:135px;white-space:nowrap;color:var(--accent)">${echapper(c.valeur)}</div></div>`).join("")}</div>
         <div style="margin-top:46px;display:flex;flex-direction:column;gap:20px">${d.explications.map(e => `<div class="sous" style="font-size:44px;color:#27304f">${echapper(e)}</div>`).join("")}</div>
         <div class="bas" style="display:block">
           <div class="source"><b>Source :</b> ${echapper(d.source)}</div>
@@ -258,7 +261,7 @@ export function carrouselChiffre(d: DonneesChiffre, dossier: string): Slide[] {
       </div>`),
     cadre(p, "pleine", `${entete(dossier, d.rubrique, 3, n)}
       <div class="corps" style="margin-top:44px">
-        <div class="titre geant" data-ajuster style="font-size:220px">Comprendre.<br>Vérifier.<br>Suivre.</div>
+        <div class="titre geant" data-ajuster style="font-size:176px">Comprendre.<br>Vérifier.<br>Suivre.</div>
         <div class="sous" style="margin-top:44px;font-weight:600">La source :</div>
         <div class="liens"><div class="lien">${LIEN_EXT} ${echapper(d.source)}</div></div>
         <div class="bas" style="display:block;border-top:2px solid rgba(255,255,255,.4)">
@@ -284,7 +287,7 @@ export function visuelBrief(d: DonneesBrief): Slide {
     nom: "linkedin-brief",
     html: cadre(p, "li", `<div class="tete"><div class="lpcs">LPCS</div><div class="sep"></div><div class="brief">LE BRIEF</div></div>
       <div class="pilier">
-        <div class="barre"><div class="titre" style="font-size:190px" data-ajuster>${echapper(d.titre)}</div>
+        <div class="barre"><div class="titre" style="font-size:150px" data-ajuster>${echapper(d.titre)}</div>
         <div class="sous" style="margin-top:26px;font-weight:400">${echapper(d.sousTitre)}</div></div>
         <div class="trois">${d.colonnes.map(c => `<div><div class="v">${echapper(c.valeur)}</div><div class="t">${echapper(c.texte)}</div></div>`).join("")}</div>
       </div>
