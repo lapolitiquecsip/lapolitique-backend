@@ -230,7 +230,7 @@ async function main() {
 
       // L'IA n'a vu que des titres : l'entrée doit se confirmer dans de vrais articles de médias
       // reconnus, sinon elle n'entre pas (31/10/2026).
-      const controle = await verifierControverse(p.nom, String(avis.texte), { developpement: !!remplace }).catch(e => ({ ok: false as const, motif: String(e?.message) }));
+      const controle = await verifierControverse(p.nom, String(avis.texte), { developpement: !!remplace, titres: sources.map((x: any) => x.titre) }).catch(e => ({ ok: false as const, motif: String(e?.message) }));
       if (controle.ok === false) { console.log(`[Veille] ${p.nom} : écarté (${controle.motif}) — ${avis.texte}`); continue; }
 
       const date = /^\d{4}-\d{2}-\d{2}$/.test(avis.date || "") ? avis.date : new Date().toISOString().slice(0, 10);

@@ -11,17 +11,19 @@ import { verifierControverse } from "../../lib/verification-article.js";
 async function main() {
   // Entrées non relues, et celles masquées par la relecture (une affaire réelle peut l'avoir été pour un
   // détail : elle est corrigée d'après les articles). Jamais celles masquées à la main (sans motif).
-  const { data, error } = await supabase.from("controverses_veille").select("id, personne, texte, remplace, masquee, verif_motif")
+  const { data, error } = await supabase.from("controverses_veille").select("id, personne, texte, remplace, masquee, verif_motif, sources")
     .eq("origine", "veille").is("verifie_le", null).order("id");
   if (error) throw error;
   const remplacees = new Set((data ?? []).map(e => e.remplace).filter(Boolean));
+  const parTexte = new Map((data ?? []).map(e => [e.texte, e]));
+  const INTERMEDIAIRE = "version intermédiaire, remplacée par une entrée plus récente";
   let ok = 0, corrigees = 0, masquees = 0, pannes = 0, passees = 0;
   for (const e of data ?? []) {
-    if (e.masquee && !e.verif_motif) continue;
+    if ((e.masquee && !e.verif_motif) || e.verif_motif === INTERMEDIAIRE) continue;
     // Version intermédiaire d'une affaire, déjà remplacée par une entrée plus récente.
     if (remplacees.has(e.texte)) { passees++; continue; }
     let v;
-    try { v = await verifierControverse(e.personne, e.texte, { developpement: !!e.remplace }); }
+    try { v = await verifierControverse(e.personne, e.texte, { developpement: !!e.remplace, titres: (Array.isArray(e.sources) ? e.sources : []).map((x: any) => x?.titre).filter(Boolean) }); }
     catch (err: any) { pannes++; console.log(`  ! ${e.personne} : ${err.message}`); continue; }
     if (v.ok === false && /sans réponse/.test(v.motif)) { pannes++; continue; }
     const maj: any = v.ok === true
@@ -30,6 +32,10 @@ async function main() {
       : { masquee: true, verif_motif: v.motif };
     const { error: err } = await supabase.from("controverses_veille").update(maj).eq("id", e.id);
     if (err) { pannes++; console.log(`  ! ${e.personne} : ${err.message}`); continue; }
+    // Les versions antérieures de l'affaire sortent des fiches : seule la version relue compte.
+    const anciennes: number[] = [];
+    for (let a = parTexte.get(e.remplace ?? ""); a && !anciennes.includes(a.id); a = parTexte.get(a.remplace ?? "")) anciennes.push(a.id);
+    if (anciennes.length) await supabase.from("controverses_veille").update({ masquee: true, verif_motif: INTERMEDIAIRE }).in("id", anciennes);
     if (v.ok === true) { if (v.corrige) corrigees++; else ok++; } else masquees++;
     console.log(`${v.ok === true ? (v.corrige ? "CORRIGÉE" : "OK") : "MASQUÉE"} ${e.personne}${v.ok === true ? "" : ` (${v.motif})`}`);
   }

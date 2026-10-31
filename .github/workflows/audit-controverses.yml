@@ -19,7 +19,7 @@ jobs:
       AGENTIK_API_KEY: ${{ secrets.AGENTIK_API_KEY }}
       LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       VERIF_PAYANT: "1"
-      AGENTIK_PLAFOND_OPERATION: "0.4"
+      AGENTIK_PLAFOND_OPERATION: "0.25"
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job

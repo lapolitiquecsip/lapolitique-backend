@@ -233,7 +233,7 @@ N'utilise QUE le texte fourni, jamais tes connaissances. Réponds en JSON strict
  * médias reconnus au moins ; un développement d'une affaire établie : un seul suffit. Chaque source
  * renvoyée a été lue, avec une phrase recopiée du texte.
  */
-export async function verifierControverse(nom: string, texte: string, { developpement = false, joursMax = 400 } = {}): Promise<
+export async function verifierControverse(nom: string, texte: string, { developpement = false, joursMax = 400, titres = [] as string[] } = {}): Promise<
   { ok: true; corrige: string | null; sources: { media: string; url: string; date: string | null; titre: string; citation: string }[] } | { ok: false; motif: string }
 > {
   const besoin = developpement ? 1 : 2;
@@ -241,9 +241,14 @@ export async function verifierControverse(nom: string, texte: string, { developp
   const mots = [...new Set(norm(texte.replace(/^[^:]{0,25}:/, "")).split(/[^a-z0-9]+/))].filter(m => m.length >= 6 && m !== fam && !MOTS_VIDES.has(m)).slice(0, 5);
   const trouves = new Map<string, ResultatPresse>();
   const ajouter = (l: ResultatPresse[] | null) => { for (const n of l ?? []) { const m = mediaReconnu(n.link); if (m && ![...trouves.values()].some(x => mediaReconnu(x.link) === m)) trouves.set(n.link, n); } };
-  ajouter(await presseBing(`"${nom}" ${mots.join(" ")}`));
-  if (trouves.size < besoin + 1) ajouter(await presseBing(`"${nom}" ${mots.slice(0, 2).join(" ")}`));
-  if (trouves.size < besoin + 1) ajouter(await chercherPresse(`"${nom}" ${mots.slice(0, 3).join(" ")}`));
+  // D'abord les titres exacts des articles d'origine. Une recherche sur des mots généraux (« enquête »,
+  // « ouverte ») ramenait d'autres affaires : aucune entrée n'était confirmée, à tort.
+  for (const t of titres.slice(0, 4)) {
+    if (trouves.size >= 4) break;
+    ajouter(await presseBing(t.replace(/["«»]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120)));
+  }
+  if (trouves.size < besoin + 1) ajouter(await presseBing(`"${nom}" ${mots.join(" ")}`));
+  if (trouves.size < besoin) ajouter(await chercherPresse(`"${nom}" ${mots.slice(0, 3).join(" ")}`));
   if (trouves.size < besoin) return { ok: false, motif: `moins de ${besoin} média(s) reconnu(s) trouvé(s)` };
 
   const lus: { n: ResultatPresse; media: string; date: string | null; phrases: string[] }[] = [];
@@ -270,7 +275,7 @@ Réponds en JSON strict : { "articles": [{ "article": 0, "confirme": bool, "phra
   const sources = (Array.isArray(j.articles) ? j.articles : []).filter((a: any) => a?.confirme && lus[Number(a.article)]?.phrases[Number(a.phrase)]).map((a: any) => {
     const l = lus[Number(a.article)];
     return { media: l.media, url: l.n.link, date: l.date, titre: l.n.title, citation: l.phrases[Number(a.phrase)] };
-  });
+  }).filter((x: any, i: number, t: any[]) => t.findIndex(y => y.url === x.url) === i);
   const medias = new Set(sources.map((x: any) => x.media));
   if (medias.size < besoin) return { ok: false, motif: `confirmée par ${medias.size} média(s) sur ${besoin} requis` };
   if (j.tout_confirme) return { ok: true, corrige: null, sources };
