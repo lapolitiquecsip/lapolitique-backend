@@ -234,7 +234,7 @@ N'utilise QUE le texte fourni, jamais tes connaissances. Réponds en JSON strict
  * renvoyée a été lue, avec une phrase recopiée du texte.
  */
 export async function verifierControverse(nom: string, texte: string, { developpement = false, joursMax = 400 } = {}): Promise<
-  { ok: true; sources: { media: string; url: string; date: string | null; titre: string; citation: string }[] } | { ok: false; motif: string }
+  { ok: true; corrige: string | null; sources: { media: string; url: string; date: string | null; titre: string; citation: string }[] } | { ok: false; motif: string }
 > {
   const besoin = developpement ? 1 : 2;
   const fam = norm(nomDeFamille(nom));
@@ -243,7 +243,7 @@ export async function verifierControverse(nom: string, texte: string, { developp
   const ajouter = (l: ResultatPresse[] | null) => { for (const n of l ?? []) { const m = mediaReconnu(n.link); if (m && ![...trouves.values()].some(x => mediaReconnu(x.link) === m)) trouves.set(n.link, n); } };
   ajouter(await presseBing(`"${nom}" ${mots.join(" ")}`));
   if (trouves.size < besoin + 1) ajouter(await presseBing(`"${nom}" ${mots.slice(0, 2).join(" ")}`));
-  if (trouves.size < besoin) ajouter(await chercherPresse(`"${nom}" ${mots.slice(0, 3).join(" ")}`));
+  if (trouves.size < besoin + 1) ajouter(await chercherPresse(`"${nom}" ${mots.slice(0, 3).join(" ")}`));
   if (trouves.size < besoin) return { ok: false, motif: `moins de ${besoin} média(s) reconnu(s) trouvé(s)` };
 
   const lus: { n: ResultatPresse; media: string; date: string | null; phrases: string[] }[] = [];
@@ -258,10 +258,11 @@ export async function verifierControverse(nom: string, texte: string, { developp
   if (lus.length < besoin) return { ok: false, motif: `moins de ${besoin} article(s) lisible(s) de médias reconnus` };
 
   const j = await jsonDuModele(`Tu vérifies une entrée de la rubrique « Controverses » d'une fiche sur ${nom}, sur un site d'information neutre. N'utilise QUE les articles fournis, phrase par phrase, jamais tes connaissances.
-Réponds en JSON strict : { "articles": [{ "article": 0, "confirme": bool, "phrase": 0 }], "tout_confirme": bool, "non_confirme": "..." }
+Réponds en JSON strict : { "articles": [{ "article": 0, "confirme": bool, "phrase": 0 }], "tout_confirme": bool, "non_confirme": "...", "corrige": "..." }
 - articles : pour chaque article, s'il rapporte le même fait principal, à propos de cette même personne, et le numéro de la phrase qui le prouve.
 - tout_confirme : true seulement si chaque fait, date, nom et chiffre de l'entrée se retrouve dans au moins un article.
-- non_confirme : ce qui ne s'y retrouve pas, en quelques mots (chaîne vide sinon).`,
+- non_confirme : ce qui ne s'y retrouve pas, en quelques mots (chaîne vide sinon).
+- corrige : si le fait principal est confirmé mais pas tous les détails, l'entrée réécrite avec UNIQUEMENT ce que disent les articles : même format (« Mois année : … »), une à trois phrases, factuelles, au conditionnel ou attribuées tant que la justice n'a pas tranché, en nommant les médias des articles fournis, sans jugement. Chaîne vide sinon.`,
     `Entrée à vérifier : ${texte}\n\n${lus.map((l, i) => `ARTICLE ${i} (${l.media}, ${l.date?.slice(0, 10) ?? "date inconnue"})\n${l.phrases.map((p, k) => `[${k}] ${p}`).join("\n")}`).join("\n\n")}`);
   if (!j) return { ok: false, motif: "contrôle IA sans réponse" };
   const sources = (Array.isArray(j.articles) ? j.articles : []).filter((a: any) => a?.confirme && lus[Number(a.article)]?.phrases[Number(a.phrase)]).map((a: any) => {
@@ -270,6 +271,10 @@ Réponds en JSON strict : { "articles": [{ "article": 0, "confirme": bool, "phra
   });
   const medias = new Set(sources.map((x: any) => x.media));
   if (medias.size < besoin) return { ok: false, motif: `confirmée par ${medias.size} média(s) sur ${besoin} requis` };
-  if (!j.tout_confirme) return { ok: false, motif: `en partie non confirmée : ${String(j.non_confirme || "").slice(0, 160)}` };
-  return { ok: true, sources };
+  if (j.tout_confirme) return { ok: true, corrige: null, sources };
+  // Fait confirmé, détails non : l'entrée est réécrite d'après les articles, plutôt que retirée.
+  const corrige = String(j.corrige || "").trim();
+  const lusTexte = lus.flatMap(l => l.phrases).join(" ");
+  if (corrige.length >= 40 && chiffresDansTexte(corrige, lusTexte)) return { ok: true, corrige, sources };
+  return { ok: false, motif: `en partie non confirmée : ${String(j.non_confirme || "").slice(0, 160)}` };
 }

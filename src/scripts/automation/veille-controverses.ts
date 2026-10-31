@@ -235,7 +235,7 @@ async function main() {
 
       const date = /^\d{4}-\d{2}-\d{2}$/.test(avis.date || "") ? avis.date : new Date().toISOString().slice(0, 10);
       const { error } = await supabase.from("controverses_veille").insert({
-        personne_cle: p.cle, personne: p.nom, texte: String(avis.texte).trim(), date_faits: date, sources: controle.sources, remplace, verifie_le: new Date().toISOString(),
+        personne_cle: p.cle, personne: p.nom, texte: (controle.corrige ?? String(avis.texte)).trim(), date_faits: date, sources: controle.sources, remplace, verifie_le: new Date().toISOString(),
       });
       if (error) { console.warn(`[Veille] ${p.nom} : enregistrement impossible (${error.message})`); continue; }
       if (remplace) complements++; else ajouts++;

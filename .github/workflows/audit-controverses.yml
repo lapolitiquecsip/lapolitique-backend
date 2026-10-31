@@ -1,6 +1,7 @@
 name: Relecture des controverses
 
 # Opération ponctuelle du 31/10/2026, à retirer ensuite. Coût plafonné ci-dessous.
+# Seconde passe : corrige d'après les articles les entrées dont seul un détail ne se confirme pas.
 on:
   push:
     branches: [main]
@@ -18,7 +19,7 @@ jobs:
       AGENTIK_API_KEY: ${{ secrets.AGENTIK_API_KEY }}
       LLM_FREE_API_KEY: ${{ secrets.LLM_FREE_API_KEY }}
       VERIF_PAYANT: "1"
-      AGENTIK_PLAFOND_OPERATION: "0.5"
+      AGENTIK_PLAFOND_OPERATION: "0.4"
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
