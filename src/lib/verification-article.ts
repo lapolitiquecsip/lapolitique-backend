@@ -161,8 +161,8 @@ export async function verifierArticle(nom: string, titre: string, url: string, {
 N'utilise QUE le texte fourni, jamais tes connaissances. Réponds en JSON strict :
 { "concerne": bool, "actuel": bool, "sensible": bool, "entretien": bool, "titre": "...", "resume": "...", "preuve": 0, "type": "interview|soutien|programme|declaration|sondage|actualite" }
 
-- concerne : l'article parle vraiment de ${nom} (pas une simple mention, ni un homonyme).
-- actuel : il rapporte un fait récent ; false s'il porte surtout sur un passé ancien (par exemple une ancienne fonction).
+- concerne : l'article parle vraiment de ${nom} (pas une simple mention, ni un homonyme). false pour un article-liste du type « tous les candidats » ou un récapitulatif.
+- actuel : il rapporte un fait survenu dans les jours qui précèdent sa date ; false s'il rappelle surtout un fait plus ancien (une annonce d'il y a plusieurs mois, une ancienne fonction).
 - sensible : il annonce une candidature, un retrait, un ralliement, ou une affaire judiciaire.
 - entretien : l'article est un entretien avec ${nom} en personne, qui s'y exprime lui-même ou elle-même.
 - titre : factuel, 14 mots au plus, sans accroche ni « découvrez », et sans aller plus loin que le texte.
