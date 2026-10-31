@@ -14,7 +14,7 @@ permissions:
 jobs:
   preparer:
     if: github.event.schedule == '30 7 * * *' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -27,7 +27,7 @@ jobs:
       - run: npx tsx src/scripts/marketing/preparer-publications.ts
   publier:
     if: github.event.schedule != '30 7 * * *'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
