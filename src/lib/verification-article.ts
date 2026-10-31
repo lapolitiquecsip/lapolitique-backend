@@ -70,10 +70,13 @@ export function mediaReconnu(url: string): string | null {
 export type ResultatPresse = { link: string; title: string; snippet?: string; date?: string };
 
 /**
- * Recherche d'articles : Serper (0,001 $), sinon Exa (0,007 $) limité aux médias reconnus. Serper est
- * tombé en panne le 31/10/2026 : sans secours, plus aucun article nouveau. `null` : les deux en échec.
+ * Recherche d'articles : Bing (gratuit), puis Serper (0,001 $), puis Exa (0,007 $) limité aux médias
+ * reconnus. Serper est en panne depuis le 31/10/2026, et Exa seul coûterait 5 $ par mois.
+ * `null` : tous en échec.
  */
 export async function chercherPresse(q: string): Promise<ResultatPresse[] | null> {
+  const b = await presseBing(q);
+  if (b?.some(x => mediaReconnu(x.link))) return b;
   const s = await executer("serper/news", { q, gl: "fr", hl: "fr", num: 10 });
   if (s.ok === true) return s.sortie?.news ?? [];
   console.log(`[Presse] Serper indisponible (${s.raison}) : secours Exa.`);
