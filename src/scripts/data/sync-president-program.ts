@@ -164,6 +164,13 @@ Réponds UNIQUEMENT en JSON : {"status":"...","justification":"..."}`,
 
 async function main() {
   console.log("--- PROGRAMME PRÉSIDENTIEL 2022 : engagements + avancement ---");
+  // Le programme de 2022 ne change plus : engagements figés (31/10/2026). Les réextraire à chaque
+  // passage épuisait le quota IA, changeait leur formulation donc leur identifiant, et effaçait les
+  // évaluations déjà faites. Réextraction seulement sur demande : --forcer.
+  if (!process.argv.includes("--forcer")) {
+    const { count } = await supabase.from("presidential_program").select("id", { count: "exact", head: true }).eq("year", YEAR);
+    if (count) { console.log(`> ${count} engagements déjà en base, figés : rien à faire.`); return; }
+  }
   const programText = fs.readFileSync(PROGRAM_FILE, "utf-8");
   console.log(`> Programme officiel : ${programText.length} caractères.`);
 
@@ -209,4 +216,4 @@ async function main() {
   console.log(`--- TERMINE. ${rows.length} engagements. ---`);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });

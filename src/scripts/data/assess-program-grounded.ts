@@ -296,45 +296,10 @@ Réponds UNIQUEMENT en JSON :
   } catch { return null; }
 }
 
-// Repli documenté : nos tables ne commencent qu'en octobre 2024 (scrutins) et ne couvrent
-// que la législature 17. Or le programme 2022 s'est appliqué pour l'essentiel AVANT — la
-// preuve n'existe donc pas en base pour la majorité des engagements. Plutôt que d'afficher
-// 126 « non évaluable » sur 141, on retombe sur la connaissance du modèle, mais l'évaluation
-// est alors marquée comme NON ÉTAYÉE (evidence_count = 0) et le front la distingue.
-async function assessFromKnowledge(engagement: string, theme: string | null) {
-  const resp = await resilientDeepSeek.createMessage({
-    model: "deepseek-v4-flash",
-    max_tokens: 2500,
-    system: `Tu évalues l'avancement d'un engagement du programme présidentiel 2022 d'Emmanuel Macron, à partir de ta CONNAISSANCE des faits publics du quinquennat 2022-2027 (lois votées, décrets, réformes, budgets, décisions, reculs).
-
-Évalue AU MIEUX à partir de ce que tu sais réellement s'être passé depuis 2022 :
-- "tenu"        : mesure réalisée (loi/décret adopté, dispositif effectivement en place).
-- "en_cours"    : démarche engagée mais pas achevée (projet déposé, réforme lancée, concertation).
-- "partiel"     : réalisé en deçà de l'engagement, ou appliqué puis réduit/gelé.
-- "abandonne"   : promesse rejetée, retirée ou explicitement abandonnée.
-- "non_evaluable" : UNIQUEMENT si l'engagement est trop vague pour être vérifiable, ou si tu n'as réellement AUCUNE information sur son sort.
-
-N'ABUSE PAS de "non_evaluable" : la quasi-totalité des engagements de 2022 a connu une suite documentée (retraites à 64 ans, France Travail, réforme de l'assurance chômage, lois immigration, plein emploi, énergie/nucléaire, école…). Fonde-toi sur le fait le PLUS RÉCENT (un dispositif réduit ou gelé n'est pas "tenu").
-
-Justification : 1 à 2 phrases factuelles citant la mesure (nom de la loi/réforme + année). Neutre, sans jugement.
-
-Réponds UNIQUEMENT en JSON : {"status":"...","justification":"..."}`,
-    messages: [{ role: "user", content: `ENGAGEMENT (2022) : ${engagement}\nTHÈME : ${theme || "—"}` }],
-  }, { timeoutMs: 120000 });
-
-  const raw = (resp.content?.[0]?.text ?? "").trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-  const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
-  if (a === -1 || b === -1) return null;
-  try {
-    const o = JSON.parse(raw.slice(a, b + 1));
-    const allowed = ["tenu", "en_cours", "partiel", "abandonne", "non_evaluable"];
-    if (!allowed.includes(o.status)) return null;
-    return { status: o.status as string, justification: String(o.justification ?? "").trim() };
-  } catch { return null; }
-}
-
 async function main() {
   console.log("--- ÉVALUATION ANCRÉE DU PROGRAMME (scrutins + dossiers réels) ---");
+  // Une fois par semaine : les faits changent lentement, et 142 évaluations par jour épuisaient le quota.
+  if (new Date().getUTCDay() !== 1 && !process.argv.includes("--force")) { console.log("> Évaluation hebdomadaire : le lundi."); return; }
 
   const { data: engagements, error } = await supabase
     .from("presidential_program").select("id,engagement,theme").eq("year", 2022);
@@ -346,7 +311,7 @@ async function main() {
   console.log(`> Corpus de preuves : ${corpus.length} faits depuis le ${MANDATE_START}.`);
   const findEvidence = buildScorer(corpus);
 
-  let done = 0, withEv = 0, fallback = 0;
+  let done = 0, withEv = 0, sansPreuve = 0;
   const counts: Record<string, number> = {};
   for (const e of engagements as any[]) {
     // Preuves officielles (scrutins/dossiers) + couche web (Wikipédia). Beaucoup
@@ -358,13 +323,10 @@ async function main() {
     let res = await assessWithEvidence(e.engagement, e.theme, candidates).catch(() => null);
     const used = res?.evidence ?? [];
 
-    if (used.length === 0 && (web.length + webT.length) === 0) {
-      // Aucune source du tout : évaluation « de mémoire », sans preuve → restera « non vérifié ».
-      const k = await assessFromKnowledge(e.engagement, e.theme).catch(() => null);
-      if (k) { res = { ...k, evidence: [] }; fallback++; }
-    } else {
-      withEv++;
-    }
+    // Aucune source : pas de verdict ni de texte (31/10/2026). L'évaluation « de mémoire » ne s'affichait
+    // déjà pas comme verdict, et elle avait produit le faux « pass Culture = tenu ».
+    if (used.length === 0 && (web.length + webT.length) === 0) { res = null; sansPreuve++; }
+    else withEv++;
 
     // Sources CROISÉES montrées à l'utilisateur : les preuves réellement citées par la synthèse
     // D'ABORD (les plus pertinentes), puis TOUT le reste du corpus web/Wikipédia collecté, dédupliqué.
@@ -395,7 +357,7 @@ async function main() {
 
   console.log(`> Évalués : ${done}`);
   console.log(`>   dont étayés par des faits en base : ${withEv}`);
-  console.log(`>   dont évalués de mémoire (aucune preuve en base) : ${fallback}`);
+  console.log(`>   sans aucune source, donc non évalués : ${sansPreuve}`);
   console.log("> Répartition :", counts);
   console.log("--- TERMINE ---");
 }
