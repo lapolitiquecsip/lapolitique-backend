@@ -82,10 +82,12 @@ export async function lirePageAgentik(url: string): Promise<string | null> {
   const r = await executer("firecrawl/scrape", { url, onlyMainContent: true });
   const texte = r.ok === true ? r.sortie?.markdown : null;
   if (typeof texte === "string" && texte.trim()) return texte;
-  const e = await executer("exa/contents", { urls: [url], text: true });
+  // Liens ajoutés au texte : le veilleur des programmes y cherche les nouveaux plans. Page de moins de 24 h.
+  const e = await executer("exa/contents", { urls: [url], text: true, extras: { links: 100 }, maxAgeHours: 24 });
   if (e.ok === false) { if (e.raison !== "pas de clé") console.log(`[Agentik] lecture de ${url} : ${e.raison}`); return null; }
   const lu = e.sortie?.results?.[0]?.text;
-  return typeof lu === "string" && lu.trim() ? lu : null;
+  const liens: string[] = e.sortie?.results?.[0]?.extras?.links ?? [];
+  return typeof lu === "string" && lu.trim() ? [lu, ...liens].join(" \n ") : null;
 }
 
 /** Sous-titres d'une vidéo YouTube (ScrapeCreators, 0,00188 $), quand yt-dlp n'y arrive pas. */

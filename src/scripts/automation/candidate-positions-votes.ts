@@ -91,6 +91,7 @@ async function main() {
       // Garde les plus récents, borne à 6 lois par enjeu.
       const laws = list.sort((a, b) => String(b.date_scrutin).localeCompare(String(a.date_scrutin))).slice(0, 6);
       const lawsText = laws.map((l, i) => `${i + 1}. Loi : ${(l.title || l.objet || "").slice(0, 120)} — ce qu'elle fait : ${(l.summary || l.why_it_matters || "").slice(0, 300)} — VOTE : ${l.position}`).join("\n");
+      // Panne du modèle (quota du jour) : cette position attendra le prochain passage, le reste continue.
       const resp = await resilientDeepSeek.createMessage({
         model: "deepseek-chat",
         max_tokens: 400,
@@ -105,7 +106,8 @@ RÈGLES DE FIABILITÉ (très strictes) :
 
 Réponds en français, en JSON : { "stance": "pour|contre|nuance|inconnu", "summary": "...", "law_index": <numéro de la loi la plus représentative> }`,
         messages: [{ role: "user", content: `PROPOSITION : « ${PROPOSITIONS[slug]} »\n\nVOTES :\n${lawsText}` }],
-      }, { timeoutMs: 60000 });
+      }, { timeoutMs: 60000 }).catch((e: any) => { console.warn(`  ${cand.name}/${slug}: ${e.message}`); return null; });
+      if (!resp) continue;
       let out: any = {};
       try { const raw = resp.content?.[0]?.text?.trim() || ""; out = JSON.parse(raw.startsWith("{") ? raw : raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)); } catch { continue; }
       if (!["pour", "contre", "nuance"].includes(out.stance)) continue;
@@ -123,4 +125,4 @@ Réponds en français, en JSON : { "stance": "pour|contre|nuance|inconnu", "summ
   console.log(`--- TERMINE. ${total} positions (votes) écrites. ---`);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });

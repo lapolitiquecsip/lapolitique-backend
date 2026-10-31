@@ -61,10 +61,12 @@ export async function syncSenatVideos() {
 
   // On ne réécrit pas le titre ni la vignette des vidéos déjà complétées (voir plus bas) :
   // le flux ne donne qu'un titre reconstruit depuis l'adresse, sans accents ni majuscules.
-  const { data: completes } = await supabase.from("senat_videos").select("video_id")
+  const { data: completes } = await supabase.from("senat_videos").select("video_id, title, thumbnail_url")
     .in("video_id", rows.map(r => r.video_id)).not("thumbnail_url", "is", null);
-  const dejaCompletes = new Set((completes || []).map((r: any) => r.video_id));
-  for (const r of rows) if (dejaCompletes.has(r.video_id)) { delete r.title; delete r.thumbnail_url; }
+  // On les renvoie tels quels : une ligne sans titre fait échouer l'écriture (colonne obligatoire), même
+  // si la vidéo existe déjà. Tout le fil était bloqué depuis des semaines à cause de cela.
+  const dejaCompletes = new Map((completes || []).map((r: any) => [r.video_id, r]));
+  for (const r of rows) { const c: any = dejaCompletes.get(r.video_id); if (c) { r.title = c.title; r.thumbnail_url = c.thumbnail_url; } }
   const neuves = rows.filter(r => !dejaCompletes.has(r.video_id));
   const connues = rows.filter(r => dejaCompletes.has(r.video_id));
   for (const lot of [neuves, connues]) {
