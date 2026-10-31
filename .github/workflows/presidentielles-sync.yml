@@ -34,26 +34,32 @@ jobs:
       #    placée devant, elle faisait couper le passage par la limite de temps, et les
       #    programmes n'étaient plus relevés un jour sur deux (21, 23, 26 et 28/10).
       #    Propositions/idées de chaque candidat (site officiel du mouvement).
+      # Une étape en échec n'annule plus les suivantes (31/10/2026) : le fil des candidats et les positions
+      # passaient à la trappe. La tâche reste marquée en échec, l'alerte demeure.
       - run: npm run data:sync-candidate-proposals
       # 2bis) Explique chaque proposition (le « ? ») avec chiffres nationaux vérifiés.
       - run: npm run data:explain-proposals
+        if: ${{ !cancelled() }}
       # 3) Fil d'actualité de chaque candidat : chaque article est lu et contrôlé avant publication.
       - run: npm run automation:presidential-news
+        if: ${{ !cancelled() }}
         timeout-minutes: 25
         continue-on-error: true
         env:
           LLM_SECOURS_PAYANT: "1"   # quota Gemini épuisé : DeepSeek, plutôt qu'un fil à l'arrêt
       # 3ter) Preuve de candidature de chaque personne (le lundi).
       - run: npm run automation:candidatures-preuves
+        if: ${{ !cancelled() }}
         timeout-minutes: 15
         continue-on-error: true
         env:
           LLM_SECOURS_PAYANT: "1"
       # 3bis) Fil vidéo de chaque candidat (YouTube officiel, RSS — aucun coût IA).
       - run: npm run data:sync-candidate-videos
+        if: ${{ !cancelled() }}
       # 3) Positions sourcées (Wikipédia) des candidats sur les grands enjeux
       - run: npm run automation:candidate-positions
-        if: steps.budget.outputs.has_budget == 'true'
+        if: ${{ !cancelled() && steps.budget.outputs.has_budget == 'true' }}
       # 4) Positions via votes réels au Parlement (prioritaires sur Wikipédia)
       - run: npm run automation:candidate-positions-votes
-        if: steps.budget.outputs.has_budget == 'true'
+        if: ${{ !cancelled() && steps.budget.outputs.has_budget == 'true' }}
