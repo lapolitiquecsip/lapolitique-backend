@@ -19,12 +19,10 @@ const AJUSTER = `(() => {
   });
   const deborde = () =>
     slide.scrollHeight > slide.clientHeight + 1 || slide.scrollWidth > slide.clientWidth + 1 || corps.scrollHeight > corps.clientHeight + 1 || horsMarge();
-  for (const t of slide.querySelectorAll("[data-ajuster]")) {
-    let taille = parseFloat(getComputedStyle(t).fontSize);
-    while (taille > 40 && deborde()) {
-      taille -= 2;
-      t.style.fontSize = taille + "px";
-    }
+  // Tout rétrécit ensemble, pour que le plus long texte ne vide pas un titre qui n'y est pour rien.
+  const blocs = [...slide.querySelectorAll("[data-ajuster]")];
+  for (let k = 0; k < 40 && deborde(); k++) {
+    for (const t of blocs) t.style.fontSize = Math.max(30, parseFloat(getComputedStyle(t).fontSize) * 0.97) + "px";
   }
   return !deborde();
 })()`;

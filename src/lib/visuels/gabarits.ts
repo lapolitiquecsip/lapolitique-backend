@@ -245,7 +245,7 @@ export function carrouselChiffre(d: DonneesChiffre, dossier: string): Slide[] {
     cadre(p, "pleine", `${entete(dossier, d.rubrique, 1, n)}
       <div class="corps" style="margin-top:60px">
         <div class="titre geant" data-ajuster>${echapper(d.accroche)}</div>
-        <div class="chiffre clair" style="margin-top:34px">${echapper(d.valeur)}</div>
+        <div class="chiffre clair" data-ajuster style="margin-top:34px">${echapper(d.valeur)}</div>
         <div class="sous" style="margin-top:34px">${echapper(d.sousTitre)}</div>
         <div class="bas"><div class="sous" style="font-size:38px"><b>Les chiffres,</b> sans commentaire.</div>${FLECHE}</div>
       </div>`),
@@ -253,7 +253,7 @@ export function carrouselChiffre(d: DonneesChiffre, dossier: string): Slide[] {
       <div class="corps" style="margin-top:34px">
         <div class="etiquette">En clair</div>
         <div class="titre grand">Ce que dit<br>le chiffre.</div>
-        <div class="comparaison">${d.comparaison.map(c => `<div><div class="p">${echapper(c.periode)}</div><div class="titre" style="font-size:135px;white-space:nowrap;color:var(--accent)">${echapper(c.valeur)}</div></div>`).join("")}</div>
+        <div class="comparaison">${d.comparaison.map(c => `<div><div class="p">${echapper(c.periode)}</div><div class="titre" data-ajuster style="font-size:135px;color:var(--accent)">${echapper(c.valeur)}</div></div>`).join("")}</div>
         <div style="margin-top:46px;display:flex;flex-direction:column;gap:20px">${d.explications.map(e => `<div class="sous" style="font-size:44px;color:#27304f">${echapper(e)}</div>`).join("")}</div>
         <div class="bas" style="display:block">
           <div class="source"><b>Source :</b> ${echapper(d.source)}</div>
@@ -293,4 +293,37 @@ export function visuelBrief(d: DonneesBrief): Slide {
       </div>
       <div class="pied"><span>La politique, c’est simple<span class="clair" style="color:var(--clair)">.</span></span><span>lapolitiquecestsimple.fr</span></div>`),
   };
+}
+
+
+// ─── Idée de post (actualité, programme, texte de loi…) ───────────────────────
+
+export function slideIdee(d: { rubrique: string; accroche: string; source: string; palette?: keyof typeof PALETTES }, pages: string[][], dossier: string): Slide[] {
+  const p = PALETTES[d.palette ?? "rose"];
+  const n = pages.length + 2;
+  return [
+    cadre(p, "pleine", `${entete(dossier, d.rubrique, 1, n)}
+      <div class="corps" style="margin-top:60px">
+        <div class="titre geant" data-ajuster>${echapper(d.accroche)}</div>
+        <div class="filet"></div>
+        <div class="bas"><div class="sous" style="font-size:38px"><b>Les faits,</b> en clair.</div>${FLECHE}</div>
+      </div>`),
+    ...pages.map((page, k) => cadre(p, "", `${entete(dossier, d.rubrique, k + 2, n)}
+      <div class="corps" style="margin-top:34px">
+        <div class="etiquette">En clair</div>
+        <div class="titre" style="font-size:120px">Ce qu’il faut savoir.</div>
+        <div data-ajuster style="font-size:50px;flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center">${page.map((t, i) => `<div class="point" style="padding:24px 0"><div class="num" style="font-size:100px;min-width:96px">${String(i + 1 + k * 2).padStart(2, "0")}</div><div class="txt" style="font-weight:600;line-height:1.18">${echapper(t)}</div></div>`).join("")}</div>
+        <div class="bas" style="display:block"><div class="source"><b>Source :</b> ${echapper(d.source)}</div></div>
+      </div>`)),
+    cadre(p, "pleine", `${entete(dossier, d.rubrique, n, n)}
+      <div class="corps" style="margin-top:44px">
+        <div class="titre geant" data-ajuster style="font-size:176px">Comprendre.<br>Vérifier.<br>Suivre.</div>
+        <div class="sous" style="margin-top:44px;font-weight:600">La source :</div>
+        <div class="liens"><div class="lien">${LIEN_EXT} ${echapper(d.source)}</div></div>
+        <div class="bas" style="display:block;border-top:2px solid rgba(255,255,255,.4)">
+          <div class="sous" style="font-size:36px">Retrouvez les explications sur</div>
+          <div class="fin-site">lapolitiquecestsimple.fr<span class="clair">.</span></div>
+        </div>
+      </div>`),
+  ].map((html, i) => ({ nom: `idee-${String(i + 1).padStart(2, "0")}`, html }));
 }

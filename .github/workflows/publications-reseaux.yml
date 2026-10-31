@@ -1,0 +1,43 @@
+name: Publications Instagram et LinkedIn
+# Le matin : prépare le post du jour dans Notion (statut « À valider »).
+# Toutes les heures en journée : publie uniquement ce qui a été passé à « Validé » à la main.
+on:
+  schedule:
+    - cron: '30 7 * * *'
+    - cron: '5 8-19 * * *'
+  workflow_dispatch:
+concurrency:
+  group: publications-reseaux
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  preparer:
+    if: github.event.schedule == '30 7 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx playwright install --with-deps chromium
+      - run: npx tsx src/scripts/marketing/preparer-publications.ts
+  publier:
+    if: github.event.schedule != '30 7 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+      LINKEDIN_AUTHOR_URN: ${{ secrets.LINKEDIN_AUTHOR_URN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/marketing/publier-publications.ts
