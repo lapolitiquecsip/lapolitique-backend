@@ -1,3 +1,4 @@
+import * as cheerio from "cheerio";
 import { executer, plafondAtteint, type ResultatAgentik } from "./agentik.js";
 import { coutUsage, noter } from "./budget-claude.js";
 import { resilientDeepSeek } from "./deepseek-client.js";
@@ -108,10 +109,13 @@ export function dateDansHtml(html: string): string | null {
   return null;
 }
 
+/** Décode les entités HTML (&eacute; → é) : les supprimer enlevait les accents, les garder s'affichait tel quel. */
+export const decoderEntites = (t: string) => cheerio.load(`<p>${t.replace(/</g, "&lt;")}</p>`)("p").text().replace(/[   ]/g, " ");
+
 function texteDuHtml(html: string): string {
   const net = html.replace(/<(script|style|noscript|nav|footer|aside)[\s\S]*?<\/\1>/gi, " ");
   return [...net.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
-    .map(m => m[1].replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&rsquo;|&apos;/g, "'").replace(/&quot;|&laquo;|&raquo;/g, '"').replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim())
+    .map(m => decoderEntites(m[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim())
     .filter(t => t.length > 40).join("\n");
 }
 
@@ -184,6 +188,9 @@ async function confirmeAilleurs(nom: string, fait: string, media: string): Promi
   return j?.confirme === true;
 }
 
+/** Habillage de la page, pas le texte de l'article : jamais cité comme preuve. */
+const HABILLAGE = /sources? pr[ée]f[ée]r[ée]es|abonnez-vous|se connecter|lire aussi|newsletter|cookies|publicit[ée]|partager (sur|via)|t[ée]l[ée]charger l'appli|voir aussi/i;
+
 export type Verdict =
   | { ok: true; date: string; titre: string; resume: string; citation: string; type: string; media: string }
   | { ok: false; motif: string; date?: string | null; media: string | null };
@@ -204,7 +211,7 @@ export async function verifierArticle(nom: string, titre: string, url: string, {
 
   // Phrases numérotées : le modèle désigne la preuve et le programme la recopie, donc la citation est
   // forcément mot pour mot (recopiée par le modèle, une sur trois était légèrement altérée).
-  const phrases = article.texte.replace(/\s+/g, " ").split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«"])/).filter(p => p.length >= 50 && p.length <= 400).slice(0, 80);
+  const phrases = article.texte.replace(/\s+/g, " ").split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«"])/).filter(p => p.length >= 50 && p.length <= 400 && !HABILLAGE.test(p)).slice(0, 80);
   if (phrases.length < 3) return { ok: false, motif: "article illisible", date: article.date, media };
   const j = await jsonDuModele(`Tu contrôles un article de presse pour le fil d'actualité de ${nom}, ${role}, sur un site d'information neutre. Nous sommes le ${new Date().toISOString().slice(0, 10)}. L'article est daté du ${article.date.slice(0, 10)}.
 
@@ -261,7 +268,7 @@ export async function verifierControverse(nom: string, texte: string, { developp
     const a = await lireArticle(n.link);
     if (!a || !norm(a.texte).includes(fam)) continue;
     if (a.date && Date.now() - Date.parse(a.date) > joursMax * JOUR) continue;
-    const phrases = a.texte.replace(/\s+/g, " ").split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«"])/).filter(p => p.length >= 40 && p.length <= 400).slice(0, 40);
+    const phrases = a.texte.replace(/\s+/g, " ").split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«"])/).filter(p => p.length >= 40 && p.length <= 400 && !HABILLAGE.test(p)).slice(0, 40);
     if (phrases.length >= 2) lus.push({ n, media: mediaReconnu(n.link)!, date: a.date, phrases });
   }
   // Plafond de dépense atteint : ce n'est pas un verdict sur l'entrée, on la relira plus tard.
