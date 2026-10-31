@@ -135,4 +135,4 @@ async function main() {
   if (!faits) console.log("::notice::Aucune nouvelle idée à proposer.");
 }
 
-main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+main().then(() => process.exit(0)).catch(e => { console.log(`::error::${String(e?.message ?? e).replace(/s+/g, " ").slice(0, 500)}`); process.exit(1); });
