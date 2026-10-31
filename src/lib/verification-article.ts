@@ -1,4 +1,4 @@
-import { executer, type ResultatAgentik } from "./agentik.js";
+import { executer, plafondAtteint, type ResultatAgentik } from "./agentik.js";
 import { coutUsage, noter } from "./budget-claude.js";
 import { resilientDeepSeek } from "./deepseek-client.js";
 
@@ -255,6 +255,8 @@ export async function verifierControverse(nom: string, texte: string, { developp
     const phrases = a.texte.replace(/\s+/g, " ").split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«"])/).filter(p => p.length >= 40 && p.length <= 400).slice(0, 40);
     if (phrases.length >= 2) lus.push({ n, media: mediaReconnu(n.link)!, date: a.date, phrases });
   }
+  // Plafond de dépense atteint : ce n'est pas un verdict sur l'entrée, on la relira plus tard.
+  if (lus.length < besoin && plafondAtteint()) return { ok: false, motif: "contrôle IA sans réponse (plafond atteint)" };
   if (lus.length < besoin) return { ok: false, motif: `moins de ${besoin} article(s) lisible(s) de médias reconnus` };
 
   const j = await jsonDuModele(`Tu vérifies une entrée de la rubrique « Controverses » d'une fiche sur ${nom}, sur un site d'information neutre. N'utilise QUE les articles fournis, phrase par phrase, jamais tes connaissances.

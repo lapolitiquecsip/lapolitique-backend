@@ -23,6 +23,12 @@ export type ResultatAgentik = { ok: true; sortie: any; usd: number; run: string 
 
 let depenseOperation = 0;
 
+/** Le plafond de cette opération est atteint : plus aucune lecture payante jusqu'à la fin. */
+export const plafondAtteint = () => {
+  const operation = Number(process.env.AGENTIK_PLAFOND_OPERATION || 0);
+  return operation > 0 && depenseOperation >= operation;
+};
+
 export const agentikActif = () => !!process.env.AGENTIK_API_KEY;
 
 async function appeler(chemin: string, corps?: unknown, entetes: Record<string, string> = {}) {
