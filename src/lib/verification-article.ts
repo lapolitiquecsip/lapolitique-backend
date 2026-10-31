@@ -145,7 +145,8 @@ export async function lireArticle(url: string, { gratuit = false } = {}): Promis
 export async function jsonDuModele(system: string, user: string): Promise<any | null> {
   // VERIF_PAYANT=1 (rattrapage) : DeepSeek directement, dépense notée. Sinon gratuit d'abord.
   const payant = process.env.VERIF_PAYANT === "1";
-  const rep = await resilientDeepSeek.createMessage({ model: "deepseek-chat", max_tokens: 2500, responseFormat: "json_object", system, messages: [{ role: "user", content: user }] }, { payant });
+  // sansReflexion : sinon, sur un long texte, DeepSeek épuise max_tokens à réfléchir et répond à vide.
+  const rep = await resilientDeepSeek.createMessage({ model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object", sansReflexion: true, system, messages: [{ role: "user", content: user }] }, { payant });
   if (payant) await noter("agentik", "deepseek-flash", coutUsage("deepseek-flash", rep.usage), "contrôle d'article");
   const m = (rep.content[0]?.text ?? "").match(/\{[\s\S]*\}/);
   try { return m ? JSON.parse(m[0]) : null; } catch { return null; }
