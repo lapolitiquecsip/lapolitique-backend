@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
-import { agentikActif, executer } from "../../lib/agentik.js";
-import { mediaReconnu, verifierArticle } from "../../lib/verification-article.js";
+import { agentikActif } from "../../lib/agentik.js";
+import { chercherPresse, mediaReconnu, verifierArticle } from "../../lib/verification-article.js";
 
 /**
  * Fil d'actualité de chaque candidat (réécrit le 30/10/2026). Rien n'est publié sans contrôle :
@@ -39,10 +39,9 @@ export async function syncPresidentialNews() {
     const requetes = RATTRAPAGE ? [`${nom} ${mois}`, `${nom} présidentielle ${mois}`, `${nom} interview ${mois}`, nom] : [`${nom} ${mois}`];
     const trouves = new Map<string, any>();
     for (const q of requetes) {
-      const r = await executer("serper/news", { q, gl: "fr", hl: "fr", num: 10 });
-      if (r.ok === false) { console.warn(`[Presidential-News] ${candidate.full_name} : ${r.raison}`); continue; }
+      const r = await chercherPresse(q);
       // Médias non reconnus écartés dès ici : ni lecture ni dépense.
-      for (const n of r.sortie?.news ?? []) if (n.link && n.title && mediaReconnu(n.link)) trouves.set(n.link, n);
+      for (const n of r ?? []) if (n.link && n.title && mediaReconnu(n.link)) trouves.set(n.link, n);
     }
     const items = [...trouves.values()];
     const urls = items.map((n: any) => n.link);

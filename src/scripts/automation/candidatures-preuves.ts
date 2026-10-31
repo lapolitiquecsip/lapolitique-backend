@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
-import { agentikActif, executer } from "../../lib/agentik.js";
-import { citationDansTexte, jsonDuModele, lireArticle, mediaReconnu, norm } from "../../lib/verification-article.js";
+import { agentikActif } from "../../lib/agentik.js";
+import { chercherPresse, citationDansTexte, jsonDuModele, lireArticle, mediaReconnu, norm } from "../../lib/verification-article.js";
 
 /**
  * Preuve de candidature de chaque personne suivie (30/10/2026) : ce qu'elle a dit elle-même, où et
@@ -18,9 +18,8 @@ const STATUTS = ["declare", "pressenti", "non_candidat"];
 async function preuve(nom: string) {
   const liens: { url: string; media: string }[] = [];
   for (const q of [`"${nom}" candidature présidentielle 2027`, `"${nom}" candidat présidentielle annonce`]) {
-    const r = await executer("serper/news", { q, gl: "fr", hl: "fr", num: 10 });
-    if (r.ok === false) continue;
-    for (const n of r.sortie?.news ?? []) {
+    const r = await chercherPresse(q);
+    for (const n of r ?? []) {
       const media = mediaReconnu(n.link);
       if (media && !liens.some(l => l.media === media)) liens.push({ url: n.link, media });
     }

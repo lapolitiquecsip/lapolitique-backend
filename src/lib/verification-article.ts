@@ -39,6 +39,21 @@ export function mediaReconnu(url: string): string | null {
   } catch { return null; }
 }
 
+export type ResultatPresse = { link: string; title: string; snippet?: string; date?: string };
+
+/**
+ * Recherche d'articles : Serper (0,001 $), sinon Exa (0,007 $) limité aux médias reconnus. Serper est
+ * tombé en panne le 31/10/2026 : sans secours, plus aucun article nouveau. `null` : les deux en échec.
+ */
+export async function chercherPresse(q: string): Promise<ResultatPresse[] | null> {
+  const s = await executer("serper/news", { q, gl: "fr", hl: "fr", num: 10 });
+  if (s.ok === true) return s.sortie?.news ?? [];
+  console.log(`[Presse] Serper indisponible (${s.raison}) : secours Exa.`);
+  const e = await executer("exa/search", { query: q.replace(/"/g, ""), numResults: 10, includeDomains: Object.keys(MEDIAS_RECONNUS) });
+  if (e.ok === false) { console.log(`::warning::[Presse] Recherche impossible : ${e.raison}`); return null; }
+  return (e.sortie?.results ?? []).map((r: any) => ({ link: r.url, title: r.title || "", date: r.publishedDate }));
+}
+
 export const norm = (t: string) => (t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’‘`]/g, "'").replace(/[«»“”"]/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; LaPolitiqueBot/1.0)" };
 
@@ -124,9 +139,9 @@ const MOTS_VIDES = new Set(["apres", "avant", "contre", "entre", "depuis", "cett
 /** Un autre média reconnu rapporte-t-il le MÊME fait ? Des mots communs ne le prouvent pas. */
 async function confirmeAilleurs(nom: string, fait: string, media: string): Promise<boolean> {
   const fam = norm(nomDeFamille(nom));
-  const r = await executer("serper/news", { q: `"${nom}" ${fait.slice(0, 90)}`, gl: "fr", hl: "fr", num: 10 });
-  if (r.ok === false) return false;
-  const autres = (r.sortie?.news ?? []).filter((n: any) => {
+  const trouves = await chercherPresse(`"${nom}" ${fait.slice(0, 90)}`);
+  if (!trouves) return false;
+  const autres = trouves.filter((n: any) => {
     const m = mediaReconnu(n.link);
     return m && m !== media && norm(`${n.title} ${n.snippet}`).includes(fam);
   });
