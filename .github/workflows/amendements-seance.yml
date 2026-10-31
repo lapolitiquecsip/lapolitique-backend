@@ -1,0 +1,24 @@
+name: Amendements de séance (export officiel AN)
+# Eliasse oublie un examen dès qu'il est terminé : l'export officiel complète la table, attribue
+# le vote aux amendements identiques, puis on relie aux scrutins de la nuit (votes-sync, 22:20 UTC).
+on:
+  schedule:
+    - cron: '15 1 * * *'
+  workflow_dispatch:
+concurrency:
+  group: amendements-an
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  rattrapage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/data/rattraper-amendements-seance.ts
+      - run: npx tsx src/scripts/data/lier-amendements-scrutins.ts

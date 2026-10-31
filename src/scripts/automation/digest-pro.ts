@@ -54,6 +54,7 @@ export const CATEGORIES = [
   { code: "jo", emoji: "📰", intitule: "Journal officiel", couleur: "#0284c7" },
   { code: "elus", emoji: "⭐", intitule: "Vos élus et suivis", couleur: "#d97706" },
   { code: "amendements_elus", emoji: "✍️", intitule: "Votes de vos élus sur les amendements", couleur: "#7c3aed" },
+  { code: "votes_amendements", emoji: "🗳️", intitule: "Résultats des votes sur les amendements", couleur: "#0891b2" },
   { code: "europe", emoji: "🇪🇺", intitule: "Votes au Parlement européen", couleur: "#2563eb" },
   { code: "territoire", emoji: "📍", intitule: "Votre territoire", couleur: "#059669" },
 ] as const;
@@ -119,6 +120,46 @@ async function recapAmendementsElus(dIds: string[], sIds: string[], depuis: Date
       })));
   }
   return { items, cles };
+}
+
+/* ─────────────── Résultat de chaque amendement voté en scrutin public ─────────────── */
+
+/**
+ * Un scrutin d'amendement = une ligne : qui l'a déposé, le décompte, et de quel côté chaque groupe a
+ * penché (position majoritaire, avec le nombre de députés). Le vote nominatif est sur le site : la
+ * liste des députés ne tiendrait pas dans un e-mail. Les votes à main levée n'ont aucun décompte publié.
+ */
+async function resultatsVotesAmendements(recul: Date): Promise<Info[]> {
+  const scrutins = await fetchAll("scrutins", "id, numero, objet, resultat, date_scrutin, pour, contre, abstention, group_results, created_at",
+    q => q.eq("type", "AMENDEMENT").gte("created_at", recul.toISOString()));
+  if (!scrutins.length) return [];
+  const amdts = new Map<string, any>();
+  const ids = scrutins.map((x: any) => x.id);
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await supabase.from("amendements_an").select("scrutin_id, numero, auteur, groupe, division, texte_titre, sort").in("scrutin_id", ids.slice(i, i + 200));
+    for (const a of data || []) if (!amdts.has(a.scrutin_id)) amdts.set(a.scrutin_id, a);
+  }
+  const lignes = (scrutins as any[]).map(x => {
+    const a = amdts.get(x.id);
+    const adopte = /adopt/i.test(x.resultat || "") && !/pas adopt/i.test(x.resultat || "");
+    const camps: Record<"pour" | "contre" | "abstention", string[]> = { pour: [], contre: [], abstention: [] };
+    for (const g of [...(x.group_results || [])].sort((m: any, n: any) => (n.pour + n.contre + n.abstention) - (m.pour + m.contre + m.abstention))) {
+      const cote = (["pour", "contre", "abstention"] as const).reduce((m, k) => ((g[k] || 0) > (g[m] || 0) ? k : m), "pour" as "pour" | "contre" | "abstention");
+      if (g[cote] > 0) camps[cote].push(`${String(g.group_label).replace(/\s*\(.*\)$/, "")} ${g[cote]}`);
+    }
+    const repartition = ([["Pour", camps.pour], ["Contre", camps.contre], ["Abstention", camps.abstention]] as [string, string[]][])
+      .filter(([, l]) => l.length).map(([t, l]) => `${t} : ${l.join(", ")}`).join(" · ");
+    return {
+      cle: `amdt-scrutin:${x.id}`, adopte,
+      titre: a ? `Amendement ${a.numero} de ${a.auteur}${a.groupe ? ` (${a.groupe})` : ""}${a.division ? ` · ${a.division}` : ""}` : objetCourt(x.objet),
+      resume: `${x.pour} pour · ${x.contre} contre · ${x.abstention || 0} abstention${(x.abstention || 0) > 1 ? "s" : ""}. ${repartition}`,
+      url: a ? `${SITE_URL}/premium/?amdt-scrutin=${x.id}#amendements` : `https://www.assemblee-nationale.fr/dyn/17/scrutins/${x.numero}`,
+      etiquette: adopte ? "Adopté" : "Rejeté",
+      meta: [a?.texte_titre ? court(a.texte_titre, 60) : null, fmtCourt(x.date_scrutin)].filter(Boolean).join(" · "),
+    };
+  });
+  // Les adoptés d'abord : ce sont eux qui changent le texte.
+  return lignes.sort((m, n) => Number(n.adopte) - Number(m.adopte)).map(({ adopte: _, ...i }) => i);
 }
 
 /* ───────────────────────── Partie commune ───────────────────────── */
@@ -310,6 +351,8 @@ async function main() {
   const prenom = new Map((profils || []).map((p: any) => [p.id, (p.display_name || "").split(" ")[0]]));
   const aServir = new Set<string>();
   let envoyes = 0;
+  let votesAmendements: Info[] | undefined;
+  const plafondVotes = RYTHME === "quotidien" ? 30 : 50;
 
   for (const id of destinataires) {
     const p = prefs.get(id) || {};
@@ -365,6 +408,14 @@ async function main() {
           if (!items.length) vide = "Aucun vote de vos élus sur un amendement en scrutin public sur cette période (les amendements votés à main levée n'ont pas de décompte par élu).";
         }
       }
+      if (cat.code === "votes_amendements") {
+        votesAmendements ??= await resultatsVotesAmendements(recul);
+        items = neuf(votesAmendements);
+        vide = "Aucun amendement voté en scrutin public sur cette période (les votes à main levée n'ont pas de décompte publié).";
+        note = "Pour chaque groupe, sa position majoritaire et son nombre de députés. Le vote de chaque député est sur le site.";
+        // Une journée de budget compte des centaines de votes : au-delà du plafond, ils restent sur le site sans s'accumuler ici.
+        items.slice(plafondVotes).forEach(i => aServir.add(i.cle));
+      }
       if (cat.code === "territoire") {
         const loc = await resolveLocation(p.city || null, p.department || null);
         const perimetre = !p.perimetre || p.perimetre === "national" ? "departement" : p.perimetre;
@@ -379,14 +430,15 @@ async function main() {
       }
 
       items = unique(items);
-      const montres = items.slice(0, plafond);
+      const limite = cat.code === "votes_amendements" ? plafondVotes : plafond;
+      const montres = items.slice(0, limite);
       montres.forEach(i => aServir.add(`${i.cle}`));
       total += montres.length;
       if (montres.length) resume.push(`${montres.length} ${cat.intitule.toLowerCase()}`);
       const corps = montres.length
         ? montres.map((i, n) => enr.has(i.ref || i.cle) ? ligneEnrichie(i, enr.get(i.ref || i.cle)!, cat.couleur, n >= COMPLETES)
           : ligne({ titre: majuscule(resumeCourt(i.titre, 140)), url: i.url, resume: i.resume, etiquette: i.etiquette, couleur: cat.couleur, meta: i.meta })).join("")
-          + (items.length > plafond ? `<div style="padding:10px 0;font-size:12px;color:${COULEURS.doux}">… et ${items.length - plafond} autre${items.length - plafond > 1 ? "s" : ""} dans votre espace Pro.</div>` : "")
+          + (items.length > limite ? `<div style="padding:10px 0;font-size:12px;color:${COULEURS.doux}">… et ${items.length - limite} autre${items.length - limite > 1 ? "s" : ""} dans votre espace Pro.</div>` : "")
         : `<div style="padding:12px 0;font-size:13px;color:${COULEURS.pale}">${esc(vide)}</div>`;
       blocs.push(rubrique(cat.emoji, cat.intitule, cat.couleur, corps + `<div style="padding-top:6px;font-size:11px"><a href="${esc(desabo(cat.code))}" style="color:${COULEURS.pale}">Ne plus recevoir cette rubrique</a></div>`, note));
     }

@@ -33,11 +33,11 @@ async function main() {
   console.log(`[Votes d'amendements] ${aTraiter.length} amendement(s) tranché(s) sans scrutin relié.`);
   if (!aTraiter.length) return;
 
-  const scrutins = await fetchAll("scrutins", "id, objet, date_scrutin", q => q.eq("type", "AMENDEMENT").gte("date_scrutin", new Date(Date.now() - (JOURS + 30) * 864e5).toISOString()));
+  const scrutins = await fetchAll("scrutins", "id, objet, resultat, date_scrutin", q => q.eq("type", "AMENDEMENT").gte("date_scrutin", new Date(Date.now() - (JOURS + 30) * 864e5).toISOString()));
   const fiches = scrutins.map((s: any) => {
     const o = sansAccent(s.objet || "");
     const tete = o.split(COUPE)[0];
-    return { id: s.id, date: new Date(s.date_scrutin).getTime(), tete, nums: numeros(tete), objet: o };
+    return { id: s.id, date: new Date(s.date_scrutin).getTime(), tete, nums: numeros(tete), objet: o, adopte: /adopt/i.test(s.resultat || "") && !/pas adopt/i.test(s.resultat || "") };
   });
   console.log(`[Votes d'amendements] ${fiches.length} scrutin(s) public(s) d'amendement en regard.`);
 
@@ -47,9 +47,11 @@ async function main() {
     if (!/s[ée]ance/i.test(a.organe || "")) { maj.push({ uid: a.uid, scrutin_id: null, vote_mode: "commission" }); commission++; continue; }
     // « I-2121 » (budget : partie du texte) s'écrit « n° 2121 » dans l'objet du scrutin.
     const num = String(a.numero || "").toLowerCase().replace(/\s*\(.*$/, "").replace(/^(?:i{1,3}|iv)-/, "").trim();
-    const nom = sansAccent(String(a.auteur || "").replace(/^(m\.|mme|m)\s+/i, "")).split(/\s+/).pop() || "";
+    const nom = sansAccent(String(a.auteur || "").split(/ et |,/)[0].replace(/^(m\.|mme|m)\s+/i, "")).split(/\s+/).pop() || "";
+    // Mot entier : « End » est dans « amendement ». Le sort doit concorder avec le résultat du scrutin.
+    const dansTete = (t: string) => !nom || new RegExp(`(^|[^a-z])${nom.replace(/[^a-z0-9-]/g, "")}($|[^a-z])`).test(t);
     const quand = new Date(a.sort_le || a.vu_le).getTime();
-    let cands = fiches.filter(f => f.nums.has(num) && (!nom || f.tete.includes(nom)) && Math.abs(f.date - quand) < 20 * 864e5);
+    let cands = fiches.filter(f => f.nums.has(num) && dansTete(f.tete) && f.adopte === (a.sort === "Adopté") && Math.abs(f.date - quand) < 20 * 864e5);
     if (cands.length > 1) {
       const mots = motsTexte(a.texte_titre || "");
       const score = (f: typeof fiches[0]) => [...mots].filter(m => f.objet.includes(m)).length;
