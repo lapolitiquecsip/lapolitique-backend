@@ -48,6 +48,7 @@ async function main() {
     const url = `${SITE_URL}/premium/?app-loi=${encodeURIComponent(s.ref)}#decrets`;
     const delaLoi = mesures.filter(m => m.loi_jorf_id === s.ref);
     const objet = (m: any) => `${m.articles ? `${m.articles} : ` : ""}${court(m.objet || "mesure sans intitulé", 140)}`;
+    const fin = (t: string) => (t.endsWith("…") ? t : `${t}.`);
 
     const depuis = derniere.get(`${s.user_id}|${s.ref}`) || Date.parse(s.cree_le);
     const parus = delaLoi.filter(m => m.applique_vu_le && Date.parse(m.applique_vu_le) > depuis);
@@ -57,7 +58,7 @@ async function main() {
         user_id: s.user_id, type: "decrets", categorie: "decrets", importance: 4, event_at: dernier, url,
         dedup_key: `app|paru|${s.ref}|${dernier}`,
         title: court(`${parus.length > 1 ? `${parus.length} décrets parus` : "Décret paru"} : ${titre}`, 180),
-        detail: `${parus.slice(0, 3).map(objet).join(" · ")}${parus.length > 3 ? ` · et ${parus.length - 3} autre(s).` : "."}`,
+        detail: fin(`${parus.slice(0, 3).map(objet).join(" · ")}${parus.length > 3 ? ` · et ${parus.length - 3} autre(s)` : ""}`),
       });
     }
     const dateSuivi = String(s.cree_le).slice(0, 10);
@@ -67,8 +68,8 @@ async function main() {
       lignes.push({
         user_id: s.user_id, type: "decrets", categorie: "decrets", importance: 4, event_at: `${date}T12:00:00Z`, url,
         dedup_key: `app|retard|${s.ref}|${date}`,
-        title: court(`Échéance dépassée, ${manques.length > 1 ? `${manques.length} mesures` : "une mesure"} sans décret : ${titre}`, 180),
-        detail: `Prévue au plus tard le ${dateFr(date)}. ${manques.slice(0, 3).map(objet).join(" · ")}${manques.length > 3 ? ` · et ${manques.length - 3} autre(s).` : "."}`,
+        title: court(`Échéance dépassée, ${manques.length > 1 ? `${manques.length} mesures` : "une mesure"} sans décret recensé : ${titre}`, 180),
+        detail: fin(`Prévue au plus tard le ${dateFr(date)}. ${manques.slice(0, 3).map(objet).join(" · ")}${manques.length > 3 ? ` · et ${manques.length - 3} autre(s)` : ""}`),
       });
     }
   }
