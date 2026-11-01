@@ -43,7 +43,16 @@ async function main() {
 
   const amdts = await fetchAll("amendements_an", "uid, numero, texte_uid, texte_titre, division, organe, auteur, groupe, expose, vu_le",
     q => q.gt("vu_le", plusAncien).or(`texte_uid.in.(${[...new Set(suivis.filter((s: any) => s.kind === "amdt_texte").map((s: any) => s.ref))].join(",") || "aucun"}),groupe.in.(${[...new Set(suivis.filter((s: any) => s.kind === "amdt_groupe").map((s: any) => `"${s.ref}"`))].join(",") || "aucun"})`));
-  console.log(`[Alertes amendements] ${amdts.length} amendement(s) nouveau(x) sur les textes et groupes suivis.`);
+  // Sénat : mêmes suivis, le texte (signet du dossier) et le groupe n'y portent pas les mêmes noms qu'à l'Assemblée.
+  const refsTextes = [...new Set(suivis.filter((s: any) => s.kind === "amdt_texte").map((s: any) => s.ref))];
+  const refsGroupes = [...new Set(suivis.filter((s: any) => s.kind === "amdt_groupe").map((s: any) => String(s.ref)))];
+  const uidsSenat = new Set<string>();
+  for (const [col, refs] of [["texte_uid", refsTextes], ["groupe", refsGroupes]] as [string, string[]][]) {
+    if (!refs.length) continue;
+    const lus = await fetchAll("amendements_senat", "uid, numero, texte_uid, texte_titre, division, organe, auteur, groupe, expose, vu_le", q => q.gt("vu_le", plusAncien).in(col, refs));
+    for (const a of lus as any[]) if (!uidsSenat.has(a.uid)) { uidsSenat.add(a.uid); amdts.push(a); }
+  }
+  console.log(`[Alertes amendements] ${amdts.length} amendement(s) nouveau(x) sur les textes et groupes suivis, dont ${uidsSenat.size} au Sénat.`);
 
   const lignes: any[] = [];
   for (const s of suivis) {
@@ -65,7 +74,7 @@ async function main() {
       dedup_key: `amdt|${s.kind}|${s.ref}|${dernier}`,
       title: court(titre, 180),
       detail: `${exemples.join(" · ")}${n > 3 ? ` · et ${n - 3} autre${n - 3 > 1 ? "s" : ""}.` : "."}`,
-      url: `${SITE_URL}/premium/?${filtre}#amendements`,
+      url: `${SITE_URL}/premium/?${filtre}${uidsSenat.has(liste[0].uid) ? "&chambre=senat" : ""}#amendements`,
     });
   }
   console.log(`[Alertes amendements] ${lignes.length} alerte(s) à envoyer.`);

@@ -132,16 +132,30 @@ async function recapAmendementsElus(dIds: string[], sIds: string[], depuis: Date
 async function resultatsVotesAmendements(recul: Date): Promise<Info[]> {
   const scrutins = await fetchAll("scrutins", "id, numero, objet, resultat, date_scrutin, pour, contre, abstention, group_results, created_at",
     q => q.eq("type", "AMENDEMENT").gte("created_at", recul.toISOString()));
-  if (!scrutins.length) return [];
+  // Sénat : pas de date d'arrivée en base, on regarde quelques jours en arrière ; digest_items évite les doublons.
+  const auSenat = await fetchAll("legislative_scrutins", "id, official_id, title, result_label, voted_at, for_count, against_count, abstain_count, group_results, source_url",
+    q => q.eq("chamber", "SENAT").ilike("title", "%amendement%").not("group_results", "is", null).gte("voted_at", new Date(recul.getTime() - 3 * JOUR).toISOString()));
+  if (!scrutins.length && !auSenat.length) return [];
   const amdts = new Map<string, any>();
   const ids = scrutins.map((x: any) => x.id);
   for (let i = 0; i < ids.length; i += 200) {
     const { data } = await supabase.from("amendements_an").select("scrutin_id, numero, auteur, groupe, division, texte_titre, sort").in("scrutin_id", ids.slice(i, i + 200));
     for (const a of data || []) if (!amdts.has(a.scrutin_id)) amdts.set(a.scrutin_id, a);
   }
-  const lignes = (scrutins as any[]).map(x => {
+  const idsSenat = auSenat.map((x: any) => x.id);
+  for (let i = 0; i < idsSenat.length; i += 200) {
+    const { data } = await supabase.from("amendements_senat").select("scrutin_id, numero, auteur, groupe, division, texte_titre, sort").in("scrutin_id", idsSenat.slice(i, i + 200));
+    for (const a of data || []) if (!amdts.has(a.scrutin_id)) amdts.set(a.scrutin_id, a);
+  }
+  const communs = [
+    ...(scrutins as any[]).map(x => ({ ...x, chambre: "Assemblée" })),
+    ...(auSenat as any[]).map(x => ({ id: x.id, numero: Number(/(\d+)$/.exec(x.official_id || "")?.[1] || 0), objet: x.title, resultat: x.result_label, date_scrutin: x.voted_at,
+      pour: x.for_count, contre: x.against_count, abstention: x.abstain_count, group_results: x.group_results, source_url: x.source_url, chambre: "Sénat" })),
+  ];
+  const lignes = communs.map(x => {
     const a = amdts.get(x.id);
     const adopte = /adopt/i.test(x.resultat || "") && !/pas adopt/i.test(x.resultat || "");
+    const senat = x.chambre === "Sénat";
     const camps: Record<"pour" | "contre" | "abstention", string[]> = { pour: [], contre: [], abstention: [] };
     for (const g of [...(x.group_results || [])].sort((m: any, n: any) => (n.pour + n.contre + n.abstention) - (m.pour + m.contre + m.abstention))) {
       const cote = (["pour", "contre", "abstention"] as const).reduce((m, k) => ((g[k] || 0) > (g[m] || 0) ? k : m), "pour" as "pour" | "contre" | "abstention");
@@ -153,8 +167,8 @@ async function resultatsVotesAmendements(recul: Date): Promise<Info[]> {
       cle: `amdt-scrutin:${x.id}`, adopte,
       titre: a ? `Amendement ${a.numero} de ${a.auteur}${a.groupe ? ` (${a.groupe})` : ""}${a.division ? ` · ${a.division}` : ""}` : objetCourt(x.objet),
       resume: `${x.pour} pour · ${x.contre} contre · ${x.abstention || 0} abstention${(x.abstention || 0) > 1 ? "s" : ""}. ${repartition}`,
-      url: a ? `${SITE_URL}/premium/?amdt-scrutin=${x.id}#amendements` : `https://www.assemblee-nationale.fr/dyn/17/scrutins/${x.numero}`,
-      etiquette: adopte ? "Adopté" : "Rejeté",
+      url: a ? `${SITE_URL}/premium/?amdt-scrutin=${x.id}${senat ? "&chambre=senat" : ""}#amendements` : senat ? x.source_url : `https://www.assemblee-nationale.fr/dyn/17/scrutins/${x.numero}`,
+      etiquette: `${x.chambre} · ${adopte ? "Adopté" : "Rejeté"}`,
       meta: [a?.texte_titre ? court(a.texte_titre, 60) : null, fmtCourt(x.date_scrutin)].filter(Boolean).join(" · "),
     };
   });
@@ -412,7 +426,7 @@ async function main() {
         votesAmendements ??= await resultatsVotesAmendements(recul);
         items = neuf(votesAmendements);
         vide = "Aucun amendement voté en scrutin public sur cette période (les votes à main levée n'ont pas de décompte publié).";
-        note = "Pour chaque groupe, sa position majoritaire et son nombre de députés. Le vote de chaque député est sur le site.";
+        note = "Pour chaque groupe, sa position majoritaire et son nombre de députés. Le vote de chaque élu est sur le site.";
         // Une journée de budget compte des centaines de votes : au-delà du plafond, ils restent sur le site sans s'accumuler ici.
         items.slice(plafondVotes).forEach(i => aServir.add(i.cle));
       }

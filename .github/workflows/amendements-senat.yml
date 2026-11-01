@@ -1,0 +1,32 @@
+name: Amendements du Sénat (AMELI, Pro)
+# Base AMELI publiée chaque nuit vers 03:15 Paris ; scrutins du Sénat relevés par votes-sync (22:20 UTC).
+# Ordre : le vote de chaque groupe et le résultat officiel d'abord, le lien amendement ↔ scrutin s'en sert.
+on:
+  schedule:
+    - cron: '45 3 * * *'
+  workflow_dispatch:
+concurrency:
+  group: amendements-senat
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  amendements:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      SITE_URL: https://lapolitiquecestsimple.fr
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/data/sync-scrutins-senat-groupes.ts
+        continue-on-error: true
+      - run: npx tsx src/scripts/data/sync-amendements-senat.ts
+        env:
+          NODE_OPTIONS: --max-old-space-size=6000
+      - run: npx tsx src/scripts/automation/alertes-amendements.ts
+      - run: npm run automation:send-notification-emails -- --mode=immediat --categorie=amendements
