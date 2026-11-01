@@ -173,7 +173,12 @@ async function resultatsVotesAmendements(recul: Date): Promise<Info[]> {
     };
   });
   // Les adoptés d'abord : ce sont eux qui changent le texte.
-  return lignes.sort((m, n) => Number(n.adopte) - Number(m.adopte)).map(({ adopte: _, ...i }) => i);
+  // Une ligne de l'Assemblée, une du Sénat, tour à tour : sinon l'Assemblée, bien plus fournie, remplit seule le plafond.
+  const pile = (c: string) => lignes.filter(l => l.etiquette.startsWith(c)).sort((m, n) => Number(n.adopte) - Number(m.adopte));
+  const [an, sen] = [pile("Assemblée"), pile("Sénat")];
+  const melange: typeof lignes = [];
+  for (let i = 0; i < Math.max(an.length, sen.length); i++) { if (an[i]) melange.push(an[i]); if (sen[i]) melange.push(sen[i]); }
+  return melange.map(({ adopte: _, ...i }) => i);
 }
 
 /* ───────────────────────── Partie commune ───────────────────────── */
