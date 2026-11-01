@@ -1,0 +1,31 @@
+name: Application des lois (décrets, Pro)
+# Baromètre de l'Assemblée nationale, mis à jour vers 05:00 UTC : décrets parus, échéances,
+# puis alertes aux membres Pro qui suivent une loi.
+on:
+  schedule:
+    - cron: '35 6 * * *'
+  workflow_dispatch:
+concurrency:
+  group: application-lois
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  application:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      SITE_URL: https://lapolitiquecestsimple.fr
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/data/sync-application-lois.ts
+      # Le baromètre en retard fait échouer l'étape (alarme), mais les alertes restent valables.
+      - run: npx tsx src/scripts/automation/alertes-decrets.ts
+        if: ${{ !cancelled() }}
+      - run: npm run automation:send-notification-emails -- --mode=immediat --categorie=decrets
+        if: ${{ !cancelled() }}

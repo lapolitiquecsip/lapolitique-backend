@@ -69,6 +69,7 @@ const INTITULES: Record<string, [string, string, string]> = {
   suivis: ["⭐", "Ce que vous suivez", "#d97706"],
   lois: ["📜", "Lois et décrets de vos sujets", "#059669"],
   amendements: ["✍️", "Nouveaux amendements", "#7c3aed"],
+  decrets: ["📑", "Décrets d'application des lois suivies", "#059669"],
 };
 const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? "#e11d48" : p === "ABSTENTION" ? "#d97706" : "#64748b");
 
@@ -76,7 +77,7 @@ function html(prenom: string, alertes: any[]): string {
   const parCat = new Map<string, any[]>();
   for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
   const textes = (parCat.get("textes") || []).map(carteTexte).join("");
-  const blocs = (textes ? rubrique("📜", "Un texte vous concerne", "#7c3aed", textes) : "") + ["amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
+  const blocs = (textes ? rubrique("📜", "Un texte vous concerne", "#7c3aed", textes) : "") + ["decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
     const [emoji, intitule, couleur] = INTITULES[c];
     const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
       ? ligne({ titre: n.detail || n.title, url: n.url, resume: n.detail ? n.title : null, etiquette: `Vote : ${n.position}`, couleur: couleurVote(n.position) })
@@ -139,7 +140,7 @@ async function main() {
     const rythme = (n: any): string => {
       const c = categorieDe(n);
       // Amendements des textes et groupes suivis (Pro) : dès le relevé horaire, c'est leur raison d'être.
-      if (c === "textes" || c === "amendements") return "immediat";
+      if (c === "textes" || c === "amendements" || c === "decrets") return "immediat";
       if (pro) return c === "suivis" && (n.importance ?? 0) >= 5 ? "immediat" : "hebdo";
       return "quotidien";
     };
@@ -151,7 +152,7 @@ async function main() {
 
     const optIn = p ? p.notify_email !== false : abonne.get(id)?.preferences?.suivi_depute !== false;
     const seuil = p?.email_min_importance ?? 3;
-    const aEnvoyer = duMode.filter(a => (a.importance ?? 3) >= seuil || categorieDe(a) === "votes" || categorieDe(a) === "amendements");
+    const aEnvoyer = duMode.filter(a => (a.importance ?? 3) >= seuil || categorieDe(a) === "votes" || categorieDe(a) === "amendements" || categorieDe(a) === "decrets");
     const adresse = abonne.get(id)?.email || adresses.get(id);
     if (!optIn || !adresse || !aEnvoyer.length) { ignores++; continue; }
     const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");
