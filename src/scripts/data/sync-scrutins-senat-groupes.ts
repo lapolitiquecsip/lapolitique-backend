@@ -36,7 +36,7 @@ async function main() {
       const id = $(e).find(".accordion-header").attr("id") || "";
       if (!id.startsWith("accordion-scrutin-")) return;
       const code = id.replace("accordion-scrutin-", "");
-      const label = $(e).find("h3").clone().find("span").remove().end().text().replace(/\s+/g, " ").replace(/^Groupe\s+/i, "").replace(/\s*:\s*\d*\s*$/, "").trim();
+      const label = $(e).find("h3").clone().find("span").remove().end().text().replace(/\s+/g, " ").replace(/^Groupe\s+/i, "").replace(/\s*:\s*\d*\s*$/, "").replace(/^(?:du|de la|de l['’]|des)\s+/i, "").trim();
       // Quatre pastilles dans l'ordre pour, contre, abstention, n'ont pas pris part.
       const n = $(e).find("ul.list-inline li").map((_, li) => Number($(li).find("span.fw-semibold").text() || 0)).get();
       groupes.push({ group_id: code, group_label: label, pour: n[0] || 0, contre: n[1] || 0, abstention: n[2] || 0, non_votant: n[3] || 0 });
