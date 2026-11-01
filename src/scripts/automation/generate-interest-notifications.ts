@@ -9,8 +9,9 @@ import { quasiDoublon } from "../../lib/quasi-doublon.js";
 // À partir des NOUVEAUX contenus produits par les automatisations du site (flux `entity_feed`),
 // on rattache chaque info à un/des domaines (mots-clés) et on notifie uniquement les membres
 // concernés selon leur profil (`user_preferences`) :
-//   - contenu NATIONAL (ministère)  → match par CENTRE D'INTÉRÊT (interests ∩ domaines de l'info) ;
-//   - contenu LOCAL (commune/dept)  → match par LOCALISATION (département) ET centre d'intérêt.
+//   - contenu LOCAL (commune/dept)  → match par LOCALISATION ;
+//   - loi ou décret NATIONAL important → membres Premium, par CENTRE D'INTÉRÊT (voir alertesParSujet) ;
+//     le Pro a déjà « Un texte vous concerne », plus précis (alertes-textes.ts).
 // Idempotent : UNIQUE(user_id, dedup_key). Écrit dans `user_notifications` (colonnes domain/importance/url).
 //
 // Options : `--dry` = n'insère rien, journalise seulement. `--test` = ajoute un profil synthétique
@@ -33,6 +34,15 @@ const IMPORTANCE_BY_TYPE: Record<string, number> = {
   loi: 5, decision: 4, decret: 4, budget: 4, mesure: 4, projet: 3, actualite: 3, annonce: 3,
   lancement: 3, equipement: 3, bilan: 3, travaux: 2, evenement: 2, conseil_municipal: 2, nomination: 2,
 };
+// Le Journal officiel publie surtout des actes qui ne concernent qu'une personne ou un corps. Ils
+// n'intéressent pas un citoyen, et les mots-clés s'y trompent : « inspection générale des FINANCES ».
+const ACTE_INDIVIDUEL = /^(?:r[ée]int[ée]gration|admission|radiation|nomination|promotion|(?:renouvellement de )?d[ée]tachement|naturalisation|titularisation|d[ée]l[ée]gation|cessation|mise [àa] disposition|maintien|affectation|inscription|tableau d'avancement|habilitation|agr[ée]ment|changement de nom|fin de fonctions|composition|francisation|rapportant|modificatif de d[ée]crets portant naturalisation|repr[ée]sentation|publication d(?:e|es)\b|le d[ée]cret portant reconnaissance)\b|\s-\s(?:M\.|Mme|MM\.|Mmes)\s|\(acc[èe]s prot[ée]g[ée]\)/i;
+// « Sécurité sociale » n'est pas le sujet « sécurité » : le mot-clé le classerait à tort.
+const sansFauxAmi = (titre: string) => titre.replace(/s[ée]curit[ée] sociale/gi, "protection sociale");
+export const acteIndividuel = (titre: string) => ACTE_INDIVIDUEL.test((titre || "").trim());
+// Trois par jour au plus : ces alertes avaient été retirées parce qu'elles inondaient le fil.
+const SUJETS_PAR_JOUR = Number(process.env.INTEREST_NOTIF_SUJETS_PAR_JOUR || 3);
+
 export const importanceOf = (newsType: string | null) => IMPORTANCE_BY_TYPE[String(newsType || "").toLowerCase()] ?? 3;
 
 // Intérêts IMPLICITES déduits de la profession et de l'âge : un retraité est concerné par les
@@ -113,6 +123,8 @@ interface Item {
   place?: string | null;
   // Article d'un fil de département ou de région qui ne concerne qu'UNE commune.
   singleCommune?: boolean;
+  // Loi ou décret national : seule matière des alertes par sujet (ni partis, ni candidats, ni commissions).
+  national?: boolean;
 }
 
 // Nom lisible d'un territoire : la carte d'alerte doit dire OÙ, sans quoi « la
@@ -169,7 +181,7 @@ async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
         deptCode: (it.entity_type === "commune" || it.entity_type === "department") ? itemDeptCode(it.entity_type, it.entity_id) : null,
         communeCode: it.entity_type === "commune" ? String(it.entity_id) : null,
         regionCode: it.entity_type === "region" ? String(it.entity_id) : null,
-        importance: importanceOf(it.news_type), type: isLocal ? "local" : "info",
+        importance: importanceOf(it.news_type), type: isLocal ? "local" : "info", national: it.entity_type === "ministry",
         // Une commune nommée par l'article passe devant le nom du fil ; une commune
         // qu'il ne nomme pas n'a pas de lieu affichable (et ne sera pas envoyée).
         place: isLocal ? (singleCommune ? it.place || null : it.place || noms.get(`${it.entity_type}:${it.entity_id}`) || null) : null,
@@ -189,6 +201,13 @@ async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
     }
     console.log(`  · laws : ${laws.length}`);
   } catch (e: any) { console.warn("  ! laws:", e.message); }
+
+  // b bis) lois promulguées : `laws` compte aussi les propositions tout juste déposées.
+  try {
+    const promulguees = await fetchAll("promulgated_laws", "title, eli_url, source_url, promulgated_at", q => q.gte("promulgated_at", sinceDate));
+    for (const x of promulguees) out.push({ title: x.title, summary: null, url: x.eli_url || x.source_url, date: x.promulgated_at, scope: "thematic", importance: 5, type: "loi", national: true });
+    console.log(`  · promulgated_laws : ${promulguees.length}`);
+  } catch (e: any) { console.warn("  ! promulgated_laws:", e.message); }
 
   // c) décisions UE ↔ France.
   try {
@@ -212,6 +231,50 @@ async function collectItems(since: string, sinceDate: string): Promise<Item[]> {
   } catch (e: any) { console.warn("  ! commission_reports:", e.message); }
 
   return out;
+}
+
+/**
+ * Alertes par sujet des membres Premium (01/11/2026) : les lois et décrets nationaux importants qui
+ * touchent leurs sujets, cochés ou impliqués par leur situation et leur âge. Sans actes individuels,
+ * les plus importants d'abord, trois par jour au plus. dedup_key garantit qu'un texte ne part qu'une fois.
+ */
+async function alertesParSujet(users: any[], items: Item[], now: string): Promise<any[]> {
+  const premiums = new Set((await fetchAll("profiles", "id", q => q.eq("subscription_tier", "elite"))).map((p: any) => p.id));
+  if (TEST) premiums.add("00000000-0000-0000-0000-000000000000");
+  const cibles = users.filter(u => premiums.has(u.user_id) && u.interests.length);
+  if (!cibles.length) return [];
+
+  const textes = items.filter(it => it.national && it.scope === "thematic" && (it.importance ?? 0) >= 4 && !acteIndividuel(it.title))
+    .map(it => ({ it, domaines: matchDomains(sansFauxAmi(it.title || "")) }))
+    // Dans le titre seulement : un résumé cite vite une « commune » ou un « budget » en passant.
+    .filter(x => x.domaines.length)
+    .sort((a, b) => (b.it.importance ?? 0) - (a.it.importance ?? 0) || String(b.it.date).localeCompare(String(a.it.date)));
+  console.log(`> Alertes par sujet : ${textes.length} texte(s) national(aux) pour ${cibles.length} membre(s) Premium.`);
+
+  const depuis = new Date(Date.now() - 86400000).toISOString();
+  const vus = await fetchAll("user_notifications", "user_id, dedup_key, created_at",
+    q => q.like("dedup_key", "sujet|%").in("user_id", cibles.map(u => u.user_id).filter(id => !id.startsWith("00000000"))));
+  const deja = new Set(vus.map((v: any) => `${v.user_id}|${v.dedup_key}`));
+  const duJour = new Map<string, number>();
+  for (const v of vus) if (v.created_at >= depuis) duJour.set(v.user_id, (duJour.get(v.user_id) || 0) + 1);
+
+  const lignes: any[] = [];
+  for (const u of cibles) {
+    let reste = SUJETS_PAR_JOUR - (duJour.get(u.user_id) || 0);
+    for (const { it, domaines } of textes) {
+      if (reste <= 0) break;
+      const commun = domaines.find(d => u.interests.includes(d));
+      if (!commun) continue;
+      const dedup = `sujet|${crypto.createHash("md5").update(String(it.url || it.title)).digest("hex").slice(0, 16)}`;
+      if (deja.has(`${u.user_id}|${dedup}`)) continue;
+      reste--;
+      lignes.push({
+        user_id: u.user_id, type: "loi", title: String(it.title || "").slice(0, 300), detail: it.summary ? String(it.summary).slice(0, 300) : null,
+        domain: commun, importance: it.importance, url: it.url || null, categorie: "lois", event_at: it.date || null, created_at: now, read: false, dedup_key: dedup,
+      });
+    }
+  }
+  return lignes;
 }
 
 export async function generateInterestNotifications() {
@@ -240,6 +303,7 @@ export async function generateInterestNotifications() {
   const now = new Date().toISOString();
   const perUser = new Map<string, number>();
   const rows: any[] = [];
+  rows.push(...await alertesParSujet(users, items, now));
 
   // Titres des alertes locales déjà reçues (30 jours), par membre : un même fait
   // repris par deux journaux arrivait deux fois (« Lancement d'un chantier décennal
@@ -254,10 +318,9 @@ export async function generateInterestNotifications() {
   }
 
   for (const it of items) {
-    // MES ALERTES = GÉO UNIQUEMENT. Le membre veut seulement ce qui concerne SA localité :
-    // sa ville (exactement) et son département (une actu qui concerne tout le département).
-    // On retire donc TOUT le national/thématique par centre d'intérêt (ministères, lois nationales,
-    // candidats, UE…) qui inondait le feed, ET les actus d'AUTRES communes de son département.
+    // Actualité : seulement ce qui concerne SA localité, sa ville (exactement) et son département
+    // (une actu qui concerne tout le département), jamais les AUTRES communes de son département.
+    // Le national passe par alertesParSujet, filtré : sans filtre, il inondait le fil.
     if (it.scope !== "local") continue;
     const domains = matchDomains(`${it.title || ""} ${it.summary || ""}`);
     const dedup = `feed|${crypto.createHash("md5").update(String(it.url || it.title)).digest("hex").slice(0, 16)}`;

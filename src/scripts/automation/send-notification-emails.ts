@@ -67,7 +67,7 @@ const INTITULES: Record<string, [string, string, string]> = {
   votes: ["🗳️", "Vos élus ont voté", "#4f46e5"],
   local: ["📍", "Près de chez vous", "#e11d48"],
   suivis: ["⭐", "Ce que vous suivez", "#d97706"],
-  lois: ["📜", "Lois", "#059669"],
+  lois: ["📜", "Lois et décrets de vos sujets", "#059669"],
   amendements: ["✍️", "Nouveaux amendements", "#7c3aed"],
 };
 const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? "#e11d48" : p === "ABSTENTION" ? "#d97706" : "#64748b");
