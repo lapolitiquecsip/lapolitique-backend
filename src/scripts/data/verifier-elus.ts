@@ -53,7 +53,8 @@ async function appliquer(kind: Fonction["elu_kind"], neuves: Fonction[]): Promis
     for (const f of retraits) if ((f as any).important) journal.push(ligne(f, "retrait", (f as any).libelle, null));
   }
   if (!SEC) {
-    const aEcrire = [...ajouts, ...modifs, ...[...uniques.values()].filter(f => { const a: any = parCle.get(cleDe(f)); return a && a.important !== f.important; })];
+    // Une ligne peut être à la fois modifiée et changer d'importance : elle ne s'écrit qu'une fois.
+    const aEcrire = [...new Map([...ajouts, ...modifs, ...[...uniques.values()].filter(f => { const a: any = parCle.get(cleDe(f)); return a && a.important !== f.important; })].map(f => [cleDe(f), f])).values()];
     for (let i = 0; i < aEcrire.length; i += 500) {
       const { error } = await supabase.from("elus_fonctions").upsert(aEcrire.slice(i, i + 500).map(f => ({ ...f, maj_le: new Date().toISOString() })), { onConflict: "elu_kind,elu_slug,categorie,cle" });
       if (error) throw error;

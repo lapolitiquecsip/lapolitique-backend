@@ -86,7 +86,8 @@ export async function fonctionsSenateurs(senateurs: { slug: string; senate_matri
   }
   for (const r of locaux) {
     const mat = col(r, "Matricule"); if (!fiches.has(mat) || !/^oui$/i.test(col(r, "Mandat en cours"))) continue;
-    const q = col(r, "Fonction"), org = `${col(r, "Article organisme")}${col(r, "Organisme")}`.trim();
+    const article = col(r, "Article organisme");   // « du », « de l' » : l'espace du fichier a été retirée à la lecture
+    const q = col(r, "Fonction"), org = `${article}${article && !article.endsWith("'") ? " " : ""}${col(r, "Organisme")}`.trim();
     ajouter(mat, { categorie: "mandat_local", cle: col(r, "Identifiant mandat"), libelle: `${q} ${org}`.trim(), qualite: q, organe: org, depuis: null, important: /^(maire|pr[ée]sident)/i.test(q) });
   }
   for (const r of groupes) {
@@ -158,7 +159,12 @@ export async function fonctionsDeputes(deputes: { slug: string; an_id: string | 
 
 // ── Parlement européen ─────────────────────────────────────────────────────────────────────────
 const EP = "https://data.europarl.europa.eu/api/v2";
-const ROLES_EP: Record<string, string> = { CHAIR: "Président", VICE_CHAIR: "Vice-président", PRESIDENT: "Président", VICE_PRESIDENT: "Vice-président", QUAESTOR: "Questeur", MEMBER: "Membre", SUBSTITUTE: "Suppléant", TREASURER: "Trésorier", MEMBER_BUREAU: "Membre du bureau", CO_CHAIR: "Coprésident" };
+const ROLES_EP: Record<string, string> = {
+  CHAIR: "Président", VICE_CHAIR: "Vice-président", CHAIR_CO: "Coprésident", CO_CHAIR: "Coprésident", PRESIDENT: "Président", VICE_PRESIDENT: "Vice-président", QUAESTOR: "Questeur",
+  MEMBER: "Membre", SUBSTITUTE: "Suppléant", MEMBER_SUBSTITUTE: "Suppléant", TREASURER: "Trésorier", MEMBER_BUREAU: "Membre du bureau",
+  PRESIDENT_VICE: "Vice-président", CHAIR_VICE: "Vice-président", VICE_CHAIR_FIRST: "Premier vice-président", CHAIR_VICE_FIRST: "Premier vice-président", TREASURER_CO: "Cotrésorier", MEMBER_BUREAU_GROUP: "Membre du bureau",
+};
+const COPRESIDENT: [RegExp, string][] = [[/^Copr[ée]sident$/i, "Coprésidente"], [/^Suppl[ée]ant$/i, "Suppléante"], [/^Tr[ée]sorier$/i, "Trésorière"]];
 const epJson = async (chemin: string) => JSON.parse((await telecharger(`${EP}/${chemin}${chemin.includes("?") ? "&" : "?"}format=application%2Fld%2Bjson`, { essais: 3, delaiMs: 45_000 })).toString("utf8"));
 
 export async function fonctionsEurodeputes(meps: { id: string; slug: string; full_name: string | null; country: string | null }[]): Promise<Fonction[]> {
@@ -194,7 +200,10 @@ export async function fonctionsEurodeputes(meps: { id: string; slug: string; ful
       const genre = String(a.membershipClassification ?? "").split("/").pop() ?? "";
       const role = String(a.role ?? "").split("/").pop() ?? "";
       const org = String(a.organization ?? "");
-      const q = qualiteAccordee(ROLES_EP[role] ?? role, femme);
+      if (role === "MEMBER_PARLIAMENT") continue;   // doublon de la ligne « membre » du Parlement
+      if (!ROLES_EP[role]) { console.log(`::warning::Parlement européen : rôle inconnu ${role} (${genre}), ligne écartée.`); continue; }
+      const accord = femme ? COPRESIDENT.find(([re]) => re.test(ROLES_EP[role]))?.[1] : null;
+      const q = accord ?? qualiteAccordee(ROLES_EP[role], femme);
       const depuis = jour(a.memberDuring?.startDate);
       if (genre === "EU_INSTITUTION") {
         if (role === "MEMBER") sortie.push({ ...base, categorie: "mandat", cle: "eurodepute", libelle: femme ? "Députée européenne" : "Député européen", qualite: null, organe: "Parlement européen", depuis, important: true });
