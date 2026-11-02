@@ -24,7 +24,7 @@ const PAR_JOUR = Number(process.env.PUBLICATIONS_PAR_JOUR ?? 1);
 const BASE = process.env.NOTION_PUBLICATIONS_ID ?? "2a521d9901334926805216c885ac0499";
 const BUCKET = "publications";
 const EXCLUS = new Set(["controverse", "suivi", "debat"]);
-const PALETTE_TYPE: Record<string, "cobalt" | "rose" | "vert"> = { indicateur: "cobalt", loi: "vert", texte: "vert", programme: "rose", candidat: "rose", fil: "cobalt", petition: "rose", sondage: "cobalt" };
+const PALETTE_TYPE: Record<string, "cobalt" | "rose" | "vert"> = { vote: "vert", decret: "vert", groupes: "cobalt", annonce: "cobalt", elu: "cobalt", commission: "cobalt", europe: "cobalt", indicateur: "cobalt", loi: "vert", texte: "vert", programme: "rose", candidat: "rose", fil: "cobalt", petition: "rose", sondage: "cobalt" };
 
 const reference = (cle: string) => `ref:${createHash("md5").update(cle).digest("hex").slice(0, 16)}`;
 
