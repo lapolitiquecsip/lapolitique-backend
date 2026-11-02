@@ -471,7 +471,7 @@ async function main() {
       titre: quotidien ? "Votre journée <span style=\"color:#fbbf24\">politique</span>" : "Votre semaine <span style=\"color:#fbbf24\">politique</span>",
       sousTitre: `${prenom.get(id) ? `Bonjour ${esc(prenom.get(id))} — ` : ""}les rubriques que vous avez choisies${quotidien ? ", depuis hier 19 h" : ", sur les sept derniers jours"}.`,
       corps: blocs.join("") + bouton("Ouvrir mon espace Pro", `${SITE_URL}/premium`, "#b45309"),
-      pied: `${enr.size ? "Les analyses sous chaque titre sont rédigées par une IA (Claude) à partir des textes officiels, des votes et des comptes rendus : vérifiez la source avant de citer.<br><br>" : ""}Vous recevez cet e-mail car vous êtes membre Pro et l'avez demandé ${quotidien ? "chaque jour" : "chaque semaine"}.<br>
+      pied: `${enr.size ? "Les analyses sous chaque titre sont rédigées par une IA à partir des textes officiels, des votes et des comptes rendus : vérifiez la source avant de citer.<br><br>" : ""}Vous recevez cet e-mail car vous êtes membre Pro et l'avez demandé ${quotidien ? "chaque jour" : "chaque semaine"}.<br>
         <a href="${SITE_URL}/premium#preferences" style="color:#64748b">Choisir mes rubriques</a> · <a href="${esc(desabo("tout"))}" style="color:#64748b">Ne plus rien recevoir de ces e-mails</a>`,
     });
     if (APERCU) { const fs = await import("node:fs"); fs.writeFileSync(APERCU, html); console.log(`[Digest] Aperçu écrit : ${APERCU} (${total} ligne(s)).`); return; }

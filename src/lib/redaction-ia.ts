@@ -93,7 +93,7 @@ export async function verifierJSON(poste: Poste, { json, sources, schema, detail
     const propre = lireJSON((v.content as any[]).filter(b => b.type === "text").map(b => b.text).join(""));
     return propre ? { json: conformer(schema, propre), verifie: true, usd } : { json, verifie: false, usd };
   } catch (e: any) {
-    console.log(`[Vérification] indisponible (${e?.status || ""} ${String(e?.message || e).slice(0, 120)}) : texte gardé, non vérifié.`);
+    console.log(`::warning::[Vérification] indisponible (${e?.status || ""} ${String(e?.message || e).slice(0, 120)}) : texte gardé, non vérifié.`);
     return { json, verifie: false, usd: 0 };
   }
 }
