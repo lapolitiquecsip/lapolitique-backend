@@ -5,6 +5,13 @@ on:
   schedule:
     - cron: '35 6 * * *'
   workflow_dispatch:
+  # Relance dès que le relevé ou les alertes changent : la planification GitHub a parfois plusieurs heures de retard.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/application-lois.yml
+      - src/scripts/data/sync-application-lois.ts
+      - src/scripts/automation/alertes-decrets.ts
 concurrency:
   group: application-lois
   cancel-in-progress: false

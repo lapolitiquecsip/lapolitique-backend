@@ -10,8 +10,9 @@ import { fetchAll } from "../automation/generate-interest-notifications.js";
  * l'échéancier de Légifrance), licence ouverte. Deux fichiers : une ligne par loi, une par mesure.
  *
  * Le baromètre ne date pas la parution d'un décret : applique_vu_le est le jour où on le voit paru.
- * L'échéance vient du texte de l'observation (« Publication envisagée en mars 2027 » → fin mars),
- * sinon de la colonne « Date prévue ». Une publication « éventuelle » n'est jamais comptée en retard.
+ * L'échéance est la date de publication annoncée par l'observation (« Publication envisagée en mars
+ * 2027 » → fin mars), sinon la colonne « Date prévue », qui est celle de l'entrée en vigueur.
+ * Une publication « éventuelle » n'est jamais comptée en retard.
  *
  * Échoue si le format change ou si le fichier est anormalement court : mieux vaut une alarme qu'une
  * base vidée. Prévient aussi si le fichier cesse d'avancer alors que de nouvelles lois paraissent.
@@ -42,6 +43,7 @@ function dateCourte(t: string): string | null {
   return iso(a, Number(m[2]), Number(m[1]));
 }
 
+const RANGS: Record<string, number> = { premier: 1, deuxieme: 2, second: 2, troisieme: 3, quatrieme: 4 };
 const NOMS_MOIS = "janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre";
 const FORMES: [RegExp, (m: RegExpExecArray) => string | null][] = [
   [/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/, m => iso(Number(m[3]), Number(m[2]), Number(m[1]))],
@@ -49,21 +51,42 @@ const FORMES: [RegExp, (m: RegExpExecArray) => string | null][] = [
   [new RegExp(`\\b(${NOMS_MOIS})\\s+(\\d{4})\\b`), m => finDeMois(Number(m[2]), MOIS[m[1]])],
   [/\b([1-4])(?:er|e|eme|nd)?\s+trimestre\s+(\d{4})\b/, m => finDeMois(Number(m[2]), Number(m[1]) * 3)],
   [/\b([12])(?:er|e|eme|nd)?\s+semestre\s+(\d{4})\b/, m => finDeMois(Number(m[2]), Number(m[1]) * 6)],
+  [/\b(premier|deuxieme|second|troisieme|quatrieme)\s+trimestre\s+(\d{4})\b/, m => finDeMois(Number(m[2]), RANGS[m[1]] * 3)],
+  [/\b(premier|deuxieme|second)\s+semestre\s+(\d{4})\b/, m => finDeMois(Number(m[2]), RANGS[m[1]] * 6)],
+];
+/** Une année seule ne vaut date qu'à la suite de « publication » : ailleurs, ce peut être n'importe quoi. */
+const FORMES_ANNEE: [RegExp, (m: RegExpExecArray) => string | null][] = [
+  [/\b(?:fin(?:\s+de\s+l'annee)?|en|courant)\s+(20\d{2})\b/, m => finDeMois(Number(m[1]), 12)],
+  [/\bdebut\s+(20\d{2})\b/, m => finDeMois(Number(m[1]), 3)],
+  [/\bprintemps\s+(20\d{2})\b/, m => finDeMois(Number(m[1]), 6)],
+  [/\bete\s+(20\d{2})\b/, m => finDeMois(Number(m[1]), 9)],
+  [/\bautomne\s+(20\d{2})\b/, m => finDeMois(Number(m[1]), 12)],
 ];
 
-/**
- * L'échéance annoncée par une observation : « Publication envisagée en mars 2027 », « au 2ème trimestre
- * 2027 », « le 12/03/2027 »… La première date citée : la suivante est souvent une entrée en vigueur.
- * Une observation qui cite un texte (« Arrêté du 20 octobre 2026 ») n'annonce rien : le texte existe déjà.
- */
-export function echeanceDe(observation: string): string | null {
-  const t = sansAccent(observation).trim();
+/** La première date citée dans un bout de texte. */
+function premiereDate(t: string, formes: typeof FORMES): string | null {
   let meilleure: { position: number; date: string | null } | null = null;
-  for (const [forme, lire] of FORMES) {
+  for (const [forme, lire] of formes) {
     const m = forme.exec(t);
     if (m && (!meilleure || m.index < meilleure.position)) meilleure = { position: m.index, date: lire(m) };
   }
   return meilleure?.date ?? null;
+}
+
+/**
+ * L'échéance annoncée par une observation. La date de la phrase « Publication envisagée… » prime :
+ * « Entrée en vigueur différée au 1er septembre 2026. Publication envisagée en novembre 2026 » attend
+ * novembre, et non septembre. Faute de quoi, la première date citée (une entrée en vigueur, le plus souvent).
+ * Une observation qui cite un texte (« Arrêté du 20 octobre 2026 ») n'annonce rien : le texte existe déjà.
+ */
+export function echeanceDe(observation: string): string | null {
+  const t = sansAccent(observation).trim();
+  const phrases = t.match(/publication[^.;]*/g) || [];
+  for (const phrase of [...phrases.filter(p => p.includes("envisag")), ...phrases]) {
+    const date = premiereDate(phrase, [...FORMES, ...FORMES_ANNEE]);
+    if (date) return date;
+  }
+  return premiereDate(t, FORMES);
 }
 
 const citeUnTexte = (observation: string) => /^(arrete|decret|ordonnance|circulaire)\b/.test(sansAccent(observation).trim());
@@ -71,9 +94,11 @@ const citeUnTexte = (observation: string) => /^(arrete|decret|ordonnance|circula
 async function lire(nom: string): Promise<Record<string, string>[]> {
   let texte: string | null = null;
   for (const url of [`${SOURCE}/${nom}.csv`, SECOURS[nom]]) {
+    // Le délai couvre aussi la lecture du corps : un serveur qui s'arrête en route passe au secours.
     const r = await fetch(url, { signal: AbortSignal.timeout(180_000) }).catch(() => null);
-    if (r?.ok) { texte = await r.text(); break; }
-    console.log(`::warning::${url} : HTTP ${r?.status ?? "réseau"}`);
+    texte = r?.ok ? await r.text().catch(() => null) : null;
+    if (texte) break;
+    console.log(`::warning::${url} : ${r?.ok ? "lecture interrompue" : `HTTP ${r?.status ?? "réseau"}`}`);
   }
   if (!texte) throw new Error(`${nom} : source injoignable`);
   return parse(texte, { columns: h => h.map((c: string) => sansAccent(c).trim()), delimiter: ";", bom: true, relax_quotes: true, relax_column_count: true, skip_empty_lines: true });
@@ -176,4 +201,6 @@ async function main() {
   console.log(`[Application] Terminé${retirees ? `, ${retirees} mesure(s) retirée(s)` : ""}.`);
 }
 
-main().catch(e => { console.error(e); process.exitCode = 1; });
+if (process.argv[1] && process.argv[1].endsWith("sync-application-lois.ts")) {
+  main().catch(e => { console.error(e); process.exitCode = 1; });
+}

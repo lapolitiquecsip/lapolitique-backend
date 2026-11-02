@@ -5,7 +5,7 @@ import { fetchAll } from "./generate-interest-notifications.js";
 /**
  * Alertes sur les décrets d'application, pour les membres Pro qui suivent une loi
  * (user_suivis, kind « app_loi », ref = jorf_id). Après chaque relevé du baromètre :
- *   - un décret est paru : la mesure est passée de « en attente » à « appliqué » depuis la dernière alerte ;
+ *   - un texte d'application est paru (décret ou arrêté) : la mesure est passée de « en attente » à « appliqué » depuis la dernière alerte ;
  *   - une échéance vient de passer sans décret, dans les 7 derniers jours (jamais tout l'historique de la
  *     loi à qui vient de la suivre). Les publications « éventuelles » n'ont pas d'échéance à manquer.
  * Une alerte par loi et par nature. Idempotent : UNIQUE (user_id, dedup_key).
@@ -57,7 +57,7 @@ async function main() {
       lignes.push({
         user_id: s.user_id, type: "decrets", categorie: "decrets", importance: 4, event_at: dernier, url,
         dedup_key: `app|paru|${s.ref}|${dernier}`,
-        title: court(`${parus.length > 1 ? `${parus.length} décrets parus` : "Décret paru"} : ${titre}`, 180),
+        title: court(`${parus.length > 1 ? `${parus.length} textes d'application parus` : "Texte d'application paru"} : ${titre}`, 180),
         detail: fin(`${parus.slice(0, 3).map(objet).join(" · ")}${parus.length > 3 ? ` · et ${parus.length - 3} autre(s)` : ""}`),
       });
     }
@@ -68,7 +68,7 @@ async function main() {
       lignes.push({
         user_id: s.user_id, type: "decrets", categorie: "decrets", importance: 4, event_at: `${date}T12:00:00Z`, url,
         dedup_key: `app|retard|${s.ref}|${date}`,
-        title: court(`Échéance dépassée, ${manques.length > 1 ? `${manques.length} mesures` : "une mesure"} sans décret recensé : ${titre}`, 180),
+        title: court(`Échéance dépassée, ${manques.length > 1 ? `${manques.length} mesures` : "une mesure"} sans texte recensé : ${titre}`, 180),
         detail: fin(`Prévue au plus tard le ${dateFr(date)}. ${manques.slice(0, 3).map(objet).join(" · ")}${manques.length > 3 ? ` · et ${manques.length - 3} autre(s)` : ""}`),
       });
     }
