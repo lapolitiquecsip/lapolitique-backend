@@ -1,0 +1,33 @@
+name: Revue hebdomadaire des élus (sources officielles)
+# Sénat, Assemblée nationale, Parlement européen, répertoire des maires : fonctions à jour, journal
+# des changements, biographies démenties corrigées. Gratuit et sans IA. Le lundi, après les relevés du week-end.
+on:
+  schedule:
+    - cron: '50 7 * * 1'
+  workflow_dispatch:
+  # Relance dès que la revue change : la planification GitHub a parfois plusieurs heures de retard.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verifier-elus.yml
+      - src/scripts/data/verifier-elus.ts
+      - src/lib/fonctions-officielles.ts
+      - src/lib/verif-bio.ts
+concurrency:
+  group: verifier-elus
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  revue:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/data/verifier-elus.ts
