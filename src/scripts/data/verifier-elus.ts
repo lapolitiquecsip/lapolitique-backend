@@ -17,8 +17,10 @@ import { envoyerMail, esc } from "../../lib/mail.js";
  *   --sec        n'écrit rien, affiche tout
  *   --initial    premier passage : pose la photographie sans remplir le journal de 10 000 « nouveautés »
  *   --sans-bios  ne touche pas aux biographies
+ *   --seulement=eurodepute  une seule catégorie
  */
 const SEC = process.argv.includes("--sec"), INITIAL = process.argv.includes("--initial"), SANS_BIOS = process.argv.includes("--sans-bios");
+const SEULE = process.argv.find(a => a.startsWith("--seulement="))?.split("=")[1];   // une seule catégorie
 const RETRAIT_MAX = 0.6;   // au-delà, on croit plus à une source abîmée qu'à un renouvellement : rien n'est appliqué
 
 const cleDe = (f: { elu_kind: string; elu_slug: string; categorie: string; cle: string }) => `${f.elu_kind}|${f.elu_slug}|${f.categorie}|${f.cle}`;
@@ -43,7 +45,8 @@ async function appliquer(kind: Fonction["elu_kind"], neuves: Fonction[]): Promis
     throw new Error(`${kind} : ${retraits.length} retraits sur ${avant.length}, photographie refusée`);
   }
   const journal: any[] = [];
-  if (!INITIAL) {
+  // Une catégorie encore vide n'a pas de « semaine précédente » : c'est sa photographie de départ, pas 34 000 nouveautés.
+  if (!INITIAL && avant.length > 0) {
     const ligne = (f: any, nature: string, a: string | null, b: string | null) => ({ elu_kind: kind, elu_slug: f.elu_slug, nom: f.nom, nature, categorie: f.categorie, avant: a, apres: b, source_url: f.source_url });
     for (const f of ajouts) if (f.important) journal.push(ligne(f, "ajout", null, f.libelle));
     for (const f of modifs) if (f.important) journal.push(ligne(f, "modification", (parCle.get(cleDe(f)) as any).libelle, f.libelle));
@@ -129,6 +132,7 @@ async function main() {
     { kind: "eurodepute", table: "meps", filtre: q => q.eq("country", "France"), lire: async () => fonctionsEurodeputes(await fetchAll("meps", "id, slug, full_name, country", q => q)) },
   ];
   for (const e of etapes) {
+    if (SEULE && SEULE !== e.kind) continue;
     try {
       const fonctions = await e.lire();
       console.log(`[${e.kind}] ${fonctions.length} fonctions officielles lues.`);
@@ -147,7 +151,7 @@ async function main() {
     }
   }
   // Maires : le répertoire national est déjà en base (sync-rne) ; on en note seulement les changements.
-  try {
+  if (!SEULE || SEULE === "maire") try {
     const maires = await fetchAll("mayors", "insee_code, slug, full_name, commune_name", q => q);
     if (maires.length < 30000) throw new Error(`${maires.length} maires seulement`);
     const lignes: Fonction[] = (maires as any[]).filter(m => m.slug).map(m => ({
