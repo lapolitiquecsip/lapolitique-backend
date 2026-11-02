@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { fetchAll } from "../automation/generate-interest-notifications.js";
-import { fonctionsDeputes, fonctionsEurodeputes, fonctionsSenateurs, type Fonction } from "../../lib/fonctions-officielles.js";
+import { anomalies, fonctionsDeputes, fonctionsEurodeputes, fonctionsSenateurs, type Fonction } from "../../lib/fonctions-officielles.js";
 import { corrigerBio } from "../../lib/verif-bio.js";
 import { envoyerMail, esc } from "../../lib/mail.js";
 
@@ -107,7 +107,7 @@ async function verifierBios(table: string, kind: Fonction["elu_kind"], fonctions
 const PHRASE: Record<string, string> = { ajout: "Nouveau", retrait: "Fin", modification: "Changement", bio_corrigee: "Bio corrigée" };
 
 async function prevenirAdministrateurs(bilans: Bilan[], journal: any[], aRevoir: string[], erreurs: string[]) {
-  if (SEC || (!journal.length && !aRevoir.length && !erreurs.length)) return;
+  if (SEC || (!journal.length && !aRevoir.length && !erreurs.length && !anomalies.length)) return;
   const { data: admins } = await supabase.from("administrateurs").select("user_id");
   const lignes = journal.filter(j => j.nature !== "bio_corrigee").slice(0, 80)
     .map(j => `<li><strong>${esc(j.nom)}</strong> — ${PHRASE[j.nature]} : ${esc(j.apres ?? j.avant)}${j.nature === "modification" ? ` <span style="color:#64748b">(avant : ${esc(j.avant)})</span>` : ""}</li>`).join("");
@@ -118,6 +118,7 @@ ${erreurs.length ? `<p style="color:#b91c1c"><strong>Sources en échec, rien n'a
 <p>${bilans.map(b => `${esc(b.kind)} : ${b.nb} fonctions`).join(" · ")}</p>
 ${lignes ? `<h3>Changements</h3><ul>${lignes}</ul>` : ""}
 ${bios ? `<h3>Biographies corrigées</h3><ul>${bios}</ul>` : ""}
+${anomalies.length ? `<h3>Fiches à créer ou à retirer</h3><ul>${anomalies.slice(0, 40).map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
 ${aRevoir.length ? `<h3>À revoir à la main</h3><ul>${aRevoir.slice(0, 40).map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}`;
   for (const a of admins || []) {
     const { data } = await supabase.auth.admin.getUserById(a.user_id);

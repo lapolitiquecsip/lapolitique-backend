@@ -17,6 +17,10 @@ export type Fonction = {
   important: boolean; source_url: string;
 };
 
+/** Ce que la revue ne peut pas régler seule (élu en poste sans fiche, fiche d'un élu sorti) : remis à l'administrateur. */
+export const anomalies: string[] = [];
+const signaler = (m: string) => { console.log(`::warning::${m}`); anomalies.push(m); };
+
 const sansAccent = (t: string) => (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const jour = (d: unknown) => (typeof d === "string" && /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10) : null);
 const liste = <T>(v: T | T[] | null | undefined): T[] => (Array.isArray(v) ? v : v ? [v] : []);
@@ -63,7 +67,7 @@ export async function fonctionsSenateurs(senateurs: { slug: string; senate_matri
   };
   for (const r of actifs) {
     const mat = col(r, "Matricule"), slug = parMatricule.get(mat);
-    if (!slug) { console.log(`::warning::Sénateur actif sans fiche : ${col(r, "Prenom usuel")} ${col(r, "Nom usuel")} (${mat})`); continue; }
+    if (!slug) { signaler(`Sénateur en poste sans fiche : ${col(r, "Prenom usuel")} ${col(r, "Nom usuel")} (${mat})`); continue; }
     fiches.set(mat, { slug, nom: `${col(r, "Prenom usuel")} ${col(r, "Nom usuel")}`, femme: col(r, "Qualite") === "Mme" });
     const circo = col(r, "Circonscription");
     ajouter(mat, { categorie: "mandat", cle: "senateur", libelle: `${col(r, "Qualite") === "Mme" ? "Sénatrice" : "Sénateur"} (${circo})`, qualite: null, organe: "Sénat", depuis: null, important: true });
@@ -126,7 +130,7 @@ export async function fonctionsDeputes(deputes: { slug: string; an_id: string | 
     if (!mandats.some(m => m.typeOrgane === "ASSEMBLEE")) continue;
     actifs++;
     const d = parId.get(uid);
-    if (!d) { console.log(`::warning::Député actif sans fiche : ${uid}`); continue; }
+    if (!d) { signaler(`Député en poste sans fiche : ${a?.etatCivil?.ident?.prenom ?? ""} ${a?.etatCivil?.ident?.nom ?? ""} (${uid})`); continue; }
     const ident = a?.etatCivil?.ident ?? {};
     const femme = /^mme/i.test(String(ident.civ ?? ""));
     const nom = `${ident.prenom ?? d.first_name ?? ""} ${ident.nom ?? d.last_name ?? ""}`.trim();
@@ -171,6 +175,11 @@ export async function fonctionsEurodeputes(meps: { id: string; slug: string; ful
   const francais = meps.filter(m => m.country === "France" && m.id);
   const courants = await epJson("meps/show-current?limit=1000");
   const enCours = new Set<string>((courants?.data ?? []).map((m: any) => String(m.identifier)));
+  const connus = new Set(francais.map(m => String(m.id)));
+  for (const m of courants?.data ?? []) {
+    if (m["api:country-of-representation"] === "FR" && !connus.has(String(m.identifier))) signaler(`Eurodéputé français en poste sans fiche : ${m.label} (${m.identifier})`);
+  }
+  for (const m of francais) if (!enCours.has(String(m.id))) signaler(`Fiche d'un eurodéputé absent de la liste officielle : ${m.full_name} (${m.id})`);
   if (enCours.size < 650) throw new Error(`Parlement européen : ${enCours.size} députés dans la liste`);
 
   const libelles = new Map<string, string>();
