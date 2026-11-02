@@ -1,6 +1,7 @@
 import "dotenv/config";
 import AdmZip from "adm-zip";
 import { supabase } from "../../config/supabase.js";
+import { telecharger } from "../../lib/telechargement.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { ISSUES } from "./seed-issues.js";
 
@@ -57,7 +58,7 @@ async function main() {
 
   // 2) Télécharge + dézippe les questions écrites
   console.log("Téléchargement des questions écrites AN…");
-  const buf = Buffer.from(await (await fetch(ZIP_URL, { signal: AbortSignal.timeout(120000) })).arrayBuffer());
+  const buf = await telecharger(ZIP_URL, { signature: "PK" });
   const entries = new AdmZip(buf).getEntries().filter(e => /\.json$/.test(e.entryName));
   console.log(`${entries.length} questions.`);
 

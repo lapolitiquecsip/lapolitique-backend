@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { parse } from "csv-parse/sync";
 import { supabase } from "../../config/supabase.js";
+import { telecharger } from "../../lib/telechargement.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { ISSUES } from "./seed-issues.js";
 
@@ -36,7 +37,7 @@ async function main() {
   console.log(`Sénateurs: ${sens?.length ?? 0}`);
 
   // 2) CSV des questions (latin1, séparateur ';')
-  const buf = Buffer.from(await (await fetch(CSV_URL, { signal: AbortSignal.timeout(60000) })).arrayBuffer());
+  const buf = await telecharger(CSV_URL, { delaiMs: 90_000 });
   const rows: string[][] = parse(buf.toString("latin1"), { delimiter: ";", relax_quotes: true, skip_empty_lines: true });
   const H = rows[0].map(deacc);
   const col = (name: string) => H.findIndex(h => h.includes(deacc(name)));

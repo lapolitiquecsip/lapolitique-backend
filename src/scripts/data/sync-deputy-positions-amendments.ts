@@ -1,6 +1,7 @@
 import "dotenv/config";
 import AdmZip from "adm-zip";
 import { supabase } from "../../config/supabase.js";
+import { telecharger } from "../../lib/telechargement.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { ISSUES } from "./seed-issues.js";
 
@@ -39,7 +40,7 @@ async function main() {
   const byId = new Map((deps || []).filter(d => d.an_id && d.slug).map(d => [d.an_id, d]));
 
   console.log("Téléchargement des amendements AN (~300 Mo)…");
-  const buf = Buffer.from(await (await fetch(ZIP_URL, { signal: AbortSignal.timeout(180000) })).arrayBuffer());
+  const buf = await telecharger(ZIP_URL, { delaiMs: 420_000, signature: "PK" });
   const entries = new AdmZip(buf).getEntries().filter(e => /\.json$/.test(e.entryName));
   console.log(`${entries.length} amendements.`);
 

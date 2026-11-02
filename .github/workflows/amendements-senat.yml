@@ -5,6 +5,11 @@ on:
   schedule:
     - cron: '45 3 * * *'
   workflow_dispatch:
+  # Relance dès que le relevé change : la planification GitHub a parfois plusieurs heures de retard.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/amendements-senat.yml
 concurrency:
   group: amendements-senat
   cancel-in-progress: false
