@@ -5,7 +5,8 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { matchDomains, INTEREST_DOMAINS } from "../../lib/interest-domains.js";
 import { fetchAll, resolveLocation, withImplied, importanceOf } from "./generate-interest-notifications.js";
 import { silenceSondages } from "../../lib/sondage-notice.js";
-import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, COULEURS, simulation } from "../../lib/mail.js";
+import { faitsDesAlertes } from "../../lib/faits-suivis.js";
+import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, COULEURS, simulation, antiDoublon } from "../../lib/mail.js";
 
 /**
  * « La semaine politique en 5 minutes » — récap du samedi pour les membres Pro.
@@ -207,9 +208,17 @@ Ne signale pas les simples reformulations fidèles. Réponds en JSON : {"non_app
 
 const fmtJour = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 
-/** Une ligne d'e-mail, sauf si l'éditeur l'a retirée ; en relecture, avec « Retirer de l'envoi ». */
-function ligneR(o: Parameters<typeof ligne>[0]): string {
+/** Anti-doublon de l'e-mail en cours (composer) : un même fait ne paraît qu'une fois, toutes rubriques confondues. */
+let NOUVEAU: ReturnType<typeof antiDoublon> = antiDoublon();
+
+/**
+ * Une ligne d'e-mail, sauf si l'éditeur l'a retirée ou si le fait est déjà plus haut ; en relecture,
+ * avec « Retirer de l'envoi ». `mode` : « libre » pour les votes (deux élus, un même scrutin),
+ * « repere » pour une ligne toujours montrée mais qui écarte ses doublons plus bas.
+ */
+function ligneR(o: Parameters<typeof ligne>[0], mode: "unique" | "libre" | "repere" = "unique", fait?: string | null): string {
   if (EXCLUES.has(cleTitre(o.titre))) return "";
+  if (mode !== "libre" && !NOUVEAU(o.titre, o.url, fait) && mode === "unique") return "";
   if (RELECTURE) return ligne({ ...o, libelleRetour: "Retirer de l'envoi",
     retour: `${SITE_URL}/admin/recap/?s=${SAMEDI}&k=${cleTitre(o.titre)}&t=${encodeURIComponent(o.titre.slice(0, 110))}` });
   return ligne(o);
@@ -217,9 +226,10 @@ function ligneR(o: Parameters<typeof ligne>[0]): string {
 
 function composer(commun: Awaited<ReturnType<typeof semaine>>, ed: Awaited<ReturnType<typeof edito>>, perso: {
   prenom: string; votes: any[]; suivis: any[]; local: Info[]; sujets: (Info & { domaine: string })[]; lieu: string | null; demo: boolean; jeton: string | null;
-  textes: any[]; videos: Info[];
+  textes: any[]; videos: Info[]; faits: Map<string, string>;
 }, debut: Date, fin: Date) {
   const blocs: string[] = [];
+  NOUVEAU = antiDoublon();
   const mots = (s: string) => s.split(/\s+/).length;
   let lecture = 0;
   // « Pas intéressant » : un clic depuis l'e-mail, enregistré avec le jeton personnel du membre.
@@ -255,13 +265,13 @@ function composer(commun: Awaited<ReturnType<typeof semaine>>, ed: Awaited<Retur
   if (perso.textes.length) perso_.push(rubrique("📜", "Les textes qui vous concernent", "#7c3aed", perso.textes.slice(0, 5).map(t => {
     const r = t.donnees?.resultat;
     const res = r && r.pour != null ? `${r.adopte ? "Adopté" : "Rejeté"} — ${r.pour} pour, ${r.contre} contre, ${r.abstention} abstentions` : null;
-    return ligneR({ titre: t.title, url: t.url, resume: [t.detail, res].filter(Boolean).join(" · ") || null, etiquette: t.domain, couleur: "#7c3aed", retour: retour("textes", t.domain, t.title) });
+    return ligneR({ titre: t.title, url: t.url, resume: [t.detail, res].filter(Boolean).join(" · ") || null, etiquette: t.domain, couleur: "#7c3aed", retour: retour("textes", t.domain, t.title) }, "repere");
   }).join("")));
   if (perso.votes.length) perso_.push(rubrique("🗳️", "Vos élus ont voté", "#4f46e5", perso.votes.slice(0, 6).map(v =>
     ligneR({ titre: v.detail || v.title, url: v.url, resume: v.detail ? v.title : null, etiquette: v.position ? `Vote : ${v.position}` : null,
-      couleur: v.position === "POUR" ? "#059669" : v.position === "CONTRE" ? "#e11d48" : "#d97706" })).join("")));
+      couleur: v.position === "POUR" ? "#059669" : v.position === "CONTRE" ? "#e11d48" : "#d97706" }, "libre")).join("")));
   if (perso.suivis.length) perso_.push(rubrique("⭐", "Ce que vous suivez", "#d97706", perso.suivis.slice(0, 7).map(s =>
-    ligneR({ titre: s.title, url: s.url, resume: resumeCourt(s.detail, 150), etiquette: s.domain, couleur: "#b45309", retour: retour("suivis", s.domain, s.title) })).join("")));
+    ligneR({ titre: s.title, url: s.url, resume: resumeCourt(s.detail, 150), etiquette: s.domain, couleur: "#b45309", retour: retour("suivis", s.domain, s.title) }, "unique", perso.faits.get(String(s.id)))).join("")));
   if (perso.videos.length) perso_.push(rubrique("📺", "À la télé et en débat", "#0f766e", lignes(perso.videos, "#0f766e", "tele", i => String(i.etiquette || "").split(" · ")[0]),
     "Les passages de la semaine des personnalités que vous suivez — résumés rédigés par IA à partir de ce qui y est dit (chiffres vérifiés contre la transcription)."));
   if (perso.local.length) perso_.push(rubrique("📍", perso.lieu ? `Près de chez vous · ${perso.lieu}` : "Près de chez vous", "#e11d48", lignes(perso.local, "#e11d48", "local", () => perso.lieu)));
@@ -396,7 +406,7 @@ async function main() {
     }
     const loc = await resolveLocation(p?.city || null, p?.department || null);
     const interets = withImplied(p?.interests || [], p?.profession || null, p?.age_range || null);
-    const { data: notifs } = await supabase.from("user_notifications").select("id, type, categorie, title, detail, position, domain, url, importance, emailed_at, donnees")
+    const { data: notifs } = await supabase.from("user_notifications").select("id, type, categorie, title, detail, position, domain, url, importance, emailed_at, donnees, dedup_key")
       .eq("user_id", id).gte("created_at", debut.toISOString()).order("importance", { ascending: false }).limit(200);
     const cat = (n: any) => n.categorie || (n.position || n.type === "vote" ? "votes" : n.type === "local" ? "local" : n.type === "loi" ? "lois" : "suivis");
     const votes = (notifs || []).filter(n => cat(n) === "votes");
@@ -418,6 +428,10 @@ async function main() {
       if (l.some(x => norm(x.title).slice(0, 45) === norm(n.title).slice(0, 45))) continue;
       l.push(n); parEntite.set(k, l);
     }
+    // Même fait raconté deux fois (titres différents, ou par deux suivis : un candidat et son parti) : un seul.
+    const faits = await faitsDesAlertes(notifs || []);
+    const dejaFait = new Set<string>();
+    for (const [k, l] of parEntite) parEntite.set(k, l.filter(n => { const f = faits.get(String(n.id)); if (!f) return true; const c = norm(f); if (dejaFait.has(c)) return false; dejaFait.add(c); return true; }));
     const suivis = [...parEntite.values()].flatMap(l => l
       .sort((a, b) => (b.importance ?? 3) + Number(SIGNAL.test(b.title)) - ((a.importance ?? 3) + Number(SIGNAL.test(a.title))))
       .slice(0, 3)).slice(0, 7);
@@ -458,7 +472,7 @@ async function main() {
 
     const { html, desabo, minutes } = composer(commun, ed, {
       prenom: prenom.get(id) || "", votes, suivis, local, sujets, lieu: p?.city || null, demo, jeton: p?.jeton_desabo || null,
-      textes: textesSemaine, videos,
+      textes: textesSemaine, videos, faits,
     }, debut, fin);
 
     if (APERCU) {

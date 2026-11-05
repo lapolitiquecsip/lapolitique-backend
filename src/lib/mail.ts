@@ -112,6 +112,54 @@ export function bouton(texte: string, url: string, couleur = COULEURS.nuit): str
 </td></tr></table>`;
 }
 
+/**
+ * Un même fait ne paraît qu'une fois dans un e-mail, quelle que soit la rubrique ou l'entité
+ * suivie qui l'amène (un article sur Jean-Luc Mélenchon qui nomme LFI arrive par le candidat
+ * ET par le parti). Doublon : même titre, même article (lien externe), ou titres presque
+ * identiques (8 mots significatifs sur 10 en commun, mêmes chiffres, mêmes noms propres :
+ * « Le Sénat adopte X » et « L'Assemblée adopte X » restent deux faits).
+ * Les liens du site ne comptent pas : une même page (/lois/?dossier=…, /partis/…/#votes) sert
+ * plusieurs faits distincts. Les lignes de vote (un élu, un groupe) n'y passent pas non plus.
+ * `fait` : le fait d'origine noté par le tri des suivis (lib/faits-suivis.ts) — deux titres
+ * différents d'un même fait (« Bardella publie Gouverner » / « Publication du livre de Bardella »).
+ * `nouveau(titre, url, fait)` répond false pour un doublon, et retient sinon la ligne.
+ */
+export function antiDoublon() {
+  const plat = (s: string) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’`]/g, "'");
+  const site = SITE_URL.replace(/^https?:\/\/(www\.)?/i, "").toLowerCase();
+  const lien = (u?: string | null) => {
+    const l = String(u || "").trim().replace(/#.*$/, "").replace(/[?&]utm_[^&]*/g, "").replace(/\/+$/, "").replace(/^https?:\/\/(www\.)?/i, "").toLowerCase();
+    return !l || l.startsWith(site) || !/^[a-z0-9.-]+\.[a-z]{2,}\//.test(l) ? "" : l;
+  };
+  const empreinte = (t: string) => ({
+    titre: plat(t).replace(/[^a-z0-9]+/g, " ").trim().slice(0, 90),
+    mots: new Set(plat(t).split(/[^a-z0-9]+/).filter(m => m.length > 3)),
+    chiffres: (plat(t).match(/\d+/g) || []).sort().join(","),
+    noms: (String(t || "").match(/(?<=\s)[A-ZÉÈÀÂÎÔ][\wÀ-ÿ'-]{2,}/g) || []).map(plat).sort().join(","),
+  });
+  // Le fait se compare sur ce qu'il RACONTE, sans les noms propres (« David Lisnard propose de
+  // geler les pensions » et « David Lisnard propose une baisse de la CSG » sont deux faits) :
+  // mots en minuscules de 4 lettres et plus, réduits à leur radical, hors mots vides ;
+  // 3 en commun au moins, et les trois quarts des mots du fait le plus court.
+  const VIDES = new Set(["dans", "avec", "pour", "sous", "sans", "entre", "vers", "chez", "selon", "depuis", "leur", "leurs", "cette", "plus", "moins", "tout", "tous", "toute", "sont", "etre", "fait", "font", "nouveau", "nouvelle"]);
+  const motsFait = (f?: string | null) => new Set(String(f || "").split(/[^\p{L}\p{N}]+/u)
+    .filter(m => /^\p{Ll}/u.test(m)).map(plat).filter(m => m.length > 3 && !VIDES.has(m)).map(m => m.slice(0, 5)));
+  const memeFait = (a: Set<string>, b: Set<string>) => {
+    const communs = [...a].filter(m => b.has(m)).length;
+    return communs >= 3 && communs / Math.min(a.size, b.size) >= 0.75;
+  };
+  const vus: (ReturnType<typeof empreinte> & { lien: string; fait: Set<string> })[] = [];
+  return (titre: string, url?: string | null, fait?: string | null): boolean => {
+    const e = { ...empreinte(titre), lien: lien(url), fait: motsFait(fait) };
+    const doublon = vus.some(v => (e.titre && v.titre === e.titre) || (e.lien && v.lien === e.lien)
+      || (e.fait.size && v.fait.size && memeFait(e.fait, v.fait))
+      || (Math.min(e.mots.size, v.mots.size) >= 5 && e.chiffres === v.chiffres && e.noms === v.noms
+        && [...e.mots].filter(m => v.mots.has(m)).length / Math.min(e.mots.size, v.mots.size) >= 0.8));
+    if (!doublon) vus.push(e);
+    return !doublon;
+  };
+}
+
 export const resumeCourt = (s: string | null | undefined, max = 190) => {
   const t = String(s || "").replace(/\s+/g, " ").trim();
   return t.length <= max ? t : t.slice(0, t.lastIndexOf(" ", max)) + "…";

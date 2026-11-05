@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { fetchAll } from "./generate-interest-notifications.js";
+import { GROUPES_PARTIS } from "../../lib/groupes-partis.js";
 
 /**
  * Votes des partis suivis, pour les membres Pro (choix de l'user, 28/10/2026).
@@ -21,31 +22,24 @@ const DRY = process.argv.includes("--dry");
 const JOURS = Number(process.env.VOTES_PARTIS_JOURS || 3);
 const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
 
-// Groupes de la XVIIe législature, par parti (même table que src/lib/data/partyGroups.ts du site).
-const GROUPES: Record<string, { po: string; court: string }> = {
-  "rassemblement-national": { po: "PO845401", court: "Le RN" },
-  "la-france-insoumise": { po: "PO845413", court: "LFI" },
-  "parti-socialiste": { po: "PO845419", court: "Le groupe socialiste" },
-  "renaissance": { po: "PO845407", court: "Ensemble pour la République" },
-  "les-republicains": { po: "PO845425", court: "La Droite républicaine" },
-  "les-democrates": { po: "PO845454", court: "Les Démocrates (MoDem)" },
-  "horizons": { po: "PO845470", court: "Horizons" },
-  "parti-communiste-francais": { po: "PO845514", court: "La GDR (communistes)" },
-  "liot": { po: "PO845485", court: "Le groupe LIOT" },
-  "les-ecologistes": { po: "PO845439", court: "Les Écologistes" },
-  "union-des-droites": { po: "PO872880", court: "L'UDR (Ciotti)" },
-};
+// Groupes de la XVIIe législature, par parti (table commune src/lib/groupes-partis.ts).
+const GROUPES: Record<string, { po: string; court: string }> = Object.fromEntries(Object.entries(GROUPES_PARTIS)
+  .filter(([, g]) => g.an).map(([slug, g]) => [slug, { po: g.an!.po, court: g.an!.nom }]));
 
 // « article 49 » seul attrapait les amendements « à l'article 49 » d'un texte : formulations sans ambiguïté seulement.
 const IMPORTANT = /motion de censure|motion de rejet|d[ée]claration du gouvernement/i;
-const estImportant = (s: any) => (s.type === "LOI" && /^l'ensemble/i.test(s.title || "")) || IMPORTANT.test(`${s.title || ""} ${s.objet || ""}`);
+// Vote d'un texte : tout scrutin « LOI » (ensemble, loi organique, partie du budget) sauf la
+// prolongation de séance, et les résolutions. « ^l'ensemble » seul ratait le PLF et les lois organiques.
+const estImportant = (s: any) => (s.type === "LOI" && !/prolonger la s[ée]ance|^la proposition du gouvernement/i.test(s.title || ""))
+  || (s.type === "AUTRE" && /^la proposition de r[ée]solution/i.test(s.title || "")) || IMPORTANT.test(`${s.title || ""} ${s.objet || ""}`);
 const parisJour = (d: Date | string) => new Date(d).toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
 const jourFr = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 // Vote sur l'ensemble : l'intitulé complet (« la proposition de loi visant à… »), l'objet seul
 // commençant par « visant à… » ; sinon l'objet du scrutin.
 const sujet = (s: any) => {
   const article: Record<string, string> = { "du ": "le ", "de la ": "la ", "de l'": "l'", "des ": "les " };
-  const t = (/^l'ensemble/i.test(s.title || "") ? s.title.replace(/^l'ensemble (du |de la |de l'|des )?/i, (_m: string, a?: string) => (a ? article[a.toLowerCase()] : "")) : (s.objet || s.title || "")).trim();
+  const t = (/^l'ensemble/i.test(s.title || "") ? s.title.replace(/^l'ensemble (du |de la |de l'|des )?/i, (_m: string, a?: string) => (a ? article[a.toLowerCase()] : ""))
+    : s.type === "LOI" || s.type === "AUTRE" ? (s.title || s.objet || "") : (s.objet || s.title || "")).trim();
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
 const court = (t: string, n: number) => (t.length > n ? `${t.slice(0, t.lastIndexOf(" ", n))}…` : t);

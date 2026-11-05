@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { supabase } from "../../config/supabase.js";
 import { fetchAll } from "./generate-interest-notifications.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
+import { antiDoublon } from "../../lib/mail.js";
 
 /**
  * Alertes des « suivis élargis » des membres Pro : partis, ministères, candidats et
@@ -15,6 +16,10 @@ import { resilientDeepSeek } from "../../lib/deepseek-client.js";
  *
  * Idempotent : UNIQUE (user_id, dedup_key) en base. Catégorie « suivis » : le rythme
  * d'envoi choisi par le membre s'applique (send-notification-emails).
+ * Sans doublon : un article qui arrive par deux suivis (Jean-Luc Mélenchon ET LFI, dont le
+ * sigle est dans le titre) ne fait qu'une alerte, étiquetée des deux noms.
+ * Partis : l'actualité est réservée au Pro ; le Premium suit un parti pour ses votes
+ * seulement (alertes-textes.ts).
  * --dry : n'écrit rien.
  */
 const DRY = process.argv.includes("--dry");
@@ -149,8 +154,10 @@ const importanceTriee = (v: Verdict) => (v.nature === "fait" && v.acteur ? v.imp
 export async function generateSuivisNotifications() {
   // Partis et candidats : seulement avec l'accord explicite du membre (opinion politique, RGPD art. 9).
   const accords = new Set((await fetchAll("user_preferences", "user_id", q => q.not("consentement_suivis", "is", null))).map((p: any) => p.user_id));
+  const pros = new Set((await fetchAll("profiles", "id", q => q.eq("subscription_tier", "pro"))).map((p: any) => p.id));
   const suivis = (await fetchAll("user_suivis", "user_id, kind, ref, label", q => q))
-    .filter((s: any) => !["parti", "candidat"].includes(s.kind) || accords.has(s.user_id));
+    .filter((s: any) => !["parti", "candidat"].includes(s.kind) || accords.has(s.user_id))
+    .filter((s: any) => s.kind !== "parti" || pros.has(s.user_id));
   console.log(`> ${suivis.length} suivi(s) élargi(s).`);
   if (!suivis.length) return 0;
   const depuis = new Date(Date.now() - JOURS * 86400000).toISOString();
@@ -223,6 +230,43 @@ export async function generateSuivisNotifications() {
   const reNotes: { user_id: string; dedup_key: string; importance: number }[] = [];
   const lignes: any[] = [];
   const parMembre = new Map<string, number>();
+
+  // Anti-doublon par membre, amorcé avec ses alertes récentes : un même article déjà signalé
+  // par un autre suivi (autre clé) ne repart pas.
+  const nouveaux = new Map<string, ReturnType<typeof antiDoublon>>();
+  const membres = [...new Set(suivis.map((s: any) => s.user_id))];
+  const recentes = membres.length ? await fetchAll("user_notifications", "user_id, title, url, dedup_key",
+    q => q.in("user_id", membres).eq("categorie", "suivis").gte("created_at", new Date(Date.now() - (JOURS + 4) * 86400000).toISOString())) : [];
+  const clesExistantes = new Set(recentes.map((n: any) => `${n.user_id}|${n.dedup_key}`));
+  for (const n of recentes) {
+    if (!nouveaux.has(n.user_id)) nouveaux.set(n.user_id, antiDoublon());
+    nouveaux.get(n.user_id)!(n.title, n.url);
+  }
+  // Même fait raconté par plusieurs journaux (« Jordan Bardella publie Gouverner » et « Publication
+  // du nouvel ouvrage de Jordan Bardella ») : le tri donne à chaque article son fait d'origine
+  // (« evenement ») ; un fait déjà signalé au membre, par n'importe lequel de ses suivis, ne repart pas.
+  // La comparaison des faits est celle des e-mails (antiDoublon, lib/mail.ts).
+  const cleSuivi = (s: any, a: Alerte) => `suivi|${s.kind}|${s.ref}|${cle(String(a.url || a.titre))}`;
+  for (const s of suivis) if (s.kind === "parti" || s.kind === "candidat") {
+    for (const a of alertesDe(s.kind, s.ref)) {
+      const e = a.titre && verdicts.get(cleTri(s, a))?.evenement;
+      if (!e || !clesExistantes.has(`${s.user_id}|${cleSuivi(s, a)}`)) continue;
+      if (!nouveaux.has(s.user_id)) nouveaux.set(s.user_id, antiDoublon());
+      nouveaux.get(s.user_id)!("", null, e);
+    }
+  }
+  let doublons = 0;
+  /** true si la ligne est à écrire ; sinon, son étiquette rejoint celle de la ligne déjà retenue dans ce passage. */
+  const garder = (l: any, fait?: string | null): boolean => {
+    if (clesExistantes.has(`${l.user_id}|${l.dedup_key}`)) return true;   // déjà en base : l'écriture sera ignorée
+    if (!nouveaux.has(l.user_id)) nouveaux.set(l.user_id, antiDoublon());
+    if (nouveaux.get(l.user_id)!(l.title, l.url, fait)) return true;
+    doublons++;
+    const k = lignes.find(x => x.user_id === l.user_id && ((l.url && x.url === l.url) || norm(x.title) === norm(l.title)));
+    if (k && !String(k.domain).split(" · ").includes(l.domain)) k.domain = `${k.domain} · ${l.domain}`.slice(0, 120);
+    return false;
+  };
+
   for (const s of suivis) {
     for (const a0 of alertesDe(s.kind, s.ref)) {
       if (!a0.titre) continue;
@@ -233,13 +277,15 @@ export async function generateSuivisNotifications() {
       // Avis, réactions, analyses : pas d'alerte du tout.
       if (a.importance < 3) continue;
       if ((parMembre.get(s.user_id) || 0) >= MAX_PAR_MEMBRE) break;
-      parMembre.set(s.user_id, (parMembre.get(s.user_id) || 0) + 1);
-      lignes.push({
+      const ligne = {
         user_id: s.user_id, type: `suivi_${s.kind}`, categorie: "suivis",
         title: majuscule(String(a.titre)).slice(0, 300), detail: a.detail ? String(a.detail).slice(0, 300) : null,
         domain: s.label.slice(0, 60), importance: a.importance, url: a.url, event_at: a.date,
         created_at: maintenant, read: false, dedup_key: `suivi|${s.kind}|${s.ref}|${cle(String(a.url || a.titre))}`,
-      });
+      };
+      if (!garder(ligne, v?.evenement)) continue;
+      parMembre.set(s.user_id, (parMembre.get(s.user_id) || 0) + 1);
+      lignes.push(ligne);
     }
 
     // Le fait derrière les réactions : quand 3 articles ou plus commentent un même fait
@@ -247,18 +293,20 @@ export async function generateSuivisNotifications() {
     if (s.kind === "parti" || s.kind === "candidat") {
       for (const g of evenementsSansFait(alertesDe(s.kind, s.ref).filter(a => a.titre).map(a => ({ a, v: verdicts.get(cleTri(s, a)) })))) {
         if ((parMembre.get(s.user_id) || 0) >= MAX_PAR_MEMBRE) break;
-        parMembre.set(s.user_id, (parMembre.get(s.user_id) || 0) + 1);
-        lignes.push({
+        const ligne = {
           user_id: s.user_id, type: `suivi_${s.kind}`, categorie: "suivis",
           title: majuscule(g.evenement).slice(0, 300), detail: `Fait commenté par ${g.n} articles cette semaine. Source citée : ${g.source.titre}`.slice(0, 300),
           domain: s.label.slice(0, 60), importance: 4, url: g.source.url, event_at: g.source.date,
           created_at: maintenant, read: false, dedup_key: `evt|${s.kind}|${s.ref}|${cle(norm(g.evenement))}`,
-        });
+        };
+        if (!garder(ligne, g.evenement)) continue;
+        parMembre.set(s.user_id, (parMembre.get(s.user_id) || 0) + 1);
+        lignes.push(ligne);
       }
     }
   }
-  console.log(`> ${lignes.length} alerte(s) de suivi pour ${parMembre.size} membre(s).`);
-  if (DRY) { for (const l of lignes.slice(0, 10)) console.log(`   [${l.domain}] ${l.title.slice(0, 80)}`); return lignes.length; }
+  console.log(`> ${lignes.length} alerte(s) de suivi pour ${parMembre.size} membre(s), ${doublons} doublon(s) écarté(s).`);
+  if (DRY) { for (const l of lignes.filter(x => !clesExistantes.has(`${x.user_id}|${x.dedup_key}`)).slice(0, 25)) console.log(`   [${l.domain}] ${l.title.slice(0, 80)}`); return lignes.length; }
   for (let i = 0; i < lignes.length; i += 500) {
     const { error } = await supabase.from("user_notifications").upsert(lignes.slice(i, i + 500), { onConflict: "user_id,dedup_key", ignoreDuplicates: true });
     if (error) throw error;

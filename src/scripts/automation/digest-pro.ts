@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { fetchAll, resolveLocation, importanceOf } from "./generate-interest-notifications.js";
-import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, COULEURS, simulation } from "../../lib/mail.js";
+import { faitsDesAlertes } from "../../lib/faits-suivis.js";
+import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, COULEURS, simulation, antiDoublon } from "../../lib/mail.js";
 import { enrichir, lireEnrichissements, type Enrichissement } from "../../lib/enrichissement-pro.js";
 
 /**
@@ -60,7 +61,7 @@ export const CATEGORIES = [
 ] as const;
 type Code = typeof CATEGORIES[number]["code"];
 // ref : clé de l'enrichissement quand l'information en double une autre (loi du JO = loi promulguée).
-type Info = { cle: string; titre: string; resume?: string | null; url?: string | null; etiquette?: string | null; meta?: string | null; importance?: number; ref?: string };
+type Info = { cle: string; titre: string; resume?: string | null; url?: string | null; etiquette?: string | null; meta?: string | null; importance?: number; ref?: string; fait?: string | null };
 const numeroLoi = (t: string) => /\bn°\s*(\d{4}-\d+)/i.exec(t || "")?.[1];
 
 // Actes de routine du Journal officiel : comptés dans la synthèse, pas listés.
@@ -377,6 +378,9 @@ async function main() {
     const p = prefs.get(id) || {};
     const cats = choisies(id);
     const blocs: string[] = []; const resume: string[] = []; let total = 0;
+    // Un même fait ne paraît qu'une fois dans l'e-mail, d'une rubrique à l'autre (un article
+    // sur un élu suivi qui est aussi dans « Lois et textes », un candidat et son parti…).
+    const nouveau = antiDoublon();
     const desabo = (code: string) => p.jeton_desabo ? `${SITE_URL}/desabonnement/?t=${p.jeton_desabo}&c=${code}` : `${SITE_URL}/premium#preferences`;
 
     for (const cat of CATEGORIES.filter(x => cats.includes(x.code))) {
@@ -398,7 +402,7 @@ async function main() {
       if (cat.code === "elus") {
         // Alertes déjà calculées pour ce membre (votes de ses élus, suivis), puis l'actualité
         // politique qui les nomme en toutes lettres (prénom + nom : pas de faux positif sur un nom court).
-        const { data: notifs } = await supabase.from("user_notifications").select("id, title, detail, url, domain, position, importance, categorie")
+        const { data: notifs } = await supabase.from("user_notifications").select("id, title, detail, url, domain, position, importance, categorie, type, dedup_key")
           .eq("user_id", id).in("categorie", ["votes", "suivis"]).gte("created_at", debut.toISOString()).order("importance", { ascending: false }).limit(60);
         const { data: f } = await supabase.from("user_follows").select("deputy_id, senator_id").eq("user_id", id);
         const dIds = (f || []).map((x: any) => x.deputy_id).filter(Boolean); const sIds = (f || []).map((x: any) => x.senator_id).filter(Boolean);
@@ -409,8 +413,9 @@ async function main() {
         const actus = c.actus.filter((a: any) => personnes.some(n => norm(`${a.titre_simplifie || ""} ${a.resume_flash || ""} ${a.titre_original || ""}`).includes(norm(n))))
           .map((a: any) => ({ cle: `actu:${a.id}`, titre: a.titre_simplifie || a.titre_original, resume: resumeCourt(a.resume_flash, 200), url: a.source_url,
             etiquette: personnes.find(n => norm(`${a.titre_simplifie || ""} ${a.resume_flash || ""} ${a.titre_original || ""}`).includes(norm(n))) || null, meta: a.source_name }));
+        const faits = await faitsDesAlertes(notifs || []);
         items = [
-          ...(notifs || []).map((n: any) => ({ cle: `notif:${n.id}`, titre: n.detail && n.categorie === "votes" ? n.detail : n.title, resume: n.categorie === "votes" ? n.title : resumeCourt(n.detail, 200),
+          ...(notifs || []).map((n: any) => ({ cle: `notif:${n.id}`, fait: faits.get(String(n.id)) || null, titre: n.detail && n.categorie === "votes" ? n.detail : n.title, resume: n.categorie === "votes" ? n.title : resumeCourt(n.detail, 200),
             url: n.url, etiquette: n.position ? `Vote : ${n.position}` : n.domain, importance: n.importance ?? 3 })),
           ...actus,
         ];
@@ -449,6 +454,13 @@ async function main() {
       }
 
       items = unique(items);
+      if (cat.code !== "amendements_elus" && cat.code !== "votes_amendements") {
+        items = items.filter(i => {
+          if (/^Vote : /.test(String(i.etiquette || "")) || nouveau(i.titre, i.url, i.fait)) return true;
+          aServir.add(i.cle);   // déjà montré sous une autre clé : servi aussi
+          return false;
+        });
+      }
       const limite = cat.code === "votes_amendements" ? plafondVotes : plafond;
       const montres = items.slice(0, limite);
       montres.forEach(i => aServir.add(`${i.cle}`));

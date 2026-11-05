@@ -3,13 +3,21 @@ import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
 import { fetchAll, resolveLocation } from "./generate-interest-notifications.js";
 import { regionOfDept } from "../../lib/dept-region.js";
+import { GROUPES_PARTIS, positionGroupe } from "../../lib/groupes-partis.js";
 
 /**
- * Alertes Pro « un texte vous concerne ».
+ * Alertes de textes, deux sortes :
  *
- * Une alerte ne part que pour un TEXTE : vote final d'une loi à l'Assemblée ou au
- * Sénat (« sur l'ensemble »), loi ou décret publié au Journal officiel — et
- * seulement si ce texte peut concerner le membre d'après son profil.
+ * • « Chaque texte voté » (Premium et Pro, case cochée : user_preferences.rythmes.textes_votes) :
+ *   CHAQUE vote sur un texte, à l'Assemblée comme au Sénat — vote sur l'ensemble, partie
+ *   du budget, résolution, motion de rejet ou de censure adoptée —, avec le résultat, le vote
+ *   de chaque groupe, de ses élus suivis et de ses partis suivis. Sans plafond ni tri : la
+ *   promesse est « dès qu'un texte est voté ». Seuls partent les votes apparus après la case
+ *   cochée (rythmes.textes_votes_depuis), pour ne pas déverser l'historique.
+ * • Pro « un texte vous concerne » : vote sur l'ensemble, loi ou décret au Journal
+ *   officiel, seulement si le texte peut concerner le membre d'après son profil (4 par jour).
+ *
+ * Un même texte ne fait qu'UNE alerte par membre (clé texte|source|id), quelle que soit la sorte.
  *
  * 1. Chaque nouveau texte est analysé UNE fois (textes_impacts) : publics, secteurs,
  *    domaines, territoire, importance, et une explication accompagnée d'un EXTRAIT
@@ -23,6 +31,9 @@ import { regionOfDept } from "../../lib/dept-region.js";
  */
 const DRY = process.argv.includes("--dry");
 const JOURS = Number(process.env.ALERTES_TEXTES_JOURS || 3);
+// Le Sénat publie ses scrutins sur data.gouv avec plusieurs jours de retard : on regarde
+// quinze jours en arrière (la clé de chaque alerte empêche tout renvoi).
+const JOURS_SENAT = Number(process.env.ALERTES_TEXTES_JOURS_SENAT || 15);
 const MAX_PAR_JOUR = 4;
 const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’'`«»"]/g, "'").replace(/\s+/g, " ").trim();
@@ -34,7 +45,29 @@ export const PUBLICS = ["tous", "contribuables", "salaries", "fonctionnaires", "
 export const SECTEURS = ["sante", "education", "agriculture", "btp_logement", "commerce_artisanat", "industrie", "transport", "numerique", "culture_medias", "securite_defense", "justice", "social", "energie_environnement", "tourisme_restauration", "finance_assurance", "fonction_publique"];
 const DOMAINES = ["economie", "emploi", "retraites", "sante", "education", "ecologie", "agriculture", "securite", "immigration", "europe", "social", "logement", "institutions", "transports", "numerique", "culture"];
 
-type Texte = { source: string; source_id: string; chambre: string; titre: string; resume: string; url: string; date: string; resultat?: any; scrutinId?: string };
+type Texte = { source: string; source_id: string; chambre: string; titre: string; resume: string; url: string; date: string; resultat?: any; scrutinId?: string; intitule?: string };
+
+/** Ce que tranche un scrutin de l'Assemblée, ou null si ce n'est pas le vote d'un texte. */
+function voteDeTexteAN(s: any): string | null {
+  const t = String(s.title || s.objet || "");
+  const adopte = /adopt/i.test(s.resultat || "") && !/pas adopt/i.test(s.resultat || "");
+  if (s.type === "LOI") {
+    if (/prolonger la s[ée]ance|^la proposition du gouvernement/i.test(t)) return null;
+    const partie = t.match(/^la (premi[eè]re|seconde|deuxi[eè]me) partie/i);
+    return partie ? `Vote sur la ${partie[1].toLowerCase()} partie` : "Vote sur l'ensemble";
+  }
+  if (s.type === "AUTRE" && /^la proposition de r[ée]solution/i.test(t)) return "Résolution";
+  // Une motion adoptée tranche le sort du texte (rejet) ou du Gouvernement (censure).
+  if (s.type === "MOTION" && adopte && /motion de rejet/i.test(t)) return "Motion de rejet adoptée : texte rejeté";
+  if (/motion de censure/i.test(t)) return adopte ? "Motion de censure adoptée" : "Motion de censure";
+  return null;
+}
+/** « l'ensemble de la proposition de loi visant à… » → « La proposition de loi visant à… ». */
+function sujetAN(s: any): string {
+  const article: Record<string, string> = { "du ": "le ", "de la ": "la ", "de l'": "l'", "des ": "les " };
+  const t = String(s.title || s.objet || "").replace(/^l'ensemble (du |de la |de l'|des )?/i, (_m: string, a?: string) => (a ? article[a.toLowerCase()] : "")).replace(/\.$/, "").trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 
 /* ─────────────── 1. Textes nouveaux ─────────────── */
 
@@ -42,29 +75,63 @@ async function textesRecents(): Promise<Texte[]> {
   const depuis = new Date(Date.now() - JOURS * 86400000).toISOString();
   const out: Texte[] = [];
 
-  // Votes finaux (« sur l'ensemble »), avec le résumé du dossier et les résultats par groupe.
+  // Assemblée : la table complète de l'open data AN (votes-sync, chaque nuit). L'ancienne source
+  // (legislative_scrutins) n'avait qu'un vote final de l'Assemblée sur dix : le PLF, le PLFSS et
+  // les lois organiques n'y figuraient pas, et ne déclenchaient aucune alerte.
+  const depuisVote = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const an = (await fetchAll("scrutins", "id, numero, date_scrutin, title, objet, resultat, type, group_results, pour, contre, abstention, summary, why_it_matters",
+    q => q.eq("institution", "AN").in("type", ["LOI", "AUTRE", "MOTION"]).gte("created_at", depuis).gte("date_scrutin", depuisVote)))
+    .filter((s: any) => voteDeTexteAN(s));
+  const navette = new Map<string, string>();
+  if (an.length) {
+    const { data } = await supabase.from("scrutin_navette").select("scrutin_id, dossier_id").in("scrutin_id", an.map((s: any) => s.id));
+    for (const n of data || []) navette.set(n.scrutin_id, n.dossier_id);
+  }
+  for (const s of an) {
+    const adopte = /adopt/i.test(s.resultat || "") && !/pas adopt/i.test(s.resultat || "");
+    out.push({
+      source: "scrutin_final", source_id: String(s.id), chambre: "AN", scrutinId: String(s.id), intitule: voteDeTexteAN(s)!,
+      titre: sujetAN(s), resume: [s.summary, s.why_it_matters].filter(Boolean).join("\n\n").slice(0, 6000),
+      url: navette.get(s.id) ? `${SITE_URL}/lois/?dossier=${navette.get(s.id)}` : `https://www.assemblee-nationale.fr/dyn/17/scrutins/${s.numero}`, date: s.date_scrutin,
+      resultat: { adopte, libelle: s.resultat, pour: s.pour, contre: s.contre, abstention: s.abstention,
+        groupes: (s.group_results || []).filter((g: any) => (g.pour || 0) + (g.contre || 0) + (g.abstention || 0) > 0)
+          .map((g: any) => ({ code: g.group_id, nom: g.group_label || "Autre", pour: g.pour || 0, contre: g.contre || 0, abstention: g.abstention || 0 }))
+          .sort((a: any, b: any) => (b.pour + b.contre + b.abstention) - (a.pour + a.contre + a.abstention)) },
+    });
+  }
+
+  // Sénat : votes sur l'ensemble (legislative_scrutins).
+  const depuisSenat = new Date(Date.now() - JOURS_SENAT * 86400000).toISOString();
   const scrutins = await fetchAll("legislative_scrutins", "id, official_id, dossier_id, chamber, title, result_label, for_count, against_count, abstain_count, voted_at, source_url, explanation",
-    q => q.gte("voted_at", depuis).ilike("title", "%ensemble%"));
+    q => q.eq("chamber", "SENAT").gte("voted_at", depuisSenat).ilike("title", "%ensemble%"));
+  const groupeDuSenateur = new Map((await fetchAll("senators", "senate_matricule, senate_group", q => q.not("senate_matricule", "is", null)))
+    .map((x: any) => [String(x.senate_matricule).toUpperCase(), x.senate_group || "Autre"]));
   const dossiers = [...new Set(scrutins.map((s: any) => s.dossier_id).filter(Boolean))];
   const resumes = new Map<string, string>();
   if (dossiers.length) {
     const { data } = await supabase.from("legislative_analyses").select("dossier_id, summary, audience").in("dossier_id", dossiers);
     for (const a of data || []) if (!resumes.has(a.dossier_id) || a.audience === "citizen") resumes.set(a.dossier_id, typeof a.summary === "string" ? a.summary : JSON.stringify(a.summary));
   }
-  // Les résultats par groupe ne portent que le code de l'organe (PO845401…) : le nom vient des partis.
-  const { data: partis } = await supabase.from("political_parties").select("abbrev, name, datan_group_id").not("datan_group_id", "is", null);
-  const nomGroupe = new Map((partis || []).map((p: any) => [p.datan_group_id, p.abbrev === "NI" ? "Non-inscrits" : `${p.abbrev}`]));
   for (const s of scrutins) {
-    const { data: groupes } = await supabase.from("legislative_group_results").select("group_code, group_name, for_count, against_count, abstain_count").eq("scrutin_id", s.id);
+    // Le décompte par groupe du Sénat en base est incomplet (une seule ligne par scrutin) :
+    // on le refait à partir des votes nominatifs, qui sont complets.
+    const { data: votes } = await supabase.from("legislative_votes").select("voter_official_id, position").eq("scrutin_id", s.id);
+    const parGroupe = new Map<string, { pour: number; contre: number; abstention: number }>();
+    for (const v of votes || []) {
+      const k = v.position === "for" ? "pour" : v.position === "against" ? "contre" : v.position === "abstain" ? "abstention" : null;
+      if (!k) continue;
+      const g = groupeDuSenateur.get(String(v.voter_official_id).toUpperCase()) || "Autre";
+      const c = parGroupe.get(g) || { pour: 0, contre: 0, abstention: 0 }; c[k]++; parGroupe.set(g, c);
+    }
+    // Le libellé du résultat est vide au Sénat : adopté = plus de « pour » que de « contre ».
+    const adopte = s.result_label ? /adopt/i.test(s.result_label) && !/pas adopt|rejet/i.test(s.result_label) : (s.for_count || 0) > (s.against_count || 0);
     out.push({
-      source: "scrutin_final", source_id: String(s.id), chambre: s.chamber, scrutinId: String(s.id),
-      titre: s.title.replace(/^(sur )?l'ensemble (du |de la |des )?/i, "").replace(/^./, (c: string) => c.toUpperCase()),
+      source: "scrutin_final", source_id: String(s.id), chambre: "SENAT", scrutinId: String(s.official_id || s.id), intitule: "Vote sur l'ensemble",
+      titre: s.title.replace(/^(sur )?l'ensemble (du |de la |des |de l')?/i, "").replace(/^./, (c: string) => c.toUpperCase()),
       resume: [s.explanation, resumes.get(s.dossier_id)].filter(Boolean).join("\n\n").slice(0, 6000),
       url: s.dossier_id ? `${SITE_URL}/lois/?dossier=${s.dossier_id}` : s.source_url, date: s.voted_at,
-      resultat: { adopte: /adopt/i.test(s.result_label || ""), libelle: s.result_label, pour: s.for_count, contre: s.against_count, abstention: s.abstain_count,
-        groupes: (groupes || []).filter((g: any) => (g.for_count + g.against_count + g.abstain_count) > 0)
-          .map((g: any) => ({ code: g.group_code, nom: g.group_name || nomGroupe.get(g.group_code) || "Autre", pour: g.for_count, contre: g.against_count, abstention: g.abstain_count }))
-          .sort((a: any, b: any) => (b.pour + b.contre + b.abstention) - (a.pour + a.contre + a.abstention)) },
+      resultat: { adopte, libelle: s.result_label || (adopte ? "Le Sénat a adopté" : "Le Sénat n'a pas adopté"), pour: s.for_count, contre: s.against_count, abstention: s.abstain_count,
+        groupes: [...parGroupe].map(([nom, c]) => ({ code: nom, nom, ...c })).sort((a, b) => (b.pour + b.contre + b.abstention) - (a.pour + a.contre + a.abstention)) },
     });
   }
 
@@ -188,69 +255,113 @@ async function main() {
   const connus = new Map((dejaAnalyses || []).map((a: any) => [`${a.source}|${a.source_id}`, a]));
   console.log(`[Textes] ${textes.length} texte(s) récent(s), ${connus.size} déjà analysé(s).`);
 
+  const maintenant = new Date().toISOString();
   const analyses: any[] = [];
   for (const t of textes) {
     let a = connus.get(`${t.source}|${t.source_id}`);
     if (!a) {
       const r = await analyser(t).catch(e => { console.warn(`  ! ${t.titre.slice(0, 60)} : ${e.message}`); return null; });
-      if (!r) continue;
-      a = { source: t.source, source_id: t.source_id, chambre: t.chambre, titre: t.titre.slice(0, 400), resume: t.resume.slice(0, 2000), url: t.url, date_texte: t.date, resultat: t.resultat ?? null, ...r };
-      if (!DRY) await supabase.from("textes_impacts").upsert(a, { onConflict: "source,source_id" });
-      console.log(`  · [${a.importance}] ${a.titre.slice(0, 70)} → ${a.publics.join(",")} | ${a.secteurs.join(",")}${a.explication ? "" : " (explication non prouvée, retirée)"}`);
+      if (r) {
+        a = { source: t.source, source_id: t.source_id, chambre: t.chambre, titre: t.titre.slice(0, 400), resume: t.resume.slice(0, 2000), url: t.url, date_texte: t.date, resultat: t.resultat ?? null, ...r };
+        if (!DRY) await supabase.from("textes_impacts").upsert(a, { onConflict: "source,source_id" });
+        a.analyse_le = maintenant;
+        console.log(`  · [${a.importance}] ${a.titre.slice(0, 70)} → ${a.publics.join(",")} | ${a.secteurs.join(",")}${a.explication ? "" : " (explication non prouvée, retirée)"}`);
+      } else if (t.source === "scrutin_final") {
+        // Analyse impossible (quota) : le vote part quand même chez qui a demandé chaque texte voté,
+        // sans explication. Le profil Pro, lui, attend l'analyse au passage suivant.
+        a = { source: t.source, source_id: t.source_id, chambre: t.chambre, titre: t.titre, url: t.url, date_texte: t.date, importance: null, explication: null, extrait: null, analyse_le: maintenant };
+      } else continue;
     }
-    a.scrutinId = t.scrutinId;
+    // Le résultat et les groupes viennent toujours du relevé du jour (corrigé depuis l'analyse, au Sénat).
+    if (t.source === "scrutin_final") { a.resultat = t.resultat; a.titre = t.titre; a.url = t.url; }
+    a.scrutinId = t.scrutinId; a.intitule = t.intitule;
     analyses.push(a);
   }
-  const utiles = analyses.filter(a => a.importance >= 3);
-  if (!utiles.length) { console.log("[Textes] Aucun texte d'importance suffisante."); return; }
+  const votes = analyses.filter(a => a.source === "scrutin_final");
+  const utiles = analyses.filter(a => (a.importance ?? 0) >= 3);
+  if (!utiles.length && !votes.length) { console.log("[Textes] Aucun texte d'importance suffisante, aucun vote."); return; }
 
-  // Membres Pro avec alertes textes activées.
-  const pros = (await fetchAll("profiles", "id", q => q.eq("subscription_tier", "pro"))).map((p: any) => p.id);
-  // Essai : ALERTES_TEXTES_SEUL=<id> → ce seul compte (même non Pro), personne d'autre.
+  // Destinataires : Pro (profil « un texte vous concerne ») et Premium ou Pro ayant coché « chaque texte voté ».
+  const niveaux = new Map((await fetchAll("profiles", "id, subscription_tier", q => q.in("subscription_tier", ["elite", "pro"]))).map((p: any) => [p.id, p.subscription_tier]));
+  // Essai : ALERTES_TEXTES_SEUL=<id> → ce seul compte (traité comme Pro), personne d'autre.
   const seul = process.env.ALERTES_TEXTES_SEUL;
-  const ids = seul ? [seul] : pros;
-  const prefs = await fetchAll("user_preferences", "user_id, profession, age_range, logement, enfants, secteur, interests, city, department, alertes_textes", q => q.in("user_id", ids));
+  if (seul) niveaux.set(seul, "pro");
+  const ids = seul ? [seul] : [...niveaux.keys()];
+  const prefs = await fetchAll("user_preferences", "user_id, profession, age_range, logement, enfants, secteur, interests, city, department, alertes_textes, rythmes, consentement_suivis", q => q.in("user_id", ids));
   const suivis = await fetchAll("user_follows", "user_id, deputy_id, senator_id", q => q.in("user_id", ids));
-  const deputes = new Map((await fetchAll("deputies", "id, an_id, first_name, last_name", q => q)).map((d: any) => [d.id, d]));
-  const senateurs = new Map((await fetchAll("senators", "id, senate_matricule, first_name, last_name", q => q)).map((d: any) => [d.id, d]));
+  // Partis suivis : seulement avec l'accord explicite du membre (opinion politique, RGPD art. 9).
+  const partisSuivis = await fetchAll("user_suivis", "user_id, ref, label", q => q.eq("kind", "parti").in("user_id", ids));
+  const deputes = new Map((await fetchAll("deputies", "id, an_id, first_name, last_name, sitting", q => q)).map((d: any) => [d.id, d]));
+  const senateurs = new Map((await fetchAll("senators", "id, senate_matricule, first_name, last_name, sitting", q => q)).map((d: any) => [d.id, d]));
   const aujourdhui = new Date().toISOString().slice(0, 10);
+
+  // Votes nominatifs des scrutins retenus, chargés une fois.
+  const nominatifs = new Map<string, Map<string, string>>();
+  for (const t of votes) {
+    const m = new Map<string, string>();
+    if (t.chambre === "AN") {
+      for (const v of await fetchAll("deputy_votes", "deputy_an_id, position", q => q.eq("scrutin_id", t.scrutinId))) m.set(String(v.deputy_an_id).toUpperCase(), v.position);
+    } else {
+      for (const v of await fetchAll("legislative_votes", "voter_official_id, position", q => q.eq("scrutin_id", t.source_id))) m.set(String(v.voter_official_id).toUpperCase(), v.position);
+    }
+    nominatifs.set(t.source_id, m);
+  }
 
   const lignes: any[] = [];
   for (const p of prefs) {
-    if (p.alertes_textes === false) continue;
+    const niveau = niveaux.get(p.user_id);
+    if (!niveau) continue;
+    // Essai : ALERTES_TEXTES_ESSAI_VOTES=1 avec ALERTES_TEXTES_SEUL → la case « chaque texte voté » est réputée cochée.
+    const chaqueVote = p.rythmes?.textes_votes === "immediat" || (!!seul && !!process.env.ALERTES_TEXTES_ESSAI_VOTES);
+    const depuisCoche = p.rythmes?.textes_votes_depuis || null;
+    const profilPro = niveau === "pro" && p.alertes_textes !== false;
+    if (!chaqueVote && !profilPro) continue;
     const loc = await resolveLocation(p.city || null, p.department || null);
     const sesElus = suivis.filter((s: any) => s.user_id === p.user_id);
+    const sesPartis = p.consentement_suivis ? partisSuivis.filter((s: any) => s.user_id === p.user_id && GROUPES_PARTIS[s.ref]) : [];
     const { count: dejaAujourdhui } = await supabase.from("user_notifications").select("id", { count: "exact", head: true })
       .eq("user_id", p.user_id).eq("categorie", "textes").gte("created_at", aujourdhui);
     let reste = MAX_PAR_JOUR - (dejaAujourdhui || 0);
-    for (const t of [...utiles].sort((a, b) => b.importance - a.importance)) {
-      if (reste <= 0) break;
-      let pourquoi = raisons(t, p, { ...loc, regionCode: loc.regionCode ?? regionOfDept(loc.deptCode) });
-      // Vote final : la position des élus suivis par le membre.
-      let elus: { nom: string; position: string }[] = [];
-      if (t.source === "scrutin_final" && sesElus.length) {
-        const { data: votes } = await supabase.from("legislative_votes").select("voter_official_id, voter_name, position").eq("scrutin_id", t.scrutinId);
-        const parId = new Map((votes || []).map((v: any) => [String(v.voter_official_id).toUpperCase(), v]));
+    const candidats = [...new Set([...(chaqueVote ? votes : []), ...(profilPro ? utiles : [])])]
+      .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0));
+    for (const t of candidats) {
+      const demande = chaqueVote && t.source === "scrutin_final" && (!depuisCoche || String(t.analyse_le || maintenant) >= depuisCoche);
+      let pourquoi = profilPro && t.importance != null ? raisons(t, p, { ...loc, regionCode: loc.regionCode ?? regionOfDept(loc.deptCode) }) : [];
+      // Vote : la position de chaque élu suivi (en fonction), et celle du groupe de chaque parti suivi.
+      const elus: { nom: string; position: string }[] = [];
+      const partis: any[] = [];
+      if (t.source === "scrutin_final") {
+        const parId = nominatifs.get(t.source_id) || new Map();
         for (const s of sesElus) {
-          const e: any = s.deputy_id ? deputes.get(s.deputy_id) : s.senator_id ? senateurs.get(s.senator_id) : null;
-          const v = e && parId.get(String(e.an_id || e.senate_matricule || "").toUpperCase());
-          if (v) elus.push({ nom: `${e.first_name} ${e.last_name}`, position: v.position });
+          const e: any = t.chambre === "AN" ? (s.deputy_id ? deputes.get(s.deputy_id) : null) : (s.senator_id ? senateurs.get(s.senator_id) : null);
+          if (!e || e.sitting === false) continue;
+          elus.push({ nom: `${e.first_name} ${e.last_name}`, position: parId.get(String(e.an_id || e.senate_matricule || "").toUpperCase()) || "absent" });
         }
-        if (elus.length && !pourquoi.length) pourquoi = ["un élu que vous suivez a pris part au vote"];
+        for (const s of sesPartis) {
+          const g = GROUPES_PARTIS[s.ref];
+          const groupe = t.chambre === "AN" ? g.an && { nom: g.an.nom, code: g.an.po } : g.senat && { nom: g.senat.nom, code: g.senat.code };
+          if (!groupe) { partis.push({ nom: s.label, groupe: null }); continue; }
+          const r = (t.resultat?.groupes || []).find((x: any) => x.code === groupe.code);
+          partis.push({ nom: s.label, groupe: groupe.nom, ...positionGroupe(r?.pour, r?.contre, r?.abstention) });
+        }
+        if (!demande && elus.some(e => e.position !== "absent") && !pourquoi.length) pourquoi = ["un élu que vous suivez a pris part au vote"];
       }
-      if (!pourquoi.length) continue;
-      reste--;
+      if (!demande) {
+        if (!pourquoi.length || reste <= 0) continue;
+        reste--;
+      }
       lignes.push({
-        user_id: p.user_id, type: "texte", categorie: "textes", importance: t.importance,
+        user_id: p.user_id, type: "texte", categorie: "textes", importance: t.importance ?? 3,
         title: t.titre.slice(0, 300), detail: t.explication, url: t.url, event_at: t.date_texte,
         domain: t.chambre === "AN" ? "Assemblée nationale" : t.chambre === "SENAT" ? "Sénat" : "Journal officiel",
-        donnees: { source: t.source, chambre: t.chambre, resultat: t.resultat, pourquoi, elus, extrait: t.extrait },
-        created_at: new Date().toISOString(), read: false, dedup_key: `texte|${t.source}|${t.source_id}`,
+        scrutin_id: t.source === "scrutin_final" ? t.scrutinId : null,
+        donnees: { source: t.source, chambre: t.chambre, intitule: t.intitule, date_vote: t.date_texte, resultat: t.resultat, pourquoi, elus, partis, extrait: t.extrait },
+        created_at: maintenant, read: false, dedup_key: `texte|${t.source}|${t.source_id}`,
       });
     }
   }
   console.log(`[Textes] ${lignes.length} alerte(s) pour ${new Set(lignes.map(l => l.user_id)).size} membre(s).`);
-  if (DRY) { for (const l of lignes.slice(0, 10)) console.log(`   → ${l.user_id.slice(0, 8)} : ${l.title.slice(0, 60)} (${l.donnees.pourquoi.join(" ; ")})`); return; }
+  if (DRY) { for (const l of lignes.slice(0, 20)) console.log(`   → ${l.user_id.slice(0, 8)} : ${l.title.slice(0, 60)} | ${l.donnees.resultat?.adopte ? "adopté" : l.donnees.resultat ? "rejeté" : ""} | élus ${JSON.stringify(l.donnees.elus)} | partis ${JSON.stringify(l.donnees.partis)} (${l.donnees.pourquoi.join(" ; ")})`); return; }
   for (let i = 0; i < lignes.length; i += 300) {
     const { error } = await supabase.from("user_notifications").upsert(lignes.slice(i, i + 300), { onConflict: "user_id,dedup_key", ignoreDuplicates: true });
     if (error) throw error;

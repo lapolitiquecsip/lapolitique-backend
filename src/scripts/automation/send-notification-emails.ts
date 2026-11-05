@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { silenceSondages } from "../../lib/sondage-notice.js";
-import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, simulation } from "../../lib/mail.js";
+import { faitsDesAlertes } from "../../lib/faits-suivis.js";
+import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, simulation, antiDoublon } from "../../lib/mail.js";
 
 /**
  * Envoie par e-mail les alertes des membres (user_notifications non encore envoyées).
@@ -31,11 +32,16 @@ const RYTHMES_DEFAUT: Record<string, string> = { votes: "immediat", local: "quot
 const categorieDe = (n: any): string => n.categorie
   || (n.position || n.type === "vote" ? "votes" : n.type === "local" ? "local" : n.type === "loi" ? "lois" : "suivis");
 
-/* Alerte « un texte vous concerne » : résultat du vote, groupes, élus suivis, extrait officiel. */
-const POSITION: Record<string, [string, string]> = { for: ["pour", "#059669"], against: ["contre", "#e11d48"], abstain: ["abstention", "#d97706"], POUR: ["pour", "#059669"], CONTRE: ["contre", "#e11d48"], ABSTENTION: ["abstention", "#d97706"] };
+/* Alerte de texte : résultat du vote, groupes, élus et partis suivis, extrait officiel. */
+const POSITION: Record<string, [string, string]> = {
+  for: ["pour", "#059669"], against: ["contre", "#e11d48"], abstain: ["abstention", "#d97706"], POUR: ["pour", "#059669"], CONTRE: ["contre", "#e11d48"], ABSTENTION: ["abstention", "#d97706"],
+  pour: ["pour", "#059669"], contre: ["contre", "#e11d48"], abstention: ["abstention", "#d97706"],
+};
+const aVote = (p: string) => (POSITION[p] ? `a voté <strong style="color:${POSITION[p][1]}">${POSITION[p][0]}</strong>` : "n'a <strong>pas pris part au vote</strong>");
 function carteTexte(n: any): string {
   const d = n.donnees || {}; const r = d.resultat;
-  const sur = d.source === "scrutin_final" ? `Vote final · ${d.chambre === "AN" ? "Assemblée nationale" : "Sénat"}` : d.source === "loi" ? "Loi · Journal officiel" : "Décret · Journal officiel";
+  const jour = d.date_vote ? ` · ${new Date(d.date_vote).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" })}` : "";
+  const sur = d.source === "scrutin_final" ? `${d.intitule || "Vote final"} · ${d.chambre === "AN" ? "Assemblée nationale" : "Sénat"}${jour}` : d.source === "loi" ? "Loi · Journal officiel" : "Décret · Journal officiel";
   let vote = "";
   if (r && (r.pour != null)) {
     const total = (r.pour || 0) + (r.contre || 0) + (r.abstention || 0) || 1;
@@ -52,14 +58,19 @@ function carteTexte(n: any): string {
       </table>` : ""}
     </div>`;
   }
-  const elus = (d.elus || []).length ? `<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#eef2ff;font-size:13px;color:#1e1b4b"><strong>Vos élus :</strong> ${d.elus.map((e: any) => `${esc(e.nom)} a voté <strong style="color:${(POSITION[e.position] || ["", "#475569"])[1]}">${(POSITION[e.position] || [e.position])[0]}</strong>`).join(" · ")}</div>` : "";
+  const elus = (d.elus || []).length ? `<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#eef2ff;font-size:13px;line-height:1.55;color:#1e1b4b"><strong>Vos élus :</strong> ${d.elus.map((e: any) => `${esc(e.nom)} ${aVote(e.position)}`).join(" · ")}</div>` : "";
+  // Partis suivis : la position majoritaire de leur groupe dans cette chambre, avec le décompte.
+  const partis = (d.partis || []).length ? `<div style="margin-top:8px;padding:10px 12px;border-radius:12px;background:#fdf4ff;font-size:13px;line-height:1.55;color:#4a044e"><strong>Vos partis :</strong> ${d.partis.map((p: any) => !p.groupe
+    ? `${esc(p.nom)} : pas de groupe ${d.chambre === "AN" ? "à l'Assemblée" : "au Sénat"}`
+    : p.position === "absent" ? `${esc(p.groupe)} n'a <strong>pas pris part au vote</strong>`
+    : `${esc(p.groupe)} ${p.position === "partage" ? "s'est <strong>divisé</strong>" : aVote(p.position)} (${p.pour} pour, ${p.contre} contre, ${p.abstention} abst.)`).join(" · ")}</div>` : "";
   return `<div style="padding:18px 0;border-bottom:1px solid #e7e2d6">
     <div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7c3aed">${esc(sur)}</div>
     <div style="font-size:17px;line-height:1.35;font-weight:800;color:#0f172a;margin-top:5px"><a href="${esc(n.url || SITE_URL)}" style="color:#0f172a;text-decoration:none">${esc(n.title)}</a></div>
     ${(d.pourquoi || []).length ? `<div style="margin-top:8px;font-size:12px;color:#7c3aed;font-weight:700">Pour vous : ${esc(d.pourquoi.join(" ; "))}</div>` : ""}
     ${n.detail ? `<div style="font-size:14px;line-height:1.55;color:#334155;margin-top:8px">${esc(n.detail)}</div>` : ""}
     ${d.extrait ? `<div style="margin-top:8px;padding-left:10px;border-left:3px solid #e2e8f0;font-size:12px;line-height:1.5;color:#64748b;font-style:italic">Extrait du résumé officiel : « ${esc(d.extrait)}${/[.!?»)]$/.test(d.extrait) ? "" : "…"} »</div>` : ""}
-    ${vote}${elus}
+    ${vote}${elus}${partis}
   </div>`;
 }
 
@@ -77,7 +88,8 @@ function html(prenom: string, alertes: any[]): string {
   const parCat = new Map<string, any[]>();
   for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
   const textes = (parCat.get("textes") || []).map(carteTexte).join("");
-  const blocs = (textes ? rubrique("📜", "Un texte vous concerne", "#7c3aed", textes) : "") + ["decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
+  const votes = (parCat.get("textes") || []).every(t => t.donnees?.source === "scrutin_final");
+  const blocs = (textes ? rubrique(votes ? "🗳️" : "📜", votes ? "Textes votés au Parlement" : "Un texte vous concerne", "#7c3aed", textes) : "") + ["decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
     const [emoji, intitule, couleur] = INTITULES[c];
     const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
       ? ligne({ titre: n.detail || n.title, url: n.url, resume: n.detail ? n.title : null, etiquette: `Vote : ${n.position}`, couleur: couleurVote(n.position) })
@@ -94,10 +106,30 @@ function html(prenom: string, alertes: any[]): string {
   });
 }
 
+/** Le même fait n'apparaît qu'une fois dans l'e-mail : la première alerte le garde et
+ *  reprend l'étiquette des autres (« Jean-Luc Mélenchon · LFI »). Les votes ne sont pas comparés. */
+const ORDRE = ["textes", "decrets", "amendements", "votes", "suivis", "local", "lois"];
+function sansDoublons(alertes: any[], faits: Map<string, string>): { gardees: any[]; doublons: any[] } {
+  const nouveau = antiDoublon();
+  const gardees: any[] = []; const doublons: any[] = [];
+  const triees = [...alertes].sort((a, b) => ORDRE.indexOf(categorieDe(a)) - ORDRE.indexOf(categorieDe(b)) || (b.importance ?? 3) - (a.importance ?? 3));
+  for (const a of triees) {
+    if (a.position || /^vote/.test(a.type || "") || categorieDe(a) === "textes") { gardees.push(a); continue; }
+    if (nouveau(a.title, a.url, faits.get(String(a.id)))) { gardees.push({ ...a }); continue; }
+    doublons.push(a);
+    const t = String(a.title || "").toLowerCase();
+    const f = faits.get(String(a.id));
+    const k = gardees.find(g => !g.position && String(g.title || "").toLowerCase() === t) || gardees.find(g => !g.position && g.url && g.url === a.url)
+      || (f ? gardees.find(g => faits.get(String(g.id)) === f) : undefined);
+    if (k && a.domain && !String(k.domain || "").split(" · ").includes(a.domain)) k.domain = k.domain ? `${k.domain} · ${a.domain}` : a.domain;
+  }
+  return { gardees, doublons };
+}
+
 async function main() {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 86400000).toISOString();
   const { data: notifs, error } = await supabase.from("user_notifications")
-    .select("id, user_id, type, categorie, title, detail, position, importance, domain, url, place, event_at, created_at, donnees")
+    .select("id, user_id, type, categorie, title, detail, position, importance, domain, url, place, event_at, created_at, donnees, scrutin_id, dedup_key")
     .is("emailed_at", null).gte("created_at", since).order("created_at", { ascending: false }).limit(20000);
   if (error) throw error;
   // Veille et jour du vote : les sondages ne partent pas (loi de 1977, art. 11) ; périmés ensuite, on les clôt.
@@ -109,6 +141,7 @@ async function main() {
   if (notifs && (SEULE_CAT || SAUF_CAT)) notifs.splice(0, notifs.length, ...notifs.filter(n => (SEULE_CAT ? categorieDe(n) === SEULE_CAT : true) && (SAUF_CAT ? categorieDe(n) !== SAUF_CAT : true)));
   if (!notifs?.length) { console.log("Aucune alerte en attente."); return; }
 
+  const faits = await faitsDesAlertes(notifs);
   const parMembre = new Map<string, any[]>();
   for (const n of notifs) parMembre.set(n.user_id, [...(parMembre.get(n.user_id) || []), n]);
   let ids = [...parMembre.keys()];
@@ -116,6 +149,14 @@ async function main() {
   const { data: profils } = await supabase.from("profiles").select("id, display_name, subscription_tier").in("id", ids);
   const profil = new Map((profils || []).map((p: any) => [p.id, p]));
   const { data: prefs } = await supabase.from("user_preferences").select("user_id, notify_email, email_min_importance, rythmes").in("user_id", ids);
+  // Votes déjà servis par une alerte de texte (qui donne le vote des élus et des partis suivis) :
+  // la ligne « votre élu a voté » du même scrutin ferait doublon dans un e-mail suivant.
+  const couverts = new Set<string>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await supabase.from("user_notifications").select("user_id, scrutin_id").eq("categorie", "textes")
+      .not("scrutin_id", "is", null).in("user_id", ids.slice(i, i + 200)).gte("created_at", new Date(Date.now() - 30 * 86400000).toISOString());
+    for (const t of data || []) couverts.add(`${t.user_id}|${t.scrutin_id}`);
+  }
   const pref = new Map((prefs || []).map((p: any) => [p.user_id, p]));
   const { data: abonnes } = await supabase.from("subscribers").select("user_id, email, preferences").in("user_id", ids);
   const abonne = new Map((abonnes || []).map((s: any) => [s.user_id, s]));
@@ -127,8 +168,11 @@ async function main() {
   }
 
   let envoyes = 0, ignores = 0; const traites: string[] = [];
-  for (const [id, alertes] of parMembre) {
+  for (const [id, toutes] of parMembre) {
     const p = pref.get(id); const pro = !!SEUL || profil.get(id)?.subscription_tier === "pro";
+    const dejaServis = toutes.filter(a => (a.type === "vote" || a.type === "vote_parti") && a.scrutin_id && couverts.has(`${id}|${a.scrutin_id}`));
+    traites.push(...dejaServis.map(a => a.id));
+    const alertes = toutes.filter(a => !dejaServis.includes(a));
     const rythmes = { ...RYTHMES_DEFAUT, ...(p?.rythmes || {}) };
     // Rythme d'une catégorie : réglage Pro, sinon résumé quotidien de tout (ancien fonctionnement).
     // Membre Pro : seule l'alerte « un texte vous concerne » part sur le moment ;
@@ -151,12 +195,18 @@ async function main() {
     traites.push(...duMode.map(a => a.id));   // traitées même sous le seuil : jamais renvoyées
 
     const optIn = p ? p.notify_email !== false : abonne.get(id)?.preferences?.suivi_depute !== false;
+    // « Chaque texte voté » coché : demande explicite, servie même si les autres alertes e-mail sont coupées.
+    const chaqueVote = p?.rythmes?.textes_votes === "immediat";
     const seuil = p?.email_min_importance ?? 3;
-    const aEnvoyer = duMode.filter(a => (a.importance ?? 3) >= seuil || categorieDe(a) === "votes" || categorieDe(a) === "amendements" || categorieDe(a) === "decrets");
+    const retenues = duMode.filter(a => (optIn || (chaqueVote && categorieDe(a) === "textes"))
+      && ((a.importance ?? 3) >= seuil || ["votes", "amendements", "decrets", "textes"].includes(categorieDe(a))));
+    const { gardees: aEnvoyer, doublons } = sansDoublons(retenues, faits);
+    if (doublons.length) console.log(`  ${id.slice(0, 8)} : ${doublons.length} doublon(s) retiré(s) de l'e-mail.`);
     const adresse = abonne.get(id)?.email || adresses.get(id);
-    if (!optIn || !adresse || !aEnvoyer.length) { ignores++; continue; }
+    if (!adresse || !aEnvoyer.length) { ignores++; continue; }
     const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");
-    const sujet = t0 ? resumeCourt(`${t0.donnees?.source === "scrutin_final" ? (t0.donnees?.resultat?.adopte ? "Adopté" : "Vote final") : "Journal officiel"} : ${t0.title}`, 110)
+    const t0Vote = t0?.donnees?.source === "scrutin_final" ? `${t0.donnees?.resultat?.adopte ? "Adopté" : "Rejeté"} ${t0.donnees?.chambre === "AN" ? "à l'Assemblée" : "au Sénat"}` : "Journal officiel";
+    const sujet = t0 ? resumeCourt(`${t0Vote} : ${t0.title}`, 110)
       : aEnvoyer.length === 1
       ? resumeCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}`
         : categorieDe(aEnvoyer[0]) === "suivis" && aEnvoyer[0].domain ? `${aEnvoyer[0].domain} : ${aEnvoyer[0].title}` : aEnvoyer[0].title, 110)

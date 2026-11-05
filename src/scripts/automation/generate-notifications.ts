@@ -19,7 +19,9 @@ const LOOKBACK_DAYS = Number(process.env.NOTIF_LOOKBACK_DAYS || 30);
 
 // Votes décisifs : même logique que l'évaluation du programme. Les amendements et articles
 // sont du bruit procédural pour une notification.
-const DECISIVE = /^\s*(l'ensemble|la motion|la déclaration|la declaration|la proposition de loi|le projet de loi|la proposition de résolution|la proposition de resolution)/i;
+const DECISIVE = /^\s*(l'ensemble|la motion|la déclaration|la declaration|la proposition de loi|le projet de loi|la proposition de résolution|la proposition de resolution|la (premi[eè]re|seconde|deuxi[eè]me) partie)/i;
+// Au-delà, un vote rattrapé tard (relevé manqué, règle corrigée) va dans le fil du site, pas dans un e-mail.
+const EMAIL_MAX_JOURS = 4;
 
 async function fetchAll(table: string, select: string, apply: (q: any) => any): Promise<any[]> {
   const out: any[] = [];
@@ -148,7 +150,7 @@ export async function generateNotifications() {
       const scrutinIds = [...new Set(votes.map(v => v.scrutin_id))];
       const scrutins = new Map<string, any>();
       for (let i = 0; i < scrutinIds.length; i += 200) {
-        const rows = await fetchAll("scrutins", "id, objet, title, date_scrutin", q => q.in("id", scrutinIds.slice(i, i + 200)));
+        const rows = await fetchAll("scrutins", "id, objet, title, type, date_scrutin", q => q.in("id", scrutinIds.slice(i, i + 200)));
         for (const s of rows) scrutins.set(s.id, s);
       }
       const anByDeputy = new Map(deputies.map(d => [d.an_id, d]));
@@ -157,16 +159,21 @@ export async function generateNotifications() {
       let skippedNoise = 0;
       for (const v of votes) {
         const scrutin = scrutins.get(v.scrutin_id);
-        const objet = (scrutin?.objet || scrutin?.title || "").trim();
-        if (!objet || !DECISIVE.test(objet)) { skippedNoise++; continue; }
+        // L'intitulé complet (title) d'abord : l'objet est souvent tronqué (« Visant à créer… »),
+        // et le filtre écartait alors comme du bruit la plupart des votes sur l'ensemble d'un texte.
+        const objet = (scrutin?.title || scrutin?.objet || "").trim();
+        const decisif = DECISIVE.test(objet) || DECISIVE.test(scrutin?.objet || "") || (scrutin?.type === "LOI" && !/prolonger la s[ée]ance|^la proposition du gouvernement/i.test(objet));
+        if (!objet || !decisif) { skippedNoise++; continue; }
         const dep = anByDeputy.get(v.deputy_an_id); if (!dep) continue;
         const pos = POS_LABEL(v.position);
         const eventAt = scrutin?.date_scrutin || v.date_scrutin || v.created_at || null;
+        const tropAncien = eventAt && Date.now() - new Date(eventAt).getTime() > EMAIL_MAX_JOURS * 86400000;
         for (const userId of followersByDeputyId.get(dep.id) || []) {
           allRows.push({
             user_id: userId, type: "vote", deputy_id: dep.id, scrutin_id: v.scrutin_id,
-            title: objet.slice(0, 300), detail: `${dep.first_name} ${dep.last_name} a voté ${pos}`.trim(),
+            title: (objet.charAt(0).toUpperCase() + objet.slice(1)).slice(0, 300), detail: `${dep.first_name} ${dep.last_name} a voté ${pos}`.trim(),
             position: pos, event_at: eventAt, created_at: now, dedup_key: `vote|${v.scrutin_id}|${dep.id}`,
+            ...(tropAncien ? { emailed_at: now } : {}),
           });
         }
       }
