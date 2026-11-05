@@ -45,6 +45,10 @@ jobs:
       - run: npm run automation:interest-notifications
         if: env.ETAPE == 'alertes'
         continue-on-error: true
+      # Veilles par sujet des membres Pro (mots-clés dans amendements, commissions, JO, agenda, textes).
+      - run: npx tsx src/scripts/automation/veilles-sujet.ts
+        if: env.ETAPE == 'alertes'
+        continue-on-error: true
       # Les amendements partent avec leur relevé (amendements-an.yml), pas ici.
       - run: npm run automation:send-notification-emails -- --mode=immediat --sauf=amendements
         if: env.ETAPE == 'alertes'

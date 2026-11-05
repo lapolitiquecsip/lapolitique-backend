@@ -487,7 +487,8 @@ async function main() {
       if (!TEST && !RELECTURE && !simulation) {
         await supabase.from("recaps_envoyes").upsert({ user_id: id, semaine: samedi, nb_items: votes.length + suivis.length + local.length + sujets.length }, { onConflict: "user_id,semaine" });
         // Les alertes au rythme « hebdo » sont servies par ce récap : elles ne repartiront pas seules.
-        const enAttente = (notifs || []).filter(n => !n.emailed_at).map(n => n.id);
+        // Sauf les veilles par sujet, qui ont leur propre rythme (send-notification-emails).
+        const enAttente = (notifs || []).filter(n => !n.emailed_at && n.categorie !== "veille").map(n => n.id);
         if (enAttente.length) await supabase.from("user_notifications").update({ emailed_at: new Date().toISOString() }).in("id", enAttente);
       }
     }

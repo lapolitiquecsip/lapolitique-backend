@@ -81,6 +81,7 @@ const INTITULES: Record<string, [string, string, string]> = {
   lois: ["📜", "Lois et décrets de vos sujets", "#059669"],
   amendements: ["✍️", "Nouveaux amendements", "#7c3aed"],
   decrets: ["📑", "Décrets d'application des lois suivies", "#059669"],
+  veille: ["🔎", "Vos veilles", "#0891b2"],
 };
 const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? "#e11d48" : p === "ABSTENTION" ? "#d97706" : "#64748b");
 
@@ -89,11 +90,11 @@ function html(prenom: string, alertes: any[]): string {
   for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
   const textes = (parCat.get("textes") || []).map(carteTexte).join("");
   const votes = (parCat.get("textes") || []).every(t => t.donnees?.source === "scrutin_final");
-  const blocs = (textes ? rubrique(votes ? "🗳️" : "📜", votes ? "Textes votés au Parlement" : "Un texte vous concerne", "#7c3aed", textes) : "") + ["decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
+  const blocs = (textes ? rubrique(votes ? "🗳️" : "📜", votes ? "Textes votés au Parlement" : "Un texte vous concerne", "#7c3aed", textes) : "") + ["veille", "decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
     const [emoji, intitule, couleur] = INTITULES[c];
     const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
       ? ligne({ titre: n.detail || n.title, url: n.url, resume: n.detail ? n.title : null, etiquette: `Vote : ${n.position}`, couleur: couleurVote(n.position) })
-      : ligne({ titre: n.title, url: n.url, resume: resumeCourt(n.detail, 160), etiquette: n.place || (c === "suivis" ? n.domain : null), couleur }));
+      : ligne({ titre: n.title, url: n.url, resume: resumeCourt(n.detail, c === "veille" ? 280 : 160), etiquette: n.place || (c === "suivis" || c === "veille" ? n.domain : null), couleur }));
     return rubrique(emoji, intitule, couleur, lignes.join(""));
   }).join("");
   return gabarit({
@@ -108,7 +109,7 @@ function html(prenom: string, alertes: any[]): string {
 
 /** Le même fait n'apparaît qu'une fois dans l'e-mail : la première alerte le garde et
  *  reprend l'étiquette des autres (« Jean-Luc Mélenchon · LFI »). Les votes ne sont pas comparés. */
-const ORDRE = ["textes", "decrets", "amendements", "votes", "suivis", "local", "lois"];
+const ORDRE = ["textes", "veille", "decrets", "amendements", "votes", "suivis", "local", "lois"];
 function sansDoublons(alertes: any[], faits: Map<string, string>): { gardees: any[]; doublons: any[] } {
   const nouveau = antiDoublon();
   const gardees: any[] = []; const doublons: any[] = [];
@@ -185,11 +186,15 @@ async function main() {
       const c = categorieDe(n);
       // Amendements des textes et groupes suivis (Pro) : dès le relevé horaire, c'est leur raison d'être.
       if (c === "textes" || c === "amendements" || c === "decrets") return "immediat";
+      // Veilles par sujet : le rythme choisi pour chacune.
+      if (c === "veille") return n.donnees?.rythme || "quotidien";
       if (pro) return c === "suivis" && (n.importance ?? 0) >= 5 ? "immediat" : "hebdo";
       return "quotidien";
     };
     const aucun = alertes.filter(a => rythme(a) === "aucun");
-    const duMode = alertes.filter(a => rythme(a) === MODE);
+    // Veilles « chaque semaine » : avec l'envoi du soir, le dimanche (heure de Paris).
+    const dimanche = new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/Paris" }) === "Sunday";
+    const duMode = alertes.filter(a => rythme(a) === MODE || (MODE === "quotidien" && dimanche && categorieDe(a) === "veille" && rythme(a) === "hebdo"));
     traites.push(...aucun.map(a => a.id));
     if (!duMode.length) continue;
     traites.push(...duMode.map(a => a.id));   // traitées même sous le seuil : jamais renvoyées
@@ -198,8 +203,9 @@ async function main() {
     // « Chaque texte voté » coché : demande explicite, servie même si les autres alertes e-mail sont coupées.
     const chaqueVote = p?.rythmes?.textes_votes === "immediat";
     const seuil = p?.email_min_importance ?? 3;
-    const retenues = duMode.filter(a => (optIn || (chaqueVote && categorieDe(a) === "textes"))
-      && ((a.importance ?? 3) >= seuil || ["votes", "amendements", "decrets", "textes"].includes(categorieDe(a))));
+    // Une veille est une demande explicite : servie même si les autres alertes e-mail sont coupées.
+    const retenues = duMode.filter(a => (optIn || categorieDe(a) === "veille" || (chaqueVote && categorieDe(a) === "textes"))
+      && ((a.importance ?? 3) >= seuil || ["votes", "amendements", "decrets", "textes", "veille"].includes(categorieDe(a))));
     const { gardees: aEnvoyer, doublons } = sansDoublons(retenues, faits);
     if (doublons.length) console.log(`  ${id.slice(0, 8)} : ${doublons.length} doublon(s) retiré(s) de l'e-mail.`);
     const adresse = abonne.get(id)?.email || adresses.get(id);
@@ -209,7 +215,7 @@ async function main() {
     const sujet = t0 ? resumeCourt(`${t0Vote} : ${t0.title}`, 110)
       : aEnvoyer.length === 1
       ? resumeCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}`
-        : categorieDe(aEnvoyer[0]) === "suivis" && aEnvoyer[0].domain ? `${aEnvoyer[0].domain} : ${aEnvoyer[0].title}` : aEnvoyer[0].title, 110)
+        : ["suivis", "veille"].includes(categorieDe(aEnvoyer[0])) && aEnvoyer[0].domain ? `${aEnvoyer[0].domain} : ${aEnvoyer[0].title}` : aEnvoyer[0].title, 110)
       : `${aEnvoyer.length} alertes pour vous`;
     const apercu = process.argv.find(x => x.startsWith("--apercu="))?.split("=").slice(1).join("=");
     if (apercu) { (await import("node:fs")).writeFileSync(apercu, html(profil.get(id)?.display_name || "", aEnvoyer)); console.log(`Aperçu : ${apercu}`); return; }
