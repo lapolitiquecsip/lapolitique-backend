@@ -21,7 +21,7 @@ const texteBrut = (s: unknown) => String(s ?? "").replace(/<br\s*\/?>/gi, "\n").
 const liste = <T,>(x: T | T[] | null | undefined): T[] => (Array.isArray(x) ? x : x ? [x] : []);
 
 type Question = {
-  uid: string; type: string; numero: string; rubrique: string | null; analyse: string | null; acteur_ref: string | null; groupe: string | null;
+  uid: string; type: string; numero: string; rubrique: string | null; objet: string | null; acteur_ref: string | null; groupe: string | null;
   ministere: string | null; date_question: string | null; texte_question: string | null; date_reponse: string | null; texte_reponse: string | null; statut: string; url: string;
 };
 
@@ -33,7 +33,7 @@ export function lireQuestion(j: any): Question | null {
   const dateQ = tq?.infoJO?.dateJO || liste(q.minAttribs?.minAttrib)[0]?.infoJO?.dateJO || null;
   return {
     uid: q.uid, type: q.type, numero: String(q.identifiant?.numero ?? ""),
-    rubrique: q.indexationAN?.rubrique ?? null, analyse: liste(q.indexationAN?.analyses?.analyse).join(" ; ") || null,
+    rubrique: q.indexationAN?.rubrique ?? null, objet: liste(q.indexationAN?.analyses?.analyse).join(" ; ") || null,
     acteur_ref: q.auteur?.identite?.acteurRef ?? null, groupe: q.auteur?.groupe?.abrege ?? null,
     ministere: q.minInt?.developpe ?? q.minInt?.abrege ?? null,
     date_question: dateQ, texte_question: tq ? texteBrut(tq.texte) : null,
@@ -71,7 +71,7 @@ async function main() {
     }
   }
   console.log(`[Questions AN] ${total} question(s), ${(octets / 1e6).toFixed(1)} Mo de texte, ${aEcrire.length} nouvelle(s) ou modifiée(s)${DRY ? " — ESSAI" : ""}.`);
-  if (DRY) { for (const q of aEcrire.slice(0, 3)) console.log(" ", q.uid, q.groupe, q.ministere, q.statut, "|", q.analyse, "|", q.texte_question?.slice(0, 100)); return; }
+  if (DRY) { for (const q of aEcrire.slice(0, 3)) console.log(" ", q.uid, q.groupe, q.ministere, q.statut, "|", q.objet, "|", q.texte_question?.slice(0, 100)); return; }
   for (let i = 0; i < aEcrire.length; i += 500) {
     const { error } = await supabase.from("questions_parlement").upsert(aEcrire.slice(i, i + 500).map(q => ({ ...q, maj_le: new Date().toISOString() })), { onConflict: "uid" });
     if (error) throw error;

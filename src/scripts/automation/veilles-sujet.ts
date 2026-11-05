@@ -60,7 +60,7 @@ async function main() {
     interventions.push(...await fetchAll("seance_interventions", "id, seance_uid, date_seance, point, orateur, qualite, texte", q => q.in("seance_uid", seances.slice(i, i + 20).map((x: any) => x.uid))));
   }
   const majSeance = new Map(seances.map((x: any) => [x.uid, x.maj_le]));
-  const questions = veut("questions") ? await fetchAll("questions_parlement", "uid, type, numero, analyse, rubrique, acteur_ref, groupe, ministere, date_question, texte_question, date_reponse, texte_reponse, statut, url, maj_le", q => q.gte("maj_le", depuis)) : [];
+  const questions = veut("questions") ? await fetchAll("questions_parlement", "uid, type, numero, objet, rubrique, acteur_ref, groupe, ministere, date_question, texte_question, date_reponse, texte_reponse, statut, url, maj_le", q => q.gte("maj_le", depuis)) : [];
   const auteurs = new Map<string, string>();
   const refs = [...new Set(questions.map((x: any) => x.acteur_ref).filter(Boolean))];
   for (let i = 0; i < refs.length; i += 200) {
@@ -133,10 +133,10 @@ async function main() {
         const nature = x.type === "QG" ? "Question au Gouvernement" : `Question écrite n° ${x.numero}`;
         // Réponse publiée depuis le dernier passage : c'est elle qui fait l'alerte, avec son extrait.
         const reponse = x.date_reponse && x.texte_reponse && neuf(x.maj_le) && x.statut === "repondue";
-        const t = m(`${x.analyse || ""}. ${x.rubrique || ""}. ${x.texte_question || ""}${reponse ? `. ${x.texte_reponse}` : ""}`);
+        const t = m(`${x.objet || ""}. ${x.rubrique || ""}. ${x.texte_question || ""}${reponse ? `. ${x.texte_reponse}` : ""}`);
         if (!t) continue;
         trouvailles.push({ source: "questions", cle: `question|${x.uid}|${x.statut}`,
-          titre: reponse ? `Réponse du ministère (${court(x.ministere || "", 60)}) à ${qui} : ${court(x.analyse || "", 90)}` : `${nature} de ${qui} à ${court(x.ministere || "", 60)} : ${court(x.analyse || "", 90)}`,
+          titre: reponse ? `Réponse du ministère (${court(x.ministere || "", 60)}) à ${qui} : ${court(x.objet || "", 90)}` : `${nature} de ${qui} à ${court(x.ministere || "", 60)} : ${court(x.objet || "", 90)}`,
           detail: t.extrait, url: x.url, date: reponse ? x.date_reponse : x.date_question, mot: t.mot });
       }
     }

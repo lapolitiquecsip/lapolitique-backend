@@ -7,7 +7,7 @@ create table if not exists public.questions_parlement (
   type text not null,              -- QE (écrite) / QG (au Gouvernement, en séance)
   numero text,
   rubrique text,
-  analyse text,                    -- l'objet de la question, en quelques mots
+  objet text,                      -- l'objet de la question, en quelques mots (« analyse » à l'AN)
   acteur_ref text,                 -- identifiant officiel de l'auteur (PA…)
   groupe text,
   ministere text,
@@ -18,7 +18,7 @@ create table if not exists public.questions_parlement (
   statut text,                     -- repondue / en attente / close : …
   url text,
   maj_le timestamptz not null default now(),
-  recherche tsvector generated always as (to_tsvector('french', public.sans_accents(coalesce(analyse, '') || ' ' || coalesce(rubrique, '') || ' ' || coalesce(texte_question, '')))) stored
+  recherche tsvector generated always as (to_tsvector('french', public.sans_accents(coalesce(objet, '') || ' ' || coalesce(rubrique, '') || ' ' || coalesce(texte_question, '')))) stored
 );
 create index if not exists questions_parlement_recherche_idx on public.questions_parlement using gin (recherche);
 create index if not exists questions_parlement_date_idx on public.questions_parlement (date_question desc);
@@ -30,11 +30,11 @@ drop policy if exists "questions : lecture Pro" on public.questions_parlement;
 create policy "questions : lecture Pro" on public.questions_parlement for select using ((select public.est_pro()));
 
 create or replace function public.chercher_questions(p_q text, p_depuis date default null, p_statut text default null, p_limite integer default 30, p_decalage integer default 0)
-returns table (uid text, type text, numero text, analyse text, acteur_ref text, groupe text, ministere text, date_question date, date_reponse date, statut text, extrait text, url text)
+returns table (uid text, type text, numero text, objet text, acteur_ref text, groupe text, ministere text, date_question date, date_reponse date, statut text, extrait text, url text)
 language sql stable security invoker set search_path = public as $$
   with q as (select websearch_to_tsquery('french', public.sans_accents(p_q)) as tq)
-  select x.uid, x.type, x.numero, x.analyse, x.acteur_ref, x.groupe, x.ministere, x.date_question, x.date_reponse, x.statut,
-         ts_headline('french', coalesce(x.texte_question, x.analyse, ''), (select tq from q), 'StartSel=[[, StopSel=]], MaxWords=40, MinWords=15, MaxFragments=1'),
+  select x.uid, x.type, x.numero, x.objet, x.acteur_ref, x.groupe, x.ministere, x.date_question, x.date_reponse, x.statut,
+         ts_headline('french', coalesce(x.texte_question, x.objet, ''), (select tq from q), 'StartSel=[[, StopSel=]], MaxWords=40, MinWords=15, MaxFragments=1'),
          x.url
   from public.questions_parlement x
   where x.recherche @@ (select tq from q)
