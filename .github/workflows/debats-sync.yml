@@ -1,4 +1,4 @@
-name: Débats en séance (comptes rendus de l'Assemblée)
+name: Débats en séance et questions au Gouvernement (Assemblée)
 # Chaque prise de parole en séance publique, cherchable par les membres Pro (onglet « Débats en
 # séance ») et surveillée par leurs veilles. L'Assemblée publie ses comptes rendus vers 3 h UTC :
 # seules les séances nouvelles ou modifiées sont relues. Gratuit, sans IA.
@@ -11,6 +11,7 @@ on:
     paths:
       - .github/workflows/debats-sync.yml
       - src/scripts/data/sync-debats-an.ts
+      - src/scripts/data/sync-questions-an.ts
 concurrency:
   group: debats-sync
   cancel-in-progress: false
@@ -27,3 +28,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npx tsx src/scripts/data/sync-debats-an.ts
+        continue-on-error: true
+      # Questions écrites et questions au Gouvernement, avec les réponses des ministres.
+      - run: npx tsx src/scripts/data/sync-questions-an.ts

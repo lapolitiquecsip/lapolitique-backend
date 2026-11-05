@@ -11,6 +11,7 @@ import { trouve, sansBalises } from "../../lib/veille-correspondance.js";
  *   amendements      amendements_an et amendements_senat (dispositif + exposé), regroupés par texte
  *   comptes_rendus   réunions de commission : titre, résumé et compte rendu intégral
  *   debats           interventions en séance publique (Assemblée), regroupées par point de l'ordre du jour
+ *   questions        questions écrites et au Gouvernement : chaque nouvelle question, chaque réponse publiée
  *   journal_officiel jorf_texts : titre et explication de chaque texte du JO
  *   agenda           events : ordres du jour de l'Assemblée et du Sénat
  *   textes           legislative_dossiers : chaque nouveau projet ou proposition déposé
@@ -32,7 +33,7 @@ async function main() {
   const debutPassage = new Date().toISOString();
   const pros = new Set((await fetchAll("profiles", "id", q => q.eq("subscription_tier", "pro"))).map((p: any) => p.id));
   const veilles = ESSAI
-    ? [{ id: 0, user_id: "essai", intitule: ESSAI, mots_cles: ESSAI.split(",").map(x => x.trim()), exclusions: [], sources: ["amendements", "comptes_rendus", "debats", "journal_officiel", "agenda", "textes"], rythme: "quotidien", cree_le: new Date(Date.now() - 3 * 864e5).toISOString(), verifie_jusqu_au: null }]
+    ? [{ id: 0, user_id: "essai", intitule: ESSAI, mots_cles: ESSAI.split(",").map(x => x.trim()), exclusions: [], sources: ["amendements", "comptes_rendus", "debats", "questions", "journal_officiel", "agenda", "textes"], rythme: "quotidien", cree_le: new Date(Date.now() - 3 * 864e5).toISOString(), verifie_jusqu_au: null }]
     : (await fetchAll("veilles", "id, user_id, intitule, mots_cles, exclusions, sources, rythme, cree_le, verifie_jusqu_au", q => q.eq("actif", true)))
       .filter((v: any) => pros.has(v.user_id) && (v.mots_cles || []).length);
   console.log(`[Veilles] ${veilles.length} veille(s) active(s).`);
@@ -59,6 +60,13 @@ async function main() {
     interventions.push(...await fetchAll("seance_interventions", "id, seance_uid, date_seance, point, orateur, qualite, texte", q => q.in("seance_uid", seances.slice(i, i + 20).map((x: any) => x.uid))));
   }
   const majSeance = new Map(seances.map((x: any) => [x.uid, x.maj_le]));
+  const questions = veut("questions") ? await fetchAll("questions_parlement", "uid, type, numero, analyse, rubrique, acteur_ref, groupe, ministere, date_question, texte_question, date_reponse, texte_reponse, statut, url, maj_le", q => q.gte("maj_le", depuis)) : [];
+  const auteurs = new Map<string, string>();
+  const refs = [...new Set(questions.map((x: any) => x.acteur_ref).filter(Boolean))];
+  for (let i = 0; i < refs.length; i += 200) {
+    const { data } = await supabase.from("deputies").select("an_id, first_name, last_name").in("an_id", refs.slice(i, i + 200));
+    for (const d of data || []) auteurs.set(d.an_id, `${d.first_name} ${d.last_name}`);
+  }
   const jo = veut("journal_officiel") ? await fetchAll("jorf_texts", "id, edition_date, titre, nature, explication, updated_at", q => q.gte("updated_at", depuis)) : [];
   const agenda = veut("agenda") ? await fetchAll("events", "id, date, title, description, institution, source_url, collected_at", q => q.gte("collected_at", depuis).in("institution", ["AN", "Assemblée nationale", "Sénat"])) : [];
   const textes = veut("textes") ? await fetchAll("legislative_dossiers", "id, title, official_id, deposited_at, created_at, current_chamber", q => q.gte("created_at", depuis)) : [];
@@ -116,6 +124,20 @@ async function main() {
           titre: `En séance (${new Date(p.i.date_seance).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}) : ${court(p.i.point || "débat", 110)}`,
           detail: `${qui}${l.length > 1 ? ` (${l.length} interventions)` : ""} : ${p.r.extrait}`, url: urlSeance.get(p.i.seance_uid) || `${SITE_URL}/premium/#debats`,
           date: p.i.date_seance, mot: p.r.mot, nb: l.length });
+      }
+    }
+    if (v.sources.includes("questions")) {
+      for (const x of questions) {
+        if (!neuf(x.maj_le)) continue;
+        const qui = `${auteurs.get(x.acteur_ref) || "Un député"}${x.groupe ? ` (${x.groupe})` : ""}`;
+        const nature = x.type === "QG" ? "Question au Gouvernement" : `Question écrite n° ${x.numero}`;
+        // Réponse publiée depuis le dernier passage : c'est elle qui fait l'alerte, avec son extrait.
+        const reponse = x.date_reponse && x.texte_reponse && neuf(x.maj_le) && x.statut === "repondue";
+        const t = m(`${x.analyse || ""}. ${x.rubrique || ""}. ${x.texte_question || ""}${reponse ? `. ${x.texte_reponse}` : ""}`);
+        if (!t) continue;
+        trouvailles.push({ source: "questions", cle: `question|${x.uid}|${x.statut}`,
+          titre: reponse ? `Réponse du ministère (${court(x.ministere || "", 60)}) à ${qui} : ${court(x.analyse || "", 90)}` : `${nature} de ${qui} à ${court(x.ministere || "", 60)} : ${court(x.analyse || "", 90)}`,
+          detail: t.extrait, url: x.url, date: reponse ? x.date_reponse : x.date_question, mot: t.mot });
       }
     }
     if (v.sources.includes("journal_officiel")) {
