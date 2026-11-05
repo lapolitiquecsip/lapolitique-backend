@@ -90,6 +90,13 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Relie le dossier de l'Assemblée et celui du Sénat d'un même texte (un seul texte sur le site,
+      # parcours des deux chambres sur sa fiche). N'écrit que les liens nouveaux.
+      - run: npx tsx src/scripts/legislative/lier-dossiers-navette.ts
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       # Monitoring Healthchecks : on re-route le check « laws » (dont le script d'origine
       # fetch-laws.ts est mort) vers CE pipeline législatif réel. Ping succès / échec.
       # Régler la période du check sur ~1 h côté healthchecks.io (ce cron tourne toutes les 30 min).
