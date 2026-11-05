@@ -10,6 +10,7 @@ import { trouve, sansBalises } from "../../lib/veille-correspondance.js";
  *
  *   amendements      amendements_an et amendements_senat (dispositif + exposé), regroupés par texte
  *   comptes_rendus   réunions de commission : titre, résumé et compte rendu intégral
+ *   debats           interventions en séance publique (Assemblée), regroupées par point de l'ordre du jour
  *   journal_officiel jorf_texts : titre et explication de chaque texte du JO
  *   agenda           events : ordres du jour de l'Assemblée et du Sénat
  *   textes           legislative_dossiers : chaque nouveau projet ou proposition déposé
@@ -31,7 +32,7 @@ async function main() {
   const debutPassage = new Date().toISOString();
   const pros = new Set((await fetchAll("profiles", "id", q => q.eq("subscription_tier", "pro"))).map((p: any) => p.id));
   const veilles = ESSAI
-    ? [{ id: 0, user_id: "essai", intitule: ESSAI, mots_cles: ESSAI.split(",").map(x => x.trim()), exclusions: [], sources: ["amendements", "comptes_rendus", "journal_officiel", "agenda", "textes"], rythme: "quotidien", cree_le: new Date(Date.now() - 3 * 864e5).toISOString(), verifie_jusqu_au: null }]
+    ? [{ id: 0, user_id: "essai", intitule: ESSAI, mots_cles: ESSAI.split(",").map(x => x.trim()), exclusions: [], sources: ["amendements", "comptes_rendus", "debats", "journal_officiel", "agenda", "textes"], rythme: "quotidien", cree_le: new Date(Date.now() - 3 * 864e5).toISOString(), verifie_jusqu_au: null }]
     : (await fetchAll("veilles", "id, user_id, intitule, mots_cles, exclusions, sources, rythme, cree_le, verifie_jusqu_au", q => q.eq("actif", true)))
       .filter((v: any) => pros.has(v.user_id) && (v.mots_cles || []).length);
   console.log(`[Veilles] ${veilles.length} veille(s) active(s).`);
@@ -50,6 +51,14 @@ async function main() {
     const { data } = await supabase.from("commission_transcripts").select("ref, texte").in("ref", reunions.slice(i, i + 50).map((r: any) => r.ref));
     for (const t of data || []) integral.set(t.ref, t.texte);
   }
+  // Séances publiées ou corrigées depuis le dernier passage, et leurs interventions.
+  const seances = veut("debats") ? await fetchAll("seances_comptes_rendus", "uid, url, date_seance, maj_le", q => q.gte("maj_le", depuis).not("empreinte", "is", null)) : [];
+  const urlSeance = new Map(seances.map((x: any) => [x.uid, x.url]));
+  const interventions: any[] = [];
+  for (let i = 0; i < seances.length; i += 20) {
+    interventions.push(...await fetchAll("seance_interventions", "id, seance_uid, date_seance, point, orateur, qualite, texte", q => q.in("seance_uid", seances.slice(i, i + 20).map((x: any) => x.uid))));
+  }
+  const majSeance = new Map(seances.map((x: any) => [x.uid, x.maj_le]));
   const jo = veut("journal_officiel") ? await fetchAll("jorf_texts", "id, edition_date, titre, nature, explication, updated_at", q => q.gte("updated_at", depuis)) : [];
   const agenda = veut("agenda") ? await fetchAll("events", "id, date, title, description, institution, source_url, collected_at", q => q.gte("collected_at", depuis).in("institution", ["AN", "Assemblée nationale", "Sénat"])) : [];
   const textes = veut("textes") ? await fetchAll("legislative_dossiers", "id, title, official_id, deposited_at, created_at, current_chamber", q => q.gte("created_at", depuis)) : [];
@@ -90,6 +99,23 @@ async function main() {
         const t = m(`${r.title || ""}. ${r.summary || ""}. ${sansBalises(integral.get(r.ref) || "")}`);
         if (t) trouvailles.push({ source: "comptes_rendus", cle: `cr|${r.ref}`, titre: `${r.chamber === "AN" ? "Assemblée" : "Sénat"} · ${r.commission || "Commission"} : ${court(r.title || "réunion", 110)}`,
           detail: t.extrait, url: r.cr_url || `${SITE_URL}/premium/#commissions`, date: r.meeting_date, mot: t.mot });
+      }
+    }
+    if (v.sources.includes("debats")) {
+      // Une séance, un point de l'ordre du jour = une alerte, avec ceux qui en ont parlé.
+      const parPoint = new Map<string, { i: any; r: { mot: string; extrait: string } }[]>();
+      for (const it of interventions) {
+        if (!neuf(majSeance.get(it.seance_uid) || null)) continue;
+        const r = m(it.texte);
+        if (r) parPoint.set(`${it.seance_uid}|${it.point || ""}`, [...(parPoint.get(`${it.seance_uid}|${it.point || ""}`) || []), { i: it, r }]);
+      }
+      for (const [cle, l] of parPoint) {
+        const p = l[0];
+        const qui = [...new Set(l.map(x => x.i.qualite ? `${x.i.orateur}, ${x.i.qualite}` : x.i.orateur))].slice(0, 4).join(" ; ");
+        trouvailles.push({ source: "debats", cle: `debat|${cle}`,
+          titre: `En séance (${new Date(p.i.date_seance).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}) : ${court(p.i.point || "débat", 110)}`,
+          detail: `${qui}${l.length > 1 ? ` (${l.length} interventions)` : ""} : ${p.r.extrait}`, url: urlSeance.get(p.i.seance_uid) || `${SITE_URL}/premium/#debats`,
+          date: p.i.date_seance, mot: p.r.mot, nb: l.length });
       }
     }
     if (v.sources.includes("journal_officiel")) {

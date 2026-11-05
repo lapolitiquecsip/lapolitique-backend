@@ -1,0 +1,29 @@
+name: Débats en séance (comptes rendus de l'Assemblée)
+# Chaque prise de parole en séance publique, cherchable par les membres Pro (onglet « Débats en
+# séance ») et surveillée par leurs veilles. L'Assemblée publie ses comptes rendus vers 3 h UTC :
+# seules les séances nouvelles ou modifiées sont relues. Gratuit, sans IA.
+on:
+  schedule:
+    - cron: '20 5 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/debats-sync.yml
+      - src/scripts/data/sync-debats-an.ts
+concurrency:
+  group: debats-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  debats:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/data/sync-debats-an.ts
