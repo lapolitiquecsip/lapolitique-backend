@@ -1,0 +1,28 @@
+name: Représentants d'intérêts (répertoire HATVP)
+# Les activités de lobbying déclarées à la HATVP, pour « qui fait du lobbying sur ce sujet ? »
+# (onglet « Qui pèse » des membres Pro). Fichier ouvert de ≈ 140 Mo, relu chaque lundi. Sans IA.
+on:
+  schedule:
+    - cron: '10 6 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/lobbying-sync.yml
+      - src/scripts/data/sync-lobbying-hatvp.ts
+concurrency:
+  group: lobbying-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  hatvp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/data/sync-lobbying-hatvp.ts
