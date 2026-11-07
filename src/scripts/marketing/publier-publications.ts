@@ -58,7 +58,7 @@ async function instagram(): Promise<{ jeton: string; compte: string } | null> {
   ig = { jeton, compte: process.env.INSTAGRAM_USER_ID || String(moi.user_id ?? moi.id) };
   if (VERIFIER) {
     const q = await fetch(`${IG}/${ig.compte}/content_publishing_limit?fields=quota_usage,config&access_token=${jeton}`).then(r => json(r, "Instagram quota"));
-    console.log(`Instagram OK : @${moi.username} (${moi.account_type}), ${q.data?.[0]?.quota_usage ?? 0}/${q.data?.[0]?.config?.quota_total ?? 50} publications sur 24 h.`);
+    console.log(`::notice::Instagram OK : @${moi.username} (${moi.account_type}), ${q.data?.[0]?.quota_usage ?? 0}/${q.data?.[0]?.config?.quota_total ?? 50} publications sur 24 h.`);
   }
   return ig;
 }
