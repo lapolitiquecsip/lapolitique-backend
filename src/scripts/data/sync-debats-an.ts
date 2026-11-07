@@ -65,9 +65,21 @@ async function main() {
   if (local) archive = fs.readFileSync(local);
   else {
     console.log("[Débats AN] Téléchargement des comptes rendus…");
-    const r = await fetch(SOURCE, { signal: AbortSignal.timeout(15 * 60000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    archive = Buffer.from(await r.arrayBuffer());
+    // Le serveur de l'Assemblée coupe parfois la connexion en plein téléchargement : quatre essais.
+    let lu: Buffer | null = null, derniere: unknown;
+    for (let essai = 1; essai <= 4 && !lu; essai++) {
+      try {
+        const r = await fetch(SOURCE, { signal: AbortSignal.timeout(15 * 60000) });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        lu = Buffer.from(await r.arrayBuffer());
+      } catch (e) {
+        derniere = e;
+        console.log(`::warning::Débats AN : téléchargement interrompu (essai ${essai}/4) — ${(e as Error).message}`);
+        await new Promise(res => setTimeout(res, essai * 20000));
+      }
+    }
+    if (!lu) throw derniere;
+    archive = lu;
   }
   const zip = new AdmZip(archive);
   const fichiers = zip.getEntries().filter(e => /CRSANR5L\d+S.*\.xml$/.test(e.entryName));

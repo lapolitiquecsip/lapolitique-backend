@@ -45,9 +45,21 @@ export function lireQuestion(j: any): Question | null {
 
 async function archive(type: "QE" | "QG", local?: string): Promise<AdmZip> {
   if (local) return new AdmZip(fs.readFileSync(local));
-  const r = await fetch(SOURCES[type], { signal: AbortSignal.timeout(15 * 60000) });
-  if (!r.ok) throw new Error(`${type} : HTTP ${r.status}`);
-  return new AdmZip(Buffer.from(await r.arrayBuffer()));
+  // Le serveur de l'Assemblée coupe parfois la connexion en plein téléchargement (« other side
+  // closed ») : le job échouait une nuit sur deux. Quatre essais espacés avant d'abandonner.
+  let derniere: unknown;
+  for (let essai = 1; essai <= 4; essai++) {
+    try {
+      const r = await fetch(SOURCES[type], { signal: AbortSignal.timeout(15 * 60000) });
+      if (!r.ok) throw new Error(`${type} : HTTP ${r.status}`);
+      return new AdmZip(Buffer.from(await r.arrayBuffer()));
+    } catch (e) {
+      derniere = e;
+      console.log(`::warning::${type} : téléchargement interrompu (essai ${essai}/4) — ${(e as Error).message}`);
+      await new Promise(res => setTimeout(res, essai * 20000));
+    }
+  }
+  throw derniere;
 }
 
 async function main() {

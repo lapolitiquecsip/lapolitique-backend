@@ -155,6 +155,17 @@ async function main() {
   if (!DRY) await signalerLot(AGENT, nouveaux);
   fs.rmSync(dossier, { recursive: true, force: true });
 
+  // Une réunion sortie de la fenêtre (--jours) avant d'avoir été vue « en ligne » restait figée à
+  // « collecté » alors que son analyse avait paru depuis : le contrôleur donnait l'alerte à tort
+  // (réunion du 19/05/2026, analysée le 17/10). On referme ces objets d'après la base.
+  for (const connu of suivi.values()) {
+    if (connu.etape !== "collecte" || (connu.date_objet ?? "") >= debut) continue;
+    const ref = connu.donnees?.ref as string | undefined;
+    const base = (ref ? enBase.get(ref) : undefined) ?? enBase.get(connu.cle);
+    if (!base?.analyse || DRY) continue;
+    if (await signaler(AGENT, connu, { ...connu, etape: "en_ligne", erreur: null }) === "avance") avances++;
+  }
+
   console.log(`  ${nouveaux.length} réunion(s) nouvelle(s), ${avances} ont avancé.`);
   for (const [e, n] of Object.entries(compte).sort((a, b) => b[1] - a[1])) console.log(`    ${e.padEnd(13)} ${n}`);
 }
