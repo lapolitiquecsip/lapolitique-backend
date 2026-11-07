@@ -4,8 +4,6 @@ on:
     # Sondages (Wikipédia) et panel presse : toutes les deux heures. Sans IA, donc
     # sans dépendre du quota gratuit.
     - cron: '25 */2 * * *'
-    # Temps de parole Arcom : publication mensuelle, relue chaque lundi.
-    - cron: '50 6 * * 1'
   workflow_dispatch:
 concurrency:
   group: dynamiques-presidentielle
@@ -27,6 +25,7 @@ jobs:
         continue-on-error: true
       - run: npm run automation:veille-presse
         continue-on-error: true
+      # Temps de parole Arcom : à chaque passage (le script ne télécharge que s'il y a du nouveau).
+      # Le créneau du lundi seul était sauté par GitHub : septembre 2026 n'a jamais été relevé.
       - run: npm run automation:arcom
-        if: github.event.schedule == '50 6 * * 1' || github.event_name == 'workflow_dispatch'
         continue-on-error: true

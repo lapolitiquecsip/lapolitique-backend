@@ -10,10 +10,15 @@ import { supabase } from "../../config/supabase.js";
  * liste des fichiers dans ses réglages (drupalSettings.tphpe) : on la lit pour
  * l'année en cours et la précédente, et on recharge chaque mois (les chiffres d'un
  * mois peuvent être corrigés).
+ *
+ * Lancé à chaque passage du workflow (toutes les 2 h) : jusqu'au 07/11/2026 il ne tournait que le
+ * lundi à 6 h 50, créneau que GitHub sautait souvent, et septembre est resté un mois sans être relevé.
+ * Pour ménager l'Arcom, les CSV ne sont téléchargés que si un nouveau mois est listé, ou pour une
+ * relecture complète par semaine (corrections). Alarme si le dernier mois en base a plus de 75 jours.
  */
 
 const BASE = "https://www.arcom.fr";
-const UA = { "User-Agent": "Mozilla/5.0 (compatible; lapolitiquecestsimple-veille)" };
+const UA = { "User-Agent": "lapolitiquecestsimple.fr (veille temps de parole)" };
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /** « LE PEN Marine » → « marine le pen » : nom en capitales, prénom ensuite. */
@@ -67,6 +72,15 @@ async function main() {
   const liste = [...(await fichiers(an)), ...(await fichiers(an - 1))];
   if (!liste.length) throw new Error("Aucun fichier Arcom trouvé : la page a peut-être changé de structure.");
 
+  const { data: dernier } = await supabase.from("arcom_temps_parole").select("mois, maj_le").order("mois", { ascending: false }).order("maj_le", { ascending: false }).limit(1).maybeSingle();
+  const plusRecent = liste.map(f => f.mois).sort().pop()!;
+  const ageJours = dernier?.maj_le ? (Date.now() - new Date(dernier.maj_le).getTime()) / 86400000 : Infinity;
+  if (dernier && dernier.mois >= plusRecent && ageJours < 7 && !process.argv.includes("--force")) {
+    console.log(`[Arcom] Rien de nouveau : ${plusRecent} déjà relevé (il y a ${Math.round(ageJours)} j).`);
+    alarme(dernier.mois);
+    return;
+  }
+
   const rows: any[] = [];
   for (const f of liste) {
     const r = await fetch(f.url, { headers: UA });
@@ -92,6 +106,14 @@ async function main() {
   if (e) throw e;
   const mois = [...new Set(uniques.map(r => r.mois))].sort();
   console.log(`[Arcom] ${liste.length} fichier(s) mensuel(s), ${uniques.length} relevé(s) candidat × mois (${mois[0]} → ${mois[mois.length - 1]}).`);
+  alarme(mois[mois.length - 1]);
+}
+
+/** Le mois M est publié vers M+6 semaines : au-delà de 75 jours sans nouveau mois, quelque chose cloche. */
+function alarme(mois: string) {
+  const fin = new Date(mois + "T00:00:00Z"); fin.setUTCMonth(fin.getUTCMonth() + 1);
+  const jours = (Date.now() - fin.getTime()) / 86400000;
+  if (jours > 75) console.log(`::error::Arcom : dernier mois en base ${mois}, terminé il y a ${Math.round(jours)} jours — la page Arcom a peut-être changé.`);
 }
 
 main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
