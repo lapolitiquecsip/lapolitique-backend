@@ -27,7 +27,7 @@ const AJUSTER = `(() => {
   return !deborde();
 })()`;
 
-/** Photographie chaque slide en PNG ; s'arrête si un texte sort du cadre plutôt que de publier un visuel coupé. */
+/** Photographie chaque slide en JPEG (seul format accepté par l'API de publication d'Instagram) ; s'arrête si un texte sort du cadre plutôt que de publier un visuel coupé. */
 export async function rendreSlides(slides: Slide[], sortie: string, options: { channel?: string } = {}): Promise<string[]> {
   mkdirSync(sortie, { recursive: true });
   const navigateur = await chromium.launch(options.channel ? { channel: options.channel } : {});
@@ -40,9 +40,9 @@ export async function rendreSlides(slides: Slide[], sortie: string, options: { c
       await page.goto(pathToFileURL(tampon).href, { waitUntil: "networkidle" });
       await page.evaluate("document.fonts.ready");
       if (!(await page.evaluate(AJUSTER))) throw new Error(`Le texte déborde du visuel ${s.nom}`);
-      const png = join(sortie, `${s.nom}.png`);
-      await page.locator(".slide").screenshot({ path: png });
-      fichiers.push(png);
+      const jpg = join(sortie, `${s.nom}.jpg`);
+      await page.locator(".slide").screenshot({ path: jpg, type: "jpeg", quality: 92 });
+      fichiers.push(jpg);
     }
   } finally {
     await navigateur.close();

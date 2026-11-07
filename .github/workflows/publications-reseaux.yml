@@ -6,6 +6,11 @@ on:
     - cron: '30 7 * * *'
     - cron: '5 8-19 * * *'
   workflow_dispatch:
+    inputs:
+      verifier:
+        description: "Seulement vérifier le jeton Instagram (rien n'est publié)"
+        type: boolean
+        default: false
 concurrency:
   group: publications-reseaux
   cancel-in-progress: false
@@ -13,7 +18,7 @@ permissions:
   contents: read
 jobs:
   preparer:
-    if: github.event.schedule == '30 7 * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '30 7 * * *' || (github.event_name == 'workflow_dispatch' && !inputs.verifier)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -40,4 +45,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
-      - run: npx tsx src/scripts/marketing/publier-publications.ts
+      - run: npx tsx src/scripts/marketing/publier-publications.ts ${{ inputs.verifier && '--verifier' || '' }}

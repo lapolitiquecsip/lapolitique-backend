@@ -78,7 +78,7 @@ async function deposer(idee: any, fichiers: string[]) {
   const dossier = `${new Date().toISOString().slice(0, 10)}/${reference(idee.cle).slice(4)}`;
   for (const f of fichiers) {
     const nom = `${dossier}/${basename(f)}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(nom, readFileSync(f), { contentType: "image/png", upsert: true });
+    const { error } = await supabase.storage.from(BUCKET).upload(nom, readFileSync(f), { contentType: f.endsWith(".png") ? "image/png" : "image/jpeg", upsert: true });
     if (error) throw new Error(`Stockage : ${error.message}`);
     urls.push({ name: basename(f), external: { url: supabase.storage.from(BUCKET).getPublicUrl(nom).data.publicUrl } });
   }
