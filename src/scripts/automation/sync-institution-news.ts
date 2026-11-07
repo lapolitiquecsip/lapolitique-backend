@@ -49,6 +49,11 @@ function termesRequete(feedUrl: string): string[] {
 /** Requêtes Bing d'une source : il ne comprend pas les requêtes composées de Google. */
 function requetesBing(src: any): string[] {
   if (src.entity_type === "party") return termesRequete(src.feed_url).slice(0, 2).map(t => `"${t}"`);
+  // Ministère suivi par le nom de son ministre ou un alias (« Quai d'Orsay ») : on cherche ces termes-là.
+  if (src.entity_type === "ministry" && src.source_name !== "Google News") {
+    const termes = termesRequete(src.feed_url);
+    if (termes.length) return termes.slice(0, 2).map(t => `"${t}"`);
+  }
   const motif = src.entity_type === "commune" ? " mairie" : src.entity_type === "department" ? " préfecture" : src.entity_type === "region" ? " conseil régional" : "";
   return [`"${src.entity_name}"${motif}`];
 }
@@ -78,7 +83,7 @@ function cleanGoogleTitle(title: string): { title: string; source: string } {
 
 const MINISTRY_PROMPT = (entityName: string) => `Tu alimentes un fil qui documente L'ACTION d'une institution publique FRANÇAISE : « ${entityName} ». On veut savoir ce que l'institution FAIT — ce qu'elle annonce, décide, met en œuvre — pas ce qu'on dit d'elle.
 
-À PUBLIER (should_publish=true) uniquement si l'article décrit une ACTION de cette institution : annonce, mesure, décision, plan/réforme, décret ou arrêté, financement/budget, nomination, lancement/déploiement, ouverture/inauguration, résultat ou bilan chiffré, texte déposé.
+À PUBLIER (should_publish=true) uniquement si l'article décrit une ACTION de cette institution ou de son ministre dans ses fonctions : annonce, mesure, décision, plan/réforme, décret ou arrêté, financement/budget, nomination, lancement/déploiement, ouverture/inauguration, résultat ou bilan chiffré, texte déposé, audition au Parlement, déplacement ou entretien officiel, position officielle de la France exprimée par le ministre.
 
 NE PAS PUBLIER (should_publish=false) :
 - le COMMENTAIRE, l'opinion, la polémique, la réaction ou la critique de tiers (ex. « X critique… », « la gauche dénonce… ») ;
@@ -152,14 +157,14 @@ LIEU — obligatoire :
 - Le "title" NOMME la commune quand elle est connue (« Saint-Nazaire : … »). Si l'article parle d'une commune sans la nommer, écris « Une commune de ${entityName} … » — jamais « la municipalité », « la commune » ou « la mairie » seules, qui laissent croire au lecteur qu'il s'agit de la sienne.
 Ajoute ces deux champs au JSON : "portee" et "lieu".`;
 
-async function summarise(entityName: string, title: string, snippet: string, entityType: string, payant = false) {
+async function summarise(entityName: string, title: string, snippet: string, entityType: string, payant = false, ministre: string | null = null) {
   const promptFor = entityType === "commune" ? COMMUNE_PROMPT : entityType === "region" ? REGION_PROMPT : entityType === "party" ? PARTY_PROMPT : MINISTRY_PROMPT;
   const labelFor = entityType === "commune" ? "Ville" : entityType === "region" ? "Région" : entityType === "party" ? "Parti" : "Institution";
   const territorial = entityType === "department" || entityType === "region";
   const response = await resilientDeepSeek.createMessage({
     model: "deepseek-chat", max_tokens: 3000, responseFormat: "json_object",
     system: promptFor(entityName) + (territorial ? LIEU_PROMPT(entityName) : ""),
-    messages: [{ role: "user", content: `${labelFor} : ${entityName}\nTitre : ${title}\nExtrait : ${snippet}` }],
+    messages: [{ role: "user", content: `${labelFor} : ${entityName}${ministre ? `\nMinistre en fonction (agit au nom de l'institution) : ${ministre}` : ""}\nTitre : ${title}\nExtrait : ${snippet}` }],
     sansReflexion: true,
   }, { payant });
   const text = response.content[0]?.type === "text" ? response.content[0].text : "";
@@ -254,7 +259,10 @@ export async function syncInstitutionNews() {
 
       // Filtre heuristique AVANT LLM (surtout pour Google News : désambiguïsation). Sauté pour les
       // PARTIS (noms souvent ambigus + articles centrés sur le dirigeant) : l'IA tranche la pertinence.
-      if (src.kind === "google_news" && src.entity_type !== "party" && !mentionsEntity(rawTitle, src.entity_name)) continue;
+      // Un ministère suivi par le nom du ministre ou un alias passe si le titre les cite.
+      const parAlias = src.entity_type === "ministry" && src.source_name !== "Google News"
+        && termesRequete(src.feed_url).some(t => deacc(rawTitle).includes(deacc(t)));
+      if (src.kind === "google_news" && src.entity_type !== "party" && !parAlias && !mentionsEntity(rawTitle, src.entity_name)) continue;
 
       scanned++;
       // Lecture gratuite de l'article. Le résumé ne s'écrit que sur le texte réellement lu.
@@ -266,7 +274,8 @@ export async function syncInstitutionNews() {
       }
       const snippet = (article?.texte || item.snippet).slice(0, article ? 4000 : 500);
       let ai;
-      try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type); quotaVide = 0; }
+      const ministre = String(src.source_name || "").startsWith("Ministre : ") ? src.source_name.slice(11) : null;
+      try { ai = await summarise(src.entity_name, rawTitle, snippet, src.entity_type, false, ministre); quotaVide = 0; }
       catch (e: any) {
         echecs++;
         // Toutes les lignées gratuites refusent : on laisse passer les pauses de 5 min
@@ -283,10 +292,10 @@ export async function syncInstitutionNews() {
       const lue = !!article && !!article.date && !!ai?.summary && chiffresDansTexte(`${ai.title} ${ai.summary}`, article.texte);
       if (ai && presse && !lue) { ai.title = rawTitle.slice(0, 160); ai.summary = null; ai.brut = true; }
       if (!ai || ai.should_publish === false || !ai.title || (!ai.summary && !ai.brut)) continue;
-      // Même fait, autre journal. Pas pour les ministères : leurs actes du Journal
-      // officiel ont des intitulés récurrents (« Nomination … ») qui se ressemblent
-      // sans se répéter.
-      if (src.entity_type !== "ministry" && titresRecents.some(t => quasiDoublon(t, ai.title, src.entity_name))) continue;
+      // Même fait, autre journal. Pas pour les flux officiels des ministères : leurs actes
+      // ont des intitulés récurrents (« Nomination … ») qui se ressemblent sans se répéter.
+      // La presse, elle, arrive par plusieurs requêtes (ministre, alias) : on dédoublonne.
+      if (!(src.entity_type === "ministry" && src.kind !== "google_news") && titresRecents.some(t => quasiDoublon(t, ai.title, src.entity_name))) continue;
 
       // Le lieu : la commune elle-même pour un fil de commune ; pour un fil de
       // département ou de région, la commune que l'IA a lue dans l'article, ou le

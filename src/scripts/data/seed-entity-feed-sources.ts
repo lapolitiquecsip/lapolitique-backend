@@ -30,8 +30,14 @@ const OFFICIAL_RSS: { kw: RegExp; url: string; source: string }[] = [
   { kw: /sant[ée]/i, url: "https://sante.gouv.fr/rss.xml", source: "Ministère de la Santé" },
 ];
 
+// Autres noms sous lesquels la presse désigne un ministère (le titre d'un article dit rarement
+// « ministère de l'Europe et des affaires étrangères »).
+const ALIAS_MINISTERE: { kw: RegExp; termes: string[] }[] = [
+  { kw: /europe et des affaires [ée]trang[èe]res/i, termes: ["Quai d'Orsay"] },
+];
+
 async function ministries(): Promise<Source[]> {
-  const { data, error } = await supabase.from("minister_profiles").select("ministry_name").not("ministry_name", "is", null);
+  const { data, error } = await supabase.from("minister_profiles").select("ministry_name, full_name").not("ministry_name", "is", null);
   if (error) throw error;
   const seen = new Set<string>();
   const out: Source[] = [];
@@ -39,8 +45,13 @@ async function ministries(): Promise<Source[]> {
     const name = (r.ministry_name || "").replace(/\s+/g, " ").trim();
     if (!name) continue;
     const id = slugify(name);
+    // 3) Le ministre lui-même : ses entretiens, déplacements et décisions sont l'actualité du ministère.
+    const ministre = (r.full_name || "").replace(/\s+/g, " ").trim();
+    if (id && ministre) out.push({ entity_type: "ministry", entity_id: id, entity_name: name, feed_url: gnews(`"${ministre}"`), source_name: `Ministre : ${ministre}`, kind: "google_news", active: true });
     if (!id || seen.has(id)) continue;
     seen.add(id);
+    for (const a of ALIAS_MINISTERE.filter(a => a.kw.test(name)))
+      out.push({ entity_type: "ministry", entity_id: id, entity_name: name, feed_url: gnews(a.termes.map(t => `"${t}"`).join(" OR ")), source_name: `Google News (${a.termes.join(", ")})`, kind: "google_news", active: true });
     // 1) RSS officiel du ministère si disponible (prioritaire, action authentique).
     const rss = OFFICIAL_RSS.find(o => o.kw.test(name));
     if (rss) out.push({ entity_type: "ministry", entity_id: id, entity_name: name, feed_url: rss.url, source_name: rss.source, kind: "official_rss", active: true });
@@ -129,6 +140,14 @@ async function main() {
     ok += batch.length;
   }
   console.log(`Terminé. ${ok} sources enregistrées/à jour.`);
+  // Ministre remplacé : sa source s'éteint (sinon le fil suivrait l'ancien titulaire).
+  const actuelles = new Set(sources.filter(s => s.source_name.startsWith("Ministre : ")).map(s => `${s.entity_id}|${s.feed_url}`));
+  const { data: anciennes } = await supabase.from("entity_feed_sources").select("entity_id, feed_url").eq("entity_type", "ministry").like("source_name", "Ministre : %").eq("active", true);
+  for (const a of anciennes || []) {
+    if (actuelles.has(`${a.entity_id}|${a.feed_url}`)) continue;
+    await supabase.from("entity_feed_sources").update({ active: false }).eq("entity_type", "ministry").eq("entity_id", a.entity_id).eq("feed_url", a.feed_url);
+    console.log(`Source éteinte (ministre parti) : ${a.entity_id} ← ${a.feed_url}`);
+  }
   console.log("Aperçu ministères :", sources.filter(s => s.entity_type === "ministry").slice(0, 8).map(s => s.entity_id).join(", "));
 }
 

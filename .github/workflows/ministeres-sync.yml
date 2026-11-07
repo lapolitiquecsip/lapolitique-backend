@@ -1,0 +1,27 @@
+name: Fiches ministères (budget, emplois, résultats, questions)
+# Chaque lundi : relit le dernier projet de loi de finances et le dernier projet de loi de résultats
+# déposés à l'Assemblée, le rapport annuel de performances de Bercy et les questions écrites.
+# Sans IA ; un chiffre qui échoue aux contrôles n'est pas publié (avertissement ci-dessous).
+on:
+  schedule:
+    - cron: '40 6 * * 1'
+  workflow_dispatch:
+concurrency:
+  group: ministeres-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  fiches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install "pypdf>=5,<7"
+      - run: python python/fiches_ministeres.py
