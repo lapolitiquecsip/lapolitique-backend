@@ -117,6 +117,47 @@ async function main() {
     console.log(`> ✓ ${fullName}`);
   }
   console.log(`--- TERMINE. ${done} fiche(s) ministre. ---`);
+  await reparerPhotos();
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+const photoVivante = async (url: string) => {
+  try { return (await fetch(url, { method: "HEAD", headers: H, signal: AbortSignal.timeout(12000) })).ok; } catch { return false; }
+};
+
+/** Photo officielle actuelle : celle de la page Wikipédia, sinon l'image Wikidata (P18) de la page. */
+async function photoActuelle(sourceUrl: string | null, nom: string): Promise<string | null> {
+  const titre = sourceUrl ? decodeURIComponent(sourceUrl.split("/wiki/")[1] ?? "") : nom;
+  try {
+    const r = await fetch(`https://fr.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(titre)}&prop=pageimages|pageprops&piprop=original&redirects=1&format=json`, { headers: H, signal: AbortSignal.timeout(12000) });
+    const p: any = Object.values((await r.json())?.query?.pages ?? {})[0];
+    const candidats: string[] = [];
+    if (p?.original?.source) candidats.push(p.original.source.split("?")[0]);
+    const qid = p?.pageprops?.wikibase_item;
+    if (qid) {
+      const w: any = await (await fetch(`https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${qid}&property=P18&format=json`, { headers: H, signal: AbortSignal.timeout(12000) })).json();
+      const fichier = w?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
+      if (fichier) candidats.push(`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(fichier.replace(/ /g, "_"))}`);
+    }
+    for (const c of candidats) if (await photoVivante(c)) return c;
+  } catch { /* on réessaiera au prochain passage */ }
+  return null;
+}
+
+// Une fiche « à jour » n'est plus relue : quand Wikimedia supprime ou renomme une photo, elle restait
+// cassée pour toujours (Jean-Noël Barrot, 07/11/2026). Chaque passage revérifie donc toutes les photos.
+async function reparerPhotos() {
+  const { data } = await supabase.from("minister_profiles").select("slug, full_name, photo_url, source_url");
+  let reparees = 0;
+  for (const m of data || []) {
+    if (m.photo_url && await photoVivante(m.photo_url)) continue;
+    const nouvelle = await photoActuelle(m.source_url, m.full_name);
+    if (!nouvelle || nouvelle === m.photo_url) { console.log(`  photo introuvable : ${m.full_name}`); continue; }
+    await supabase.from("minister_profiles").update({ photo_url: nouvelle }).eq("slug", m.slug);
+    console.log(`  photo réparée : ${m.full_name} → ${nouvelle}`);
+    reparees++;
+  }
+  console.log(`--- Photos : ${reparees} réparée(s). ---`);
+}
+
+if (process.argv.includes("--photos")) reparerPhotos().catch(e => { console.error(e); process.exit(1); });
+else main().catch(e => { console.error(e); process.exit(1); });
