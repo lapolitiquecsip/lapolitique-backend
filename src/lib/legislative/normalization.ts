@@ -157,7 +157,9 @@ export function stableHash(value: unknown): string {
 }
 
 export function normalizeDossier(input: RawOfficialDossier): NormalizedDossier {
-  const isGovernment = /projet de loi/i.test(input.procedureLabel);
+  // Le libellé de procédure ne dit pas toujours « projet de loi » (54 dossiers intitulés
+  // « Projet de loi… » étaient classés propositions) : l'intitulé officiel fait foi aussi.
+  const isGovernment = /projet de loi/i.test(input.procedureLabel) || /^projet de loi/i.test(input.title.trim());
   const sourceUpdatedAt = input.sourceUpdatedAt ?? new Date().toISOString();
   const normalized = {
     officialId: input.uid.trim(),

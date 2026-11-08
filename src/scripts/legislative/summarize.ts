@@ -8,7 +8,13 @@ import { trackLegislativeSync } from "../../lib/legislative/sync-run.js";
 import { fetchExposeText } from "../../lib/legislative/expose.js";
 
 // v2 : ajoute l'exposé des motifs (substance du texte) aux faits fournis au modèle.
-export const PROMPT_VERSION = "legislative-v2";
+// v3 (08/11/2026) : le résumé public EXPLIQUE la loi (en bref, ce que prévoit le texte en
+// puces, pourquoi, qui est concerné) au lieu de deux phrases génériques ; nourri aussi par
+// l'analyse approfondie quand elle existe (lecture du texte entier, pas seulement le début
+// de l'exposé — pour un budget, les 18 000 premiers caractères ne sont que le sommaire).
+export const PROMPT_VERSION = "legislative-v3";
+/** Résumés (ré)écrits au plus par passage : la v3 refait tout peu à peu sans vider le quota gratuit. */
+const MAX_NOUVEAUX = Math.max(1, Number(process.env.LEGISLATIVE_SUMMARY_MAX_NEW ?? 15));
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -30,8 +36,20 @@ export async function faitsOfficiels(dossier: any): Promise<{ officialFacts: any
   // Plafonné à 18 000 caractères : au-delà, coût token élevé sans gain de qualité (et compatible
   // avec la fenêtre de sortie des modèles gratuits type Gemini Flash).
   const exposeDesMotifs = (await fetchExposeText(dossier.source_urls) || "").slice(0, 18000);
+  // Analyse approfondie (texte entier lu par tranches) : la meilleure source sur le contenu.
+  const { data: approfondie } = await supabase.from("dossier_analyses_approfondies")
+    .select("analyse_loi, texte_version").eq("dossier_id", dossier.id).maybeSingle();
+  const a: any = approfondie?.analyse_loi || null;
+  const analyseTexte = a ? {
+    texte_lu: approfondie!.texte_version,
+    en_une_phrase: a.en_une_phrase || null,
+    contexte: String(a.contexte || "").slice(0, 2500),
+    concernes: (a.concernes || []).slice(0, 8),
+    chiffres_cles: (a.chiffres_cles || []).slice(0, 12),
+    mesures: (a.mesures || []).slice(0, 40).map((m: any) => ({ titre: m.titre, apres: String(m.apres || "").slice(0, 300) })),
+  } : null;
   // Cap les amendements/scrutins envoyés au LLM (les gros dossiers en ont 100+ → coût token énorme).
-  const officialFacts = { dossier, expose_des_motifs: exposeDesMotifs, steps: (stepsResult.data || []).slice(0, 40), amendments: (amendmentsResult.data || []).slice(0, 30), scrutins: (scrutinsResult.data || []).slice(0, 20) };
+  const officialFacts = { dossier, expose_des_motifs: exposeDesMotifs, analyse_du_texte: analyseTexte, steps: (stepsResult.data || []).slice(0, 40), amendments: (amendmentsResult.data || []).slice(0, 30), scrutins: (scrutinsResult.data || []).slice(0, 20) };
   const sourceUrls = [...new Set([
     ...(dossier.source_urls ?? []),
     ...(stepsResult.data ?? []).map((item: any) => item.source_url),
@@ -88,7 +106,8 @@ export async function summarizeLegislativeDossiers() {
   ]);
   if (promulgatedResult.error) throw promulgatedResult.error;
   if (activeResult.error) throw activeResult.error;
-  let dossiers = [...new Map([...(promulgatedResult.data ?? []), ...(activeResult.data ?? [])].map(dossier => [dossier.id, dossier])).values()];
+  // Textes en cours d'abord (ce que les gens ouvrent), lois promulguées ensuite.
+  let dossiers = [...new Map([...(activeResult.data ?? []), ...(promulgatedResult.data ?? [])].map(dossier => [dossier.id, dossier])).values()];
 
   // Mode CIBLÉ : force l'analyse de dossiers précis (par id), utile pour combler un dossier
   // manquant sans attendre son tour dans la file du backfill. Ex : SUMMARY_DOSSIER_IDS="uuid1,uuid2".
@@ -121,6 +140,7 @@ export async function summarizeLegislativeDossiers() {
   }
   let generated = 0;
   for (const dossier of dossiers) {
+    if (generated >= MAX_NOUVEAUX) { console.log(`Plafond du passage atteint (${MAX_NOUVEAUX} résumés) : la suite au prochain.`); break; }
     const faits = await faitsOfficiels(dossier);
     if (!faits) {
       console.error(`Analysis unavailable for ${dossier.id}: official facts could not be loaded.`);
@@ -134,14 +154,26 @@ export async function summarizeLegislativeDossiers() {
       const response = await resilientDeepSeek.createMessage({
         model: "deepseek-chat", max_tokens: 6000,
         responseFormat: "json_object",
-        system: `Tu rédiges une analyse éditoriale à partir des faits officiels fournis (métadonnées, étapes, amendements, scrutins et surtout "expose_des_motifs" = le texte officiel expliquant le contenu et l'objectif de la proposition/projet de loi).
+        system: `Tu rédiges une analyse éditoriale à partir des faits officiels fournis (métadonnées, étapes, amendements, scrutins, "expose_des_motifs" = le texte officiel expliquant le contenu et l'objectif de la proposition/projet de loi, et "analyse_du_texte" = relevé des mesures fait sur le texte ENTIER, à privilégier pour le contenu quand il est présent).
 
 PRIORITÉ AU FOND : le résumé doit d'abord dire CE QUE PRÉVOIT le texte et À QUEL PROBLÈME il répond (mesures concrètes, dispositif, objectif), en t'appuyant sur "expose_des_motifs" quand il est présent. La procédure (dépôt, renvoi en commission, dates) est SECONDAIRE : une phrase suffit, jamais le cœur du résumé.
 
 RÈGLES : n'invente aucun auteur, statut, date, vote, montant ni mesure ; ne cite que ce qui figure dans les faits fournis. Si "expose_des_motifs" est null ou vide, dis clairement que le contenu détaillé n'est pas encore disponible, puis résume au mieux à partir du titre et des métadonnées — sans meubler avec du jargon procédural.
 
 Réponds en JSON strict avec DEUX clés dont les valeurs sont des CHAÎNES de texte :
-- public_summary : 2-3 phrases grand public, centrées sur le fond ;
+- public_summary : une EXPLICATION de la loi pour un citoyen qui n'y connaît rien (environ 900 à 1 600 caractères), en français courant, sans jargon (tout sigle expliqué), neutre, au format exact suivant (titres en gras markdown, puces commençant par "- ") :
+**En bref**
+Deux phrases : ce qu'est ce texte et ce qu'il change pour les gens.
+
+**Ce que prévoit le texte**
+- 3 à 7 puces, chacune une mesure CONCRÈTE (qui, quoi, combien quand le chiffre figure dans les faits) ; regroupe les mesures techniques.
+
+**Pourquoi ce texte**
+Une à deux phrases sur le problème visé, selon ses auteurs.
+
+**Qui est concerné**
+Une phrase.
+Si le texte a été rejeté ou n'est pas adopté, dis-le dans « En bref » (ses mesures ne s'appliquent pas). Si le contenu n'est pas connu, réduis le format et dis-le, sans meubler ;
 - premium_summary : une seule chaîne de texte (pas un objet), en 4 sections séparées par des sauts de ligne, chaque titre en gras markdown : "**Objet et mesures**", "**Problème visé**", "**Où en est le texte**", "**Limites**".`,
         messages: [{ role: "user", content: JSON.stringify(officialFacts) }],
       });

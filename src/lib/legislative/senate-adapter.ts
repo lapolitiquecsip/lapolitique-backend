@@ -30,7 +30,9 @@ export function parseSenateText(xml: string, sourceUpdatedAt: string) {
     sourceHash: stableHash(step),
   }));
   const latest = steps.filter(step => step.occurredAt).at(-1) ?? steps.at(-1);
-  const isBill = String(bill["@_name"] ?? signet).startsWith("pjl");
+  // Projets de loi : « pjl… », mais aussi les budgets (« plf… », « plfss… », « plfr… ») et
+  // tout texte intitulé « Projet de loi » — le PLFSS 2027 passait pour une proposition.
+  const isBill = /^(pjl|plf)/i.test(String(bill["@_name"] ?? signet)) || /^projet de loi/i.test(String(title ?? ""));
   return {
     officialId: `SENAT:${signet}`,
     title,

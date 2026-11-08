@@ -84,6 +84,7 @@ async function lirePdf(url: string): Promise<string | null> {
 
 type Documents = {
   version: string;
+  rejet: string | null;
   final: { titre: string; url: string; texte: string } | null;
   initial: { titre: string; url: string; texte: string } | null;
   etude: { titre: string; url: string; texte: string } | null;
@@ -122,9 +123,19 @@ async function documents(sourceUrls: string[]): Promise<Documents | null> {
   ];
   const initial = par(/_(projet|proposition)-loi(-organique)?$/).slice(-1)[0];
   const etude = par(/_etude-impact$/).slice(-1)[0];
-  let final: (typeof ids)[number] | undefined, tf: string | null = null;
-  for (const c of candidats.slice(0, 4)) {
+  let final: (typeof ids)[number] | undefined, tf: string | null = null, rejet: string | null = null;
+  for (const c of candidats.slice(0, 5)) {
     tf = await lirePdf(pdfUrl(c));
+    // Texte rejeté en séance (PLF et PLFSS 2027, novembre 2026) : le « texte adopté » publié
+    // n'est que l'avis de rejet, quelques lignes. L'analyse en tirait une seule « mesure »
+    // (le rejet) : on lit alors le texte précédent, et le rejet est signalé au modèle.
+    if (tf && /texte-adopte/.test(c.id) && tf.length < 40000 && /consid[ée]r[ée]e? comme rejet[ée]|n.a pas adopt[ée]/i.test(tf)) {
+      rejet = `Ce texte a été rejeté en séance publique à l'Assemblée nationale (${c.id.split("_")[0]}) : `
+        + `aucune de ses mesures n'est adoptée à ce stade, la navette peut se poursuivre au Sénat. `
+        + `Le texte analysé ci-dessous est la version précédente (telle que déposée ou adoptée en commission).`;
+      tf = null;
+      continue;
+    }
     if (tf) { final = c; break; }
   }
   if (!final) return null;
@@ -135,7 +146,8 @@ async function documents(sourceUrls: string[]): Promise<Documents | null> {
   ]);
   const nom = (x: { id: string }) => x.id.replace(/^l\d+[bt]\d+_/, "").replace(/-/g, " ");
   return {
-    version: final.id.split("_")[0],
+    version: final.id.split("_")[0] + (rejet ? "-rejet" : ""),
+    rejet,
     final: tf ? { titre: `${nom(final)} (${final.id.split("_")[0]})`, url: pdfUrl(final), texte: tf } : null,
     initial: ti ? { titre: `${nom(initial!)} (${initial!.id.split("_")[0]})`, url: pdfUrl(initial!), texte: ti } : null,
     etude: te ? { titre: `Étude d'impact (${etude!.id.split("_")[0]})`, url: pdfUrl(etude!), texte: te } : null,
@@ -342,7 +354,7 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
   const mesuresDe = async (part: string, etiquette: string, profondeur = 0): Promise<any[]> => {
     try {
       const r = await demanderJson(SYSTEME_MESURES,
-        `LOI : ${d.title}\n\nEXPOSÉ DES MOTIFS (pour le contexte) :\n${expose.slice(0, 15000)}\n\nEXTRAIT ${etiquette} DU TEXTE ADOPTÉ :\n${part}`,
+        `LOI : ${d.title}\n\n${docs.rejet ? `SITUATION : ${docs.rejet}\n\n` : ""}EXPOSÉ DES MOTIFS (pour le contexte) :\n${expose.slice(0, 15000)}\n\nEXTRAIT ${etiquette} DU TEXTE ADOPTÉ :\n${part}`,
         16000, cout, PAYANT ? 1 : 4);
       return Array.isArray(r.mesures) ? r.mesures : [];
     } catch (e: any) {
@@ -363,7 +375,7 @@ async function analyser(d: { id: string; title: string; short_title: string | nu
   }
   // 2. La vue d'ensemble, sur le texte entier.
   const analyse = await demanderJson(SYSTEME_ANALYSE,
-    `LOI : ${d.title}\n\nEXPOSÉ DES MOTIFS :\n${expose}\n\nTEXTE ADOPTÉ (${docs.final.titre}) :\n${docs.final.texte.slice(0, 250000)}`, 12000, cout);
+    `LOI : ${d.title}\n\n${docs.rejet ? `SITUATION : ${docs.rejet} Dis-le dans « en_une_phrase » et « points_debat », puis décris malgré tout ce que prévoit le texte.\n\n` : ""}EXPOSÉ DES MOTIFS :\n${expose}\n\nTEXTE ${docs.rejet ? "ANALYSÉ" : "ADOPTÉ"} (${docs.final.titre}) :\n${docs.final.texte.slice(0, 250000)}`, 12000, cout);
   analyse.mesures = mesures;
 
   // Fiches pratiques du même domaine : ce que le droit prévoit déjà, en clair.
