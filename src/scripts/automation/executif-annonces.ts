@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { mediaBanni } from "../../lib/medias-bannis.js";
 import Parser from "rss-parser";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "../../config/supabase.js";
@@ -64,7 +65,7 @@ type Source = { url: string; titre: string; media: string | null; extrait: strin
 async function collecter(): Promise<Source[]> {
   const limite = Date.now() - JOURS * 864e5;
   const res: Source[] = [];
-  const garder = (s: Source) => { const t = new Date(s.publie_le).getTime(); if (t >= limite && t <= Date.now() + 36e5 && s.titre) res.push(s); };
+  const garder = (s: Source) => { if (mediaBanni(s.media, s.url)) return; const t = new Date(s.publie_le).getTime(); if (t >= limite && t <= Date.now() + 36e5 && s.titre) res.push(s); };
 
   for (const q of REQUETES) {
     try {

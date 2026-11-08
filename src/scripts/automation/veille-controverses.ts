@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { mediaBanni } from "../../lib/medias-bannis.js";
 import Parser from "rss-parser";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
@@ -110,7 +111,7 @@ async function articles(p: Personne): Promise<Article[] | null> {
     .map(it => ({ ...nettoyerTitre(it.title || ""), url: it.link || "", date: it.isoDate || "", extrait: (it.contentSnippet || "").slice(0, 300) }))
     // Le nom doit figurer dans le titre : sinon l'article parle d'autre chose
     // et ne fait que citer la personne.
-    .filter(a => a.url && norm(a.titre).includes(nomFamille) && (!a.date || new Date(a.date).getTime() > limite))
+    .filter(a => a.url && !mediaBanni(a.media, a.url) && norm(a.titre).includes(nomFamille) && (!a.date || new Date(a.date).getTime() > limite))
     .sort((a, b) => a.date.localeCompare(b.date));
   // Les premiers articles (la révélation, la réponse de la personne) et les plus
   // récents (les suites) : une affaire très couverte noie sinon son point de départ.
@@ -166,9 +167,17 @@ async function appliquer(personnes: Personne[]) {
     for (const f of p.fiches) {
       let liste = [...f.controverses];
       for (const e of siennes) {
+        // Entrée masquée : elle sort de la fiche. Si c'était le complément d'une affaire déjà
+        // listée, la version précédente revient à sa place (avant le 08/11/2026, masquer un
+        // complément effaçait aussi l'affaire d'origine).
+        if (e.masquee) {
+          const i = liste.findIndex(c => norm(c) === norm(e.texte));
+          if (i >= 0 && e.remplace && !liste.some(c => norm(c) === norm(e.remplace))) liste[i] = e.remplace;
+          else liste = liste.filter(c => norm(c) !== norm(e.texte));
+          continue;
+        }
         // Les entrées que celle-ci a remplacées (chaîne de compléments) disparaissent.
         if (e.remplace) liste = liste.filter(c => norm(c) !== norm(e.remplace));
-        if (e.masquee) { liste = liste.filter(c => norm(c) !== norm(e.texte)); continue; }
         if (!liste.some(c => norm(c) === norm(e.texte))) liste.unshift(e.texte);   // la plus récente en tête
       }
       if (JSON.stringify(liste) === JSON.stringify(f.controverses)) continue;

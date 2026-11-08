@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { executer, plafondAtteint, type ResultatAgentik } from "./agentik.js";
 import { coutUsage, noter } from "./budget-claude.js";
 import { resilientDeepSeek } from "./deepseek-client.js";
+import { mediaBanni } from "./medias-bannis.js";
 
 /**
  * Contrôle d'un article de presse AVANT publication (30/10/2026).
@@ -24,7 +25,7 @@ export const MEDIAS_RECONNUS: Record<string, string> = {
   "20minutes.fr": "20 Minutes", "bfmtv.com": "BFMTV", "tf1info.fr": "TF1 Info", "lci.fr": "LCI", "europe1.fr": "Europe 1",
   "rtl.fr": "RTL", "cnews.fr": "CNews", "nouvelobs.com": "L'Obs", "lexpress.fr": "L'Express", "lepoint.fr": "Le Point",
   "lopinion.fr": "L'Opinion", "marianne.net": "Marianne", "mediapart.fr": "Mediapart", "lejdd.fr": "Le JDD",
-  "valeursactuelles.com": "Valeurs actuelles", "humanite.fr": "L'Humanité", "la-croix.com": "La Croix",
+  "humanite.fr": "L'Humanité", "la-croix.com": "La Croix",
   "huffingtonpost.fr": "Le HuffPost", "publicsenat.fr": "Public Sénat", "lcp.fr": "LCP", "france24.com": "France 24", "rfi.fr": "RFI",
   "latribune.fr": "La Tribune", "challenges.fr": "Challenges", "ouest-france.fr": "Ouest-France", "sudouest.fr": "Sud Ouest",
   "ladepeche.fr": "La Dépêche", "midilibre.fr": "Midi Libre", "leprogres.fr": "Le Progrès", "ledauphine.com": "Le Dauphiné",
@@ -39,7 +40,7 @@ export const MEDIAS_RECONNUS: Record<string, string> = {
 
 /** Presse people, contenus à clics et agrégateurs : jamais publiés, même dans un fil local. */
 const EXCLUS = /(^|\.)(gala\.fr|voici\.fr|closermag\.fr|public\.fr|ohmymag\.com|gentside\.com|purepeople\.com|planet\.fr|melty\.fr|aufeminin\.com|msn\.com|yahoo\.com|orange\.fr|wansquare\.com)$/i;
-export const mediaExclu = (url: string) => { try { return EXCLUS.test(new URL(url).hostname); } catch { return true; } };
+export const mediaExclu = (url: string) => { try { return EXCLUS.test(new URL(url).hostname) || mediaBanni(url); } catch { return true; } };
 
 /**
  * Bing Actualités (RSS, gratuit) : contrairement à Google Actualités, il donne l'adresse réelle de
@@ -61,6 +62,7 @@ export async function presseBing(requete: string): Promise<ResultatPresse[] | nu
 }
 
 export function mediaReconnu(url: string): string | null {
+  if (mediaBanni(url)) return null;
   try {
     const hote = new URL(url).hostname.replace(/^www\./, "");
     const cle = Object.keys(MEDIAS_RECONNUS).find(d => hote === d || hote.endsWith(`.${d}`));

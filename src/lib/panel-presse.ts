@@ -20,7 +20,6 @@ export const PANEL_PRESSE: Record<string, string[]> = {
   "Marianne": ["https://www.marianne.net/rss.xml"],
   "Mediapart": ["https://www.mediapart.fr/articles/feed"],
   "Le JDD": ["https://www.lejdd.fr/rss/politique.xml"],
-  "Valeurs actuelles": ["https://www.valeursactuelles.com/feed"],
   "L'Humanité": ["https://www.humanite.fr/sections/politique/feed"],
   "La Croix": ["https://www.la-croix.com/RSS/UNIVERS_WFRA"],
   "HuffPost": ["https://www.huffingtonpost.fr/politique/rss_headline.xml"],

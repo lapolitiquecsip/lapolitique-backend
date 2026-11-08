@@ -1,4 +1,5 @@
 import { sansAccent } from "./cycles.js";
+import { mediaBanni } from "./medias-bannis.js";
 
 /**
  * Recoupement d'une information de presse : qui d'autre la donne ?
@@ -48,7 +49,7 @@ export async function recouper(titre: string, media: string | null): Promise<{ e
   for (const it of xml.split("<item>").slice(1)) {
     const nom = balise(it, "source");
     const cle = sansAccent(nom);
-    if (!cle || (origine && (cle.includes(origine) || origine.includes(cle)))) continue;
+    if (!cle || mediaBanni(nom) || (origine && (cle.includes(origine) || origine.includes(cle)))) continue;
     const communs = distinctifs(titreEtMedia(balise(it, "title")).titre).filter(m => mots.includes(m)).length;
     // Même fait : au moins deux mots distinctifs en commun, et un tiers du titre. Le seuil est
     // volontairement accueillant : dire à tort « un seul média » d'une information que deux

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { mediaBanni } from "../../lib/medias-bannis.js";
 import Parser from "rss-parser";
 import { supabase } from "../../config/supabase.js";
 import { resilientDeepSeek } from "../../lib/deepseek-client.js";
@@ -230,6 +231,7 @@ export async function syncInstitutionNews() {
       if (!rawTitle || rawTitle.length < 12) continue;
       const media = mediaGoogle || (item.reel ? mediaReconnu(link) || new URL(link).hostname.replace(/^www\./, "") : "");
       if (item.reel && mediaExclu(link)) continue;
+      if (mediaBanni(media, link)) continue; // médias retirés du site (08/11/2026)
 
       // PARTIS : seulement un article de média reconnu, lu et contrôlé. Lien Google illisible : écarté.
       if (src.entity_type === "party") {
