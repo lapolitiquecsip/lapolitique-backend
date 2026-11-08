@@ -5,7 +5,7 @@ import { getDataGouvDataset, indicatorRow, numberValue, publishIndicators } from
 const source = OFFICIAL_SOURCES.find(item => item.slug === "drees-apl")!;
 
 await runIngestion({ domain: "territories", jobName: "sync-drees-apl", source }, async ({ sourceId, dryRun }) => {
-  const dataset = await getDataGouvDataset("62263314072c63d4d53e0c4e");
+  const dataset = await getDataGouvDataset("accessibilite-potentielle-localisee-apl-aux-professionnels-de-sante");
   const resource = dataset.resources.filter(item => /médecins généralistes/i.test(item.title) && /sheet|xlsx/i.test(item.format)).sort((a, b) => String(b.last_modified).localeCompare(String(a.last_modified)))[0];
   if (!resource) throw new Error("DREES APL physicians workbook was not found");
   const response = await fetch(resource.url, { signal: AbortSignal.timeout(120_000) });

@@ -83,9 +83,19 @@ async function main() {
     let dump = arg("dump");
     if (!dump) {
       const zip = join(travail, "a.zip");
-      const r = await fetch(EXPORT, { signal: AbortSignal.timeout(900_000) });
-      if (!r.ok || !r.body) throw new Error(`AMELI : HTTP ${r.status}`);
-      await pipeline(Readable.fromWeb(r.body as any), createWriteStream(zip));
+      // Téléchargement du Sénat parfois coupé (échec du 07/11/2026) : quatre essais espacés.
+      for (let essai = 1; ; essai++) {
+        try {
+          const r = await fetch(EXPORT, { signal: AbortSignal.timeout(900_000) });
+          if (!r.ok || !r.body) throw new Error(`AMELI : HTTP ${r.status}`);
+          await pipeline(Readable.fromWeb(r.body as any), createWriteStream(zip));
+          break;
+        } catch (e) {
+          if (essai >= 4) throw e;
+          console.log(`::warning::AMELI : téléchargement interrompu (essai ${essai}/4) — ${(e as Error).message}`);
+          await new Promise(res => setTimeout(res, essai * 20000));
+        }
+      }
       execFileSync("unzip", ["-o", "-q", "-j", zip, "-d", travail], { maxBuffer: 1e8 });
       const sql = readdirSync(travail).find(f => f.endsWith(".sql"));
       if (!sql) throw new Error("AMELI : dump introuvable dans l'archive");

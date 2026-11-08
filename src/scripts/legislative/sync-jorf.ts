@@ -188,5 +188,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (yearArgument && (!Number.isInteger(year) || year! < 1990 || year! > new Date().getUTCFullYear())) {
     throw new Error(`Invalid JORF backfill year: ${yearArgument}`);
   }
-  syncJorf({ year }).catch(error => { console.error(error); process.exitCode = 1; });
+  syncJorf({ year }).catch(error => {
+    // Répertoire DILA sans archive quotidienne (purge et republication du stock complet, comme le
+    // 08/11/2026) : rien de nouveau à lire, pas une panne. Le passage suivant reprendra.
+    if (!year && /No JORFSIMPLE archive found/.test(String(error?.message))) {
+      console.log("::warning::DILA ne publie aucune archive JORF quotidienne pour l'instant (stock complet seul) : rien à synchroniser.");
+      return;
+    }
+    console.error(error); process.exitCode = 1;
+  });
 }

@@ -6,6 +6,7 @@ import { supabase } from "../../config/supabase.js";
 // geo.api.gouv.fr pour le périmètre d'enrichissement et le tri.
 const DATASET = "https://www.data.gouv.fr/api/1/datasets/repertoire-national-des-elus-1/";
 const UA = { "User-Agent": "LaPolitiqueBot/1.0 (contact@lapolitique.fr)" };
+const DRY = process.argv.includes("--dry-run");
 const slugify = (s: string) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const properCase = (s: string) => (s || "").toLowerCase().replace(/(^|[\s\-'])([a-zà-ÿ])/g, (_, sep, c) => sep + c.toUpperCase());
@@ -38,7 +39,9 @@ export async function syncMayors() {
 
   // 2) CSV RNE des maires.
   const meta: any = await (await fetch(DATASET, { headers: UA, signal: AbortSignal.timeout(30000) })).json();
-  const res = (meta.resources || []).find((r: any) => /maires/i.test(String(r.url)) && /\.csv/i.test(String(r.url)));
+  // « elus-maires-….csv » est devenu « elus-maire-mai.csv » (août 2026) : le pluriel exigé ici
+  // faisait échouer la tâche chaque mois depuis.
+  const res = (meta.resources || []).find((r: any) => /maire/i.test(`${r.url} ${r.title}`) && /\.csv/i.test(String(r.url)));
   if (!res) throw new Error("Ressource RNE maires introuvable.");
   const buf = await (await fetch(res.url, { headers: UA, signal: AbortSignal.timeout(120000) })).arrayBuffer();
   let text = new TextDecoder("utf-8").decode(buf);
@@ -55,16 +58,36 @@ export async function syncMayors() {
         iDeb = H("Date de début du mandat") >= 0 ? H("Date de début du mandat") : H("Date de début de mandat");
   const iPre = iNom + 1; // Prénom juste après « Nom de l'élu »
 
+  // État actuel : on garde l'adresse de fiche (slug) et la bio d'un maire toujours en place.
+  // Clé sur 5 caractères : l'ancien fichier RNE donnait « 1001 », le nouveau « 01001 » (comme
+  // geo.api.gouv.fr, que lit le site) ; les fiches des départements 01 à 09 étaient introuvables.
+  const cinq = (c: string) => (/^\d{1,4}$/.test(c) ? c.padStart(5, "0") : c);
+  const existants = new Map<string, { full_name: string; slug: string; code: string }>();
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await supabase.from("mayors").select("insee_code, full_name, slug").order("insee_code").range(de, de + 999);
+    if (error) throw error;
+    for (const m of data ?? []) existants.set(cinq(m.insee_code), { full_name: m.full_name, slug: m.slug, code: m.insee_code });
+    if (!data || data.length < 1000) break;
+  }
+  const slugsPris = new Set([...existants.values()].map(m => m.slug));
+  const nomNorm = (s: string) => slugify(s || "");
+
   const seen = new Set<string>();
   const byInsee = new Map<string, any>();
   for (const r of rows.slice(1)) {
-    const insee = (r[iIns] || "").trim();
+    const insee = cinq((r[iIns] || "").trim());
     const last = properCase((r[iNom] || "").trim()), first = (r[iPre] || "").trim();
     if (!insee || !last || byInsee.has(insee)) continue; // une ligne « Maire » par commune
-    let slug = slugify(`${first} ${last}`);
-    if (seen.has(slug)) slug = `${slug}-${insee}`;
+    const avant = existants.get(insee);
+    const memePersonne = !!avant && nomNorm(avant.full_name) === nomNorm(`${first} ${last}`);
+    let slug = memePersonne ? avant!.slug : slugify(`${first} ${last}`);
+    // Nouveau maire : jamais l'adresse d'une autre fiche (en base ou dans ce lot).
+    if (!memePersonne && (seen.has(slug) || slugsPris.has(slug))) slug = `${slug}-${insee}`;
     seen.add(slug);
     byInsee.set(insee, {
+      // Changement de maire : la bio, la photo, le parti et la situation juridique de
+      // l'ancien ne doivent pas passer sur la fiche du nouveau.
+      ...(avant && !memePersonne ? { bio: null, biography: null, photo_url: null, party: null, legal_issues: null } : {}),
       insee_code: insee,
       commune_name: (r[iCom] || "").trim() || null,
       population: popByInsee.get(insee) ?? null,
@@ -82,13 +105,36 @@ export async function syncMayors() {
   console.log(`> ${rowsOut.length} maires.`);
   if (rowsOut.length < 30000) throw new Error(`Trop peu de maires (${rowsOut.length}) — CSV suspect, on n'écrit rien.`);
 
-  // Purge (repart propre : évite les collisions de slug avec un état partiel antérieur).
-  await supabase.from("mayors").delete().neq("insee_code", "__none__");
-
-  for (let i = 0; i < rowsOut.length; i += 500) {
-    const { error } = await supabase.from("mayors").upsert(rowsOut.slice(i, i + 500), { onConflict: "insee_code" });
+  // Plus de purge totale (08/11/2026) : elle effaçait chaque mois les 3 600 bios. Seules les
+  // communes disparues (fusions) sortent ; les autres lignes sont mises à jour en place.
+  const disparues = [...existants.keys()].filter(c => !byInsee.has(c));
+  const changes = rowsOut.filter(r => "bio" in r).length;
+  console.log(`> ${disparues.length} commune(s) disparue(s), ${changes} changement(s) de maire.`);
+  if (DRY) {
+    console.log("  ex. disparues :", disparues.slice(0, 12).join(" "), "| ex. nouvelles :", [...byInsee.keys()].filter(c => !existants.has(c)).slice(0, 12).join(" "));
+    console.log("--- ESSAI : rien d'écrit. ---"); return rowsOut.length;
+  }
+  // Codes sans zéro initial : renommés en place (la bio suit), une seule fois.
+  const aRenommer = [...existants.entries()].filter(([cle, m]) => m.code !== cle && byInsee.has(cle));
+  for (const [cle, m] of aRenommer) {
+    const { error } = await supabase.from("mayors").update({ insee_code: cle }).eq("insee_code", m.code);
     if (error) throw error;
-    process.stdout.write(`\r  upsert ${Math.min(i + 500, rowsOut.length)}/${rowsOut.length}`);
+  }
+  if (aRenommer.length) console.log(`> ${aRenommer.length} code(s) INSEE complété(s) sur 5 chiffres.`);
+  const anciensCodes = disparues.map(c => existants.get(c)!.code);
+  for (let i = 0; i < anciensCodes.length; i += 200) {
+    const { error } = await supabase.from("mayors").delete().in("insee_code", anciensCodes.slice(i, i + 200));
+    if (error) throw error;
+  }
+
+  // Deux formes de lignes (avec ou sans remise à zéro de la bio) : PostgREST exige des clés
+  // identiques dans un même envoi, d'où deux passes.
+  for (const lot of [rowsOut.filter(r => !("bio" in r)), rowsOut.filter(r => "bio" in r)]) {
+    for (let i = 0; i < lot.length; i += 500) {
+      const { error } = await supabase.from("mayors").upsert(lot.slice(i, i + 500), { onConflict: "insee_code" });
+      if (error) throw error;
+      process.stdout.write(`\r  upsert ${Math.min(i + 500, lot.length)}/${lot.length}`);
+    }
   }
   console.log(`\n--- TERMINE. ${rowsOut.length} maires. ---`);
   return rowsOut.length;

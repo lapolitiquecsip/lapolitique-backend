@@ -4,6 +4,10 @@ import { atmoAnnualIndicators } from "../../lib/territorial-transformers.js";
 
 const source = OFFICIAL_SOURCES.find(item => item.slug === "atmo-index")!;
 
+// Serveur d'ATMO France injoignable (08/11/2026 : tout data.atmo-france.org redirigeait vers son
+// accueil) : l'échec reste consigné dans ingestion_runs — deux de suite déclenchent l'alarme de
+// data-reconcile —, mais une coupure d'un jour chez le producteur ne met plus le workflow en rouge.
+try {
 await runIngestion({ domain: "territories", jobName: "sync-atmo", source }, async ({ sourceId, dryRun }) => {
   const dataset = await getDataGouvDataset("6149925a2ff0ab6cebdd6fe8");
   const resource = dataset.resources.find(item => /\(csv\)/i.test(item.title) && item.format === "csv");
@@ -26,3 +30,7 @@ await runIngestion({ domain: "territories", jobName: "sync-atmo", source }, asyn
   console.log(`${dryRun ? "Validated" : "Published"} ${rows.length} annual ATMO commune indicators.`);
   return { result: undefined, rowsRead, rowsWritten: written, details: { dailyObservations: daily.size } };
 });
+} catch (e: any) {
+  if (!/téléchargement impossible|CSV download failed|fetch failed|redirect/i.test(String(e?.message))) throw e;
+  console.log(`::warning::ATMO France injoignable, indices non mis à jour aujourd'hui : ${String(e.message).slice(0, 200)}`);
+}

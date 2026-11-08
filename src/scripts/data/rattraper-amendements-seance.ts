@@ -100,9 +100,20 @@ async function main() {
     let zip = arg("zip");
     if (!zip) {
       zip = join(travail, "a.zip");
-      const r = await fetch(EXPORT, { signal: AbortSignal.timeout(600_000) });
-      if (!r.ok || !r.body) throw new Error(`Export AN : HTTP ${r.status}`);
-      await pipeline(Readable.fromWeb(r.body as any), createWriteStream(zip));
+      // L'Assemblée coupe parfois la connexion en plein téléchargement : le job échouait un
+      // jour sur deux (04 et 06/11/2026). Quatre essais espacés avant d'abandonner.
+      for (let essai = 1; ; essai++) {
+        try {
+          const r = await fetch(EXPORT, { signal: AbortSignal.timeout(600_000) });
+          if (!r.ok || !r.body) throw new Error(`Export AN : HTTP ${r.status}`);
+          await pipeline(Readable.fromWeb(r.body as any), createWriteStream(zip));
+          break;
+        } catch (e) {
+          if (essai >= 4) throw e;
+          console.log(`::warning::Export AN : téléchargement interrompu (essai ${essai}/4) — ${(e as Error).message}`);
+          await new Promise(res => setTimeout(res, essai * 20000));
+        }
+      }
     }
     // Séance seulement : l'export entier fait plus d'un Go une fois décompressé.
     execFileSync("unzip", ["-o", "-q", zip, "json/*/*/AMANR5L17PO838901*", "-d", travail], { maxBuffer: 1e8 });
