@@ -13,6 +13,11 @@ on:
     - cron: '50 11 * * *'
     - cron: '50 15 * * *'
     - cron: '50 19 * * *'
+  # Un passage dès que ce fichier change : les déclenchements programmés de GitHub sautent
+  # parfois des journées entières (aucun passage le 09/11 avant 16 h UTC).
+  push:
+    branches: [main]
+    paths: ['.github/workflows/transcription-auditions.yml']
   workflow_dispatch:
     inputs:
       limit:
