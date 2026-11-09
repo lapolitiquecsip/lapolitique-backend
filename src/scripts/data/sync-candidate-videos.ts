@@ -13,6 +13,7 @@ import { supabase } from "../../config/supabase.js";
 const CHANNELS: Record<string, string> = {
   // clé = normalized_name du candidat (minuscules, sans accents)
   "david lisnard": "UC2XZY-bjIEmyLZ9MPJQytZg",      // youtube.com/davidlisnard
+  "teddy riner": "UCmpEDKyH2H2Byq40kx8N0RA",       // @teddyriner
   "jean luc melenchon": "UCk-_PEY3iC6DIGJKuoEe9bw", // chaîne personnelle certifiée (UCKHKSD… était celle de LFI)
   "marine le pen": "UCU3z3px1_RCqYBwrs8LJVWg",      // @MarineLePenOfficiel
   "francois ruffin": "UCIQGSp79vVch0vO3Efqif_w",    // @Francois_Ruffin

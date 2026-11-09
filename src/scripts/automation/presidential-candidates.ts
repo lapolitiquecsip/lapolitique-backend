@@ -68,6 +68,9 @@ const CANDIDATE_SEED: Detected[] = [
   { full_name: "Selma Labib", party: "NPA – Révolutionnaires", political_side: "extreme-gauche", declared_at: "2026-06-17", confidence: 1,
     fallback_summary: "Selma Labib, porte-parole du NPA-Révolutionnaires et conductrice de bus en région parisienne, est la candidate de son parti à l'élection présidentielle de 2027 (en binôme avec Gaël Quirante). Il s'agit de la troisième candidature d'extrême gauche déclarée, après Nathalie Arthaud et Anasse Kazib.",
     fallback_photo: "https://commons.wikimedia.org/wiki/Special:FilePath/Presidentielles-2027-Selma-LABIB.png?width=600", fallback_photo_credit: "Wikimedia Commons · CC BY 3.0" },
+  // 09/11/2026 : annonce sur X (« Je suis candidat à l'élection présidentielle de 2027 »), « ni de droite ni de gauche », sans parti.
+  { full_name: "Teddy Riner", party: "Sans étiquette (La France qu'on veut)", political_side: "autre", declared_at: "2026-11-09", category: "Candidat indépendant", confidence: 1,
+    source_url: "https://www.franceinfo.fr/elections/presidentielle/la-resignation-n-est-pas-une-option-teddy-riner-annonce-sa-candidature-a-l-election-presidentielle-2027_8274359.html" },
 ];
 
 // Candidat·e·s de PRIMAIRE — déclaré·e·s à une primaire (gauche unitaire, socialiste, droite),
