@@ -3,6 +3,7 @@ import { supabase } from "../../config/supabase.js";
 import { silenceSondages } from "../../lib/sondage-notice.js";
 import { faitsDesAlertes } from "../../lib/faits-suivis.js";
 import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, simulation, antiDoublon } from "../../lib/mail.js";
+import { votesRegroupes } from "../../lib/votes-mail.js";
 
 /**
  * Envoie par e-mail les alertes des membres (user_notifications non encore envoyées).
@@ -85,26 +86,38 @@ const INTITULES: Record<string, [string, string, string]> = {
 };
 const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? "#e11d48" : p === "ABSTENTION" ? "#d97706" : "#64748b");
 
-function html(prenom: string, alertes: any[]): string {
+/** Alertes de vote d'un élu suivi (une par scrutin et par élu) : regroupées par texte dans l'e-mail. */
+const estVoteElu = (n: any) => categorieDe(n) === "votes" && !!n.position && n.type === "vote";
+
+async function html(prenom: string, alertes: any[]): Promise<{ html: string; unites: number; votes: Awaited<ReturnType<typeof votesRegroupes>> | null }> {
   const parCat = new Map<string, any[]>();
   for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
   const textes = (parCat.get("textes") || []).map(carteTexte).join("");
   const votes = (parCat.get("textes") || []).every(t => t.donnees?.source === "scrutin_final");
-  const blocs = (textes ? rubrique(votes ? "🗳️" : "📜", votes ? "Textes votés au Parlement" : "Un texte vous concerne", "#7c3aed", textes) : "") + ["veille", "decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c)).map(c => {
+  // Votes des élus suivis : un bloc par texte (bilan de chaque élu, quelques votes expliqués), plus une ligne par vote.
+  const votesElus = (parCat.get("votes") || []).filter(estVoteElu);
+  const autresVotes = (parCat.get("votes") || []).filter(n => !estVoteElu(n));
+  if (autresVotes.length) parCat.set("votes", autresVotes); else parCat.delete("votes");
+  const regroupes = votesElus.length ? await votesRegroupes(votesElus) : null;
+  const blocVotes = regroupes?.html ? rubrique(...(INTITULES.votes as [string, string, string]), regroupes.html) : "";
+  const blocs = (textes ? rubrique(votes ? "🗳️" : "📜", votes ? "Textes votés au Parlement" : "Un texte vous concerne", "#7c3aed", textes) : "") + ["veille", "decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c) || (c === "votes" && blocVotes)).map(c => {
     const [emoji, intitule, couleur] = INTITULES[c];
+    if (c === "votes" && blocVotes) return blocVotes + (parCat.has("votes") ? parCat.get("votes")!.slice(0, 12).map(n => ligne({ titre: n.title, url: n.url, resume: resumeCourt(n.detail, 160), couleur })).join("") : "");
     const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
       ? ligne({ titre: n.detail || n.title, url: n.url, resume: n.detail ? n.title : null, etiquette: `Vote : ${n.position}`, couleur: couleurVote(n.position) })
       : ligne({ titre: n.title, url: n.url, resume: resumeCourt(n.detail, c === "veille" ? 280 : 160), etiquette: n.place || (c === "suivis" || c === "veille" ? n.domain : null), couleur }));
     return rubrique(emoji, intitule, couleur, lignes.join(""));
   }).join("");
-  return gabarit({
-    preheader: `${alertes.length} alerte${alertes.length > 1 ? "s" : ""} selon vos réglages.`,
+  // Compte affiché : un texte voté compte pour une alerte, quel que soit le nombre de votes dessus.
+  const unites = alertes.length - votesElus.length + (regroupes?.nbTextes || 0);
+  return { unites, votes: regroupes, html: gabarit({
+    preheader: regroupes && unites === regroupes.nbTextes ? `Vos élus ont voté ${regroupes.nbVotes} fois sur ${regroupes.nbTextes} texte${regroupes.nbTextes > 1 ? "s" : ""}.` : `${unites} alerte${unites > 1 ? "s" : ""} selon vos réglages.`,
     surtitre: MODE === "immediat" ? "Alerte" : "Vos alertes du jour",
-    titre: alertes.length === 1 ? "Une alerte pour vous" : `${alertes.length} alertes pour vous`,
+    titre: unites === 1 ? "Une alerte pour vous" : `${unites} alertes pour vous`,
     sousTitre: `${prenom ? `Bonjour ${esc(prenom)}, voici` : "Voici"} ce qui vous concerne, d'après les réglages de votre profil.`,
     corps: blocs + bouton("Toutes mes alertes", `${SITE_URL}/dashboard`),
     pied: `Vous recevez ces alertes selon les réglages de votre profil.<br><a href="${SITE_URL}/dashboard#preferences" style="color:#64748b">Modifier mes alertes</a>`,
-  });
+  }) };
 }
 
 /** Le même fait n'apparaît qu'une fois dans l'e-mail : la première alerte le garde et
@@ -130,7 +143,7 @@ function sansDoublons(alertes: any[], faits: Map<string, string>): { gardees: an
 async function main() {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 86400000).toISOString();
   const { data: notifs, error } = await supabase.from("user_notifications")
-    .select("id, user_id, type, categorie, title, detail, position, importance, domain, url, place, event_at, created_at, donnees, scrutin_id, dedup_key")
+    .select("id, user_id, type, categorie, title, detail, position, importance, domain, url, place, event_at, created_at, donnees, scrutin_id, dedup_key, senator_id, deputy_id, mep_id")
     .is("emailed_at", null).gte("created_at", since).order("created_at", { ascending: false }).limit(20000);
   if (error) throw error;
   // Veille et jour du vote : les sondages ne partent pas (loi de 1977, art. 11) ; périmés ensuite, on les clôt.
@@ -212,14 +225,19 @@ async function main() {
     if (!adresse || !aEnvoyer.length) { ignores++; continue; }
     const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");
     const t0Vote = t0?.donnees?.source === "scrutin_final" ? `${t0.donnees?.resultat?.adopte ? "Adopté" : "Rejeté"} ${t0.donnees?.chambre === "AN" ? "à l'Assemblée" : "au Sénat"}` : "Journal officiel";
+    const rendu = await html(profil.get(id)?.display_name || "", aEnvoyer);
+    const rv = rendu.votes;
     const sujet = t0 ? resumeCourt(`${t0Vote} : ${t0.title}`, 110)
-      : aEnvoyer.length === 1
+      // Que des votes d'élus suivis : le texte, pas le nombre de scrutins (« 30 alertes pour vous »).
+      : rv && rendu.unites === rv.nbTextes
+      ? resumeCourt(`Vos élus ont voté${rv.texte && rv.texte !== "Autres votes" ? ` : ${rv.texte}` : ""}${rv.nbTextes > 1 ? ` (et ${rv.nbTextes - 1} autre${rv.nbTextes > 2 ? "s" : ""} texte${rv.nbTextes > 2 ? "s" : ""})` : ""}`, 110)
+      : rendu.unites === 1 && aEnvoyer.length === 1
       ? resumeCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}`
         : ["suivis", "veille"].includes(categorieDe(aEnvoyer[0])) && aEnvoyer[0].domain ? `${aEnvoyer[0].domain} : ${aEnvoyer[0].title}` : aEnvoyer[0].title, 110)
-      : `${aEnvoyer.length} alertes pour vous`;
+      : `${rendu.unites} alertes pour vous`;
     const apercu = process.argv.find(x => x.startsWith("--apercu="))?.split("=").slice(1).join("=");
-    if (apercu) { (await import("node:fs")).writeFileSync(apercu, html(profil.get(id)?.display_name || "", aEnvoyer)); console.log(`Aperçu : ${apercu}`); return; }
-    if (await envoyerMail(adresse, sujet, html(profil.get(id)?.display_name || "", aEnvoyer), { desabo: `${SITE_URL}/dashboard#preferences` })) envoyes++;
+    if (apercu) { (await import("node:fs")).writeFileSync(apercu, rendu.html); console.log(`Aperçu : ${apercu} — sujet « ${sujet} »`); return; }
+    if (await envoyerMail(adresse, sujet, rendu.html, { desabo: `${SITE_URL}/dashboard#preferences` })) envoyes++;
     await new Promise(r => setTimeout(r, 600));   // limite de débit Resend
   }
 
