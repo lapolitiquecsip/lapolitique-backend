@@ -24,8 +24,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 ESSAI = "--essai" in sys.argv
 DOSSIER = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--dossier=")), "/tmp/fiches-ministeres")
 UA = "lapolitiquecestsimple.fr (fiches ministeres; contact via le site)"
-SUPABASE = os.environ.get("SUPABASE_URL", "").rstrip("/")
-CLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+CLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 
 # Ministères suivis. « plf » : intitulé du ministère dans les tableaux des lois de finances (normalisé) ;
 # « questions » : motif du ministère destinataire des questions écrites (ministres délégués compris).
