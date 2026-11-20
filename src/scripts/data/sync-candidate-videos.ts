@@ -30,6 +30,8 @@ const CHANNELS: Record<string, string> = {
   "nicolas dupont aignan": "UCfA5DnCDX3Ixy5QOAMGtBlA",
   // Non certifiées mais sans ambiguïté (audience, contenu) :
   "juan branco": "UCMOrzCo7Jdp6qqEX24CXuog",
+  // 20/11/2026 : chaîne liée depuis lafrancehumaniste.fr (@dominiquedevillepin, 54 k abonnés).
+  "dominique de villepin": "UCMIpCiZdVlMoqfra4hT6d4Q",
 };
 
 const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
