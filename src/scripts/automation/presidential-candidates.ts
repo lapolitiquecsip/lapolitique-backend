@@ -102,10 +102,12 @@ const EXCLUDED_NAMES = new Set<string>([]);
  * Philippe Brun (écarté de la primaire socialiste par son parti).
  * 11/10/2026 : Olivier Faure, Ségolène Royal, Emmanuel Maurel et Jérôme Guedj, battus à la
  * primaire Choisir 2027, remportée dès le premier tour par Raphaël Glucksmann.
+ * 22/11/2026 : François Ruffin, qui a retiré sa candidature le 21/11/2026 (France 24, Ouest-France).
  */
 const NON_CANDIDATS = new Set<string>([
   "jordan bardella", "francois hollande", "philippe brun",
   "olivier faure", "segolene royal", "emmanuel maurel", "jerome guedj",
+  "francois ruffin",
 ]);
 
 // ---- 1. Rassembler les extraits d'actualité récents -----------------------
