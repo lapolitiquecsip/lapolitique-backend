@@ -30,7 +30,7 @@ create table if not exists public.niches_analyses (
   jour date primary key references public.niches_parlementaires(jour) on delete cascade,
   -- { en_bref, strategie, deroulement, textes:[{ titre, ce_que_ca_change, pour_qui,
   --   arguments_pour:[…], arguments_contre:[…], vote, et_ensuite }], a_retenir:[…] }
-  analyse jsonb not null,
+  analyse_niche jsonb not null,   -- « analyse » est un mot réservé de Postgres
   sources jsonb not null default '[]'::jsonb,   -- [{ titre, url }]
   empreinte text,                               -- celle de la niche au moment de l'écriture
   verifie boolean not null default false,       -- relue par le vérificateur (redaction-ia.ts)
@@ -62,20 +62,20 @@ security definer
 set search_path = public
 as $$
   select jsonb_build_object(
-    'textes', coalesce(jsonb_array_length(a.analyse->'textes'), 0),
+    'textes', coalesce(jsonb_array_length(a.analyse_niche->'textes'), 0),
     'arguments', coalesce((
       select sum(coalesce(jsonb_array_length(t->'arguments_pour'), 0) + coalesce(jsonb_array_length(t->'arguments_contre'), 0))
-      from jsonb_array_elements(a.analyse->'textes') t
+      from jsonb_array_elements(a.analyse_niche->'textes') t
     ), 0),
     -- Par texte, dans l'ordre : combien d'arguments de chaque camp (les compteurs, pas le contenu).
     'par_texte', coalesce((
       select jsonb_agg(jsonb_build_object(
         'pour', coalesce(jsonb_array_length(t->'arguments_pour'), 0),
         'contre', coalesce(jsonb_array_length(t->'arguments_contre'), 0)) order by k)
-      from jsonb_array_elements(a.analyse->'textes') with ordinality as x(t, k)
+      from jsonb_array_elements(a.analyse_niche->'textes') with ordinality as x(t, k)
     ), '[]'::jsonb),
     'verifie', a.verifie,
-    'mots', coalesce(array_length(regexp_split_to_array(a.analyse::text, '\s+'), 1), 0),
+    'mots', coalesce(array_length(regexp_split_to_array(a.analyse_niche::text, '\s+'), 1), 0),
     'generated_at', a.generated_at
   )
   from public.niches_analyses a

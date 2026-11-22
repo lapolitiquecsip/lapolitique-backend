@@ -486,7 +486,7 @@ async function main() {
     // Chaque analyse de texte porte la référence du texte de la niche, dans le même ordre.
     analyse.textes = (analyse.textes || []).slice(0, n.lignes.length).map((t: any, k: number) => ({ ...t, ref: n.lignes[k].ref }));
     const ligne = {
-      jour: n.jour, analyse, sources, empreinte: n.empreinte, verifie: v.verifie, model: REDACTEUR,
+      jour: n.jour, analyse_niche: analyse, sources, empreinte: n.empreinte, verifie: v.verifie, model: REDACTEUR,
       cout_usd: Number((r.usd + v.usd).toFixed(4)), generated_at: new Date().toISOString(),
     };
     if (ESSAI) { essai.analyses.push(ligne); ecrireEssai(); console.log(`[Niches] (essai) ${n.jour} écrite dans ${ESSAI} (${ligne.cout_usd} $).`); continue; }
