@@ -14,7 +14,9 @@ import { supabase } from "../config/supabase.js";
  * Filet de sécurité supplémentaire, côté Anthropic : limite de dépense mensuelle de la console.
  */
 export const BUDGET_MOIS = Number(process.env.CLAUDE_BUDGET_MOIS || 20);
-export const PARTS = { executif: 0.42, digest: 0.53, programmes: 0.05, agentik: 0.35 } as const;   // 8,40 $ · 10,60 $ · 1 $ · 7 $
+// Niches parlementaires (22/11/2026) : 1 $ pris sur le récapitulatif (10,60 $ → 10 $), pour ≈ 0,05 $
+// par niche analysée, une à deux fois par niche (avant le jour, puis une fois les votes connus).
+export const PARTS = { executif: 0.42, digest: 0.50, programmes: 0.05, agentik: 0.35, niches: 0.05 } as const;   // 8,40 $ · 10 $ · 1 $ · 7 $ · 1 $
 // Agentik (lecture des réseaux sociaux et des pages web, lib/agentik.ts) n'est pas de l'IA mais se paie
 // aussi : sa part de 7 $ s'ajoute au journal. Les parts se recoupent (somme > 100 %) : c'est le plafond
 // global BUDGET_MOIS qui tranche, dans `disponible`.
