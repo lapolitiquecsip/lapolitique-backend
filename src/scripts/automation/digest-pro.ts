@@ -2,7 +2,7 @@ import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { fetchAll, resolveLocation, importanceOf } from "./generate-interest-notifications.js";
 import { faitsDesAlertes } from "../../lib/faits-suivis.js";
-import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, COULEURS, simulation, antiDoublon } from "../../lib/mail.js";
+import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, ligneEnrichie, bouton, esc, resumeCourt, SITE_URL, COULEURS, simulation, antiDoublon } from "../../lib/mail.js";
 import { enrichir, lireEnrichissements, type Enrichissement } from "../../lib/enrichissement-pro.js";
 
 /**
@@ -75,7 +75,8 @@ const fmtCourt = (d: Date | string) => new Date(d).toLocaleDateString("fr-FR", {
 
 /* ─────────────── Votes des élus suivis sur les amendements ─────────────── */
 
-const court = (t: string, n: number) => (t.length > n ? `${t.slice(0, t.lastIndexOf(" ", n))}…` : t);
+// 23/11/2026 : plus de coupe « … » dans ce qui part chez les abonnés (titres, objets, exposés complets).
+const court = (t: string, _n: number) => t;
 // « l'amendement n° 2121 de Mme Bentorki après l'article 15 du projet de loi… » → l'essentiel.
 const objetCourt = (o: string) => court(String(o || "").replace(/^sur\s+/i, "").replace(/\s+(du|de la)\s+(projet|proposition) de loi.*$/i, "").replace(/^./, c => c.toUpperCase()), 120);
 const POSITION: Record<string, "pour" | "contre" | "abstention" | "absent"> = { POUR: "pour", FOR: "pour", CONTRE: "contre", AGAINST: "contre", ABSTENTION: "abstention", ABSTAIN: "abstention" };
@@ -276,29 +277,6 @@ async function commun(debut: Date, recul: Date) {
 const COMPLETES = 6;
 const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function ligneEnrichie(i: Info, e: Enrichissement, couleur: string, court = false): string {
-  const titre = esc(majuscule(resumeCourt(i.titre, 140)));
-  const t = i.url ? `<a href="${esc(i.url)}" style="color:${COULEURS.encre};text-decoration:none">${titre}</a>` : titre;
-  if (court) e = { ...e, points: [], concernes: "", suite: "", enjeu: "" };
-  const rubriqueCourte = (libelle: string, texte: string) => texte
-    ? `<div style="font-size:13px;line-height:1.55;color:${COULEURS.doux};margin-top:6px"><span style="font-weight:800;color:${couleur}">${libelle}</span> ${esc(texte)}</div>` : "";
-  return `<div style="padding:16px 0;border-bottom:1px solid ${COULEURS.filet}">
-  ${i.etiquette ? `<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${couleur};margin-bottom:4px">${esc(i.etiquette)}</div>` : ""}
-  <div style="font-size:15px;line-height:1.4;font-weight:700;color:${COULEURS.encre}">${t}</div>
-  <div style="font-size:14px;line-height:1.55;color:${COULEURS.encre};margin-top:6px">${esc(e.essentiel)}</div>
-  ${e.points.length ? `<table role="presentation" style="margin-top:6px;border-collapse:collapse">${e.points.map(p => `<tr><td style="vertical-align:top;padding:3px 8px 3px 0;color:${couleur};font-size:13px;line-height:1.5">●</td><td style="padding:3px 0;font-size:13px;line-height:1.5;color:${COULEURS.doux}">${esc(p)}</td></tr>`).join("")}</table>` : ""}
-  ${!court && e.amendements?.length ? `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#faf8f3;border:1px solid ${COULEURS.filet}">
-    <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${couleur};margin-bottom:4px">Ce que proposaient les amendements</div>
-    ${e.amendements.map(a => `<div style="font-size:13px;line-height:1.5;color:${COULEURS.doux};padding:4px 0"><b style="color:${COULEURS.encre}">${esc(a.numero)}</b> · ${esc(a.auteur)} — ${esc(a.objet)}</div>`).join("")}
-  </div>` : ""}
-  ${e.amendements_texte ? `<div style="margin-top:8px"><a href="${esc(`${SITE_URL}/premium/?amdt-texte=${encodeURIComponent(e.amendements_texte)}#amendements`)}" style="display:inline-block;padding:8px 12px;border-radius:10px;background:${couleur};color:#ffffff;font-size:12px;font-weight:800;text-decoration:none">Lire le texte complet des amendements →</a></div>` : ""}
-  ${rubriqueCourte("Qui est concerné ·", e.concernes)}
-  ${rubriqueCourte("Rapport de force ·", e.rapport_de_force)}
-  ${rubriqueCourte("Et ensuite ·", e.suite)}
-  ${rubriqueCourte("L'enjeu ·", e.enjeu)}
-  ${i.meta ? `<div style="font-size:11px;color:${COULEURS.pale};margin-top:7px">${esc(i.meta)}</div>` : ""}
-</div>`;
-}
 
 /* ───────────────────────── Passage ───────────────────────── */
 

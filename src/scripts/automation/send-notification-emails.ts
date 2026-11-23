@@ -2,7 +2,8 @@ import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
 import { silenceSondages } from "../../lib/sondage-notice.js";
 import { faitsDesAlertes } from "../../lib/faits-suivis.js";
-import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, bouton, esc, resumeCourt, SITE_URL, simulation, antiDoublon } from "../../lib/mail.js";
+import { envoyerMail, adressesDesMembres, gabarit, rubrique, ligne, ligneEnrichie, bouton, esc, resumeCourt, sujetCourt, SITE_URL, simulation, antiDoublon } from "../../lib/mail.js";
+import { enrichir, lireEnrichissements, type Enrichissement } from "../../lib/enrichissement-pro.js";
 import { votesRegroupes } from "../../lib/votes-mail.js";
 
 /**
@@ -70,7 +71,7 @@ function carteTexte(n: any): string {
     <div style="font-size:17px;line-height:1.35;font-weight:800;color:#0f172a;margin-top:5px"><a href="${esc(n.url || SITE_URL)}" style="color:#0f172a;text-decoration:none">${esc(n.title)}</a></div>
     ${(d.pourquoi || []).length ? `<div style="margin-top:8px;font-size:12px;color:#7c3aed;font-weight:700">Pour vous : ${esc(d.pourquoi.join(" ; "))}</div>` : ""}
     ${n.detail ? `<div style="font-size:14px;line-height:1.55;color:#334155;margin-top:8px">${esc(n.detail)}</div>` : ""}
-    ${d.extrait ? `<div style="margin-top:8px;padding-left:10px;border-left:3px solid #e2e8f0;font-size:12px;line-height:1.5;color:#64748b;font-style:italic">Extrait du résumé officiel : « ${esc(d.extrait)}${/[.!?»)]$/.test(d.extrait) ? "" : "…"} »</div>` : ""}
+    ${d.extrait && /[.!?»)]$/.test(String(d.extrait).trim()) ? `<div style="margin-top:8px;padding-left:10px;border-left:3px solid #e2e8f0;font-size:12px;line-height:1.5;color:#64748b;font-style:italic">Extrait du résumé officiel : « ${esc(d.extrait)} »</div>` : ""}
     ${vote}${elus}${partis}
   </div>`;
 }
@@ -89,7 +90,7 @@ const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? 
 /** Alertes de vote d'un élu suivi (une par scrutin et par élu) : regroupées par texte dans l'e-mail. */
 const estVoteElu = (n: any) => categorieDe(n) === "votes" && !!n.position && n.type === "vote";
 
-async function html(prenom: string, alertes: any[]): Promise<{ html: string; unites: number; votes: Awaited<ReturnType<typeof votesRegroupes>> | null }> {
+async function html(prenom: string, alertes: any[], enrichis: Map<string, Enrichissement> = new Map()): Promise<{ html: string; unites: number; votes: Awaited<ReturnType<typeof votesRegroupes>> | null }> {
   const parCat = new Map<string, any[]>();
   for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
   const textes = (parCat.get("textes") || []).map(carteTexte).join("");
@@ -105,6 +106,8 @@ async function html(prenom: string, alertes: any[]): Promise<{ html: string; uni
     if (c === "votes" && blocVotes) return blocVotes + (parCat.has("votes") ? parCat.get("votes")!.slice(0, 12).map(n => ligne({ titre: n.title, url: n.url, resume: resumeCourt(n.detail, 160), couleur })).join("") : "");
     const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
       ? ligne({ titre: n.detail || n.title, url: n.url, resume: n.detail ? n.title : null, etiquette: `Vote : ${n.position}`, couleur: couleurVote(n.position) })
+      : enrichis.has(String(n.id))
+      ? ligneEnrichie({ titre: n.title, url: n.url, etiquette: n.place || (c === "suivis" || c === "veille" ? n.domain : null) }, enrichis.get(String(n.id))!, couleur)
       : ligne({ titre: n.title, url: n.url, resume: resumeCourt(n.detail, c === "veille" ? 280 : 160), etiquette: n.place || (c === "suivis" || c === "veille" ? n.domain : null), couleur }));
     return rubrique(emoji, intitule, couleur, lignes.join(""));
   }).join("");
@@ -118,6 +121,39 @@ async function html(prenom: string, alertes: any[]): Promise<{ html: string; uni
     corps: blocs + bouton("Toutes mes alertes", `${SITE_URL}/dashboard`),
     pied: `Vous recevez ces alertes selon les réglages de votre profil.<br><a href="${SITE_URL}/dashboard#preferences" style="color:#64748b">Modifier mes alertes</a>`,
   }) };
+}
+
+/**
+ * Actes du Journal officiel (décrets, arrêtés, nominations…) dans les alertes : l'explication d'une
+ * phrase ne suffisait pas (23/11/2026, demande de l'éditeur). Ils reçoivent l'enrichissement de
+ * l'e-mail Pro (l'essentiel, faits clés, qui est concerné, la suite), rédigé une fois par acte
+ * (clé « jotexte:<JORFTEXT…> », partagée avec digest-pro) et servi à tous les membres.
+ * Retourne l'enrichissement par identifiant d'alerte.
+ */
+const CATS_ENRICHIES = new Set(["lois", "suivis", "local", "decrets"]);
+async function enrichissementsJo(notifs: any[]): Promise<Map<string, Enrichissement>> {
+  const res = new Map<string, Enrichissement>();
+  const jo = notifs.filter(n => !n.position && CATS_ENRICHIES.has(categorieDe(n)) && /legifrance\.gouv\.fr/.test(n.url || ""));
+  if (!jo.length) return res;
+  const idDe = new Map<string, string>();
+  for (const n of jo) { const m = /JORFTEXT\d+/.exec(n.url || ""); if (m) idDe.set(String(n.id), m[0]); }
+  // Lien ELI (sans identifiant JORF) : l'acte est retrouvé par son explication, reprise telle quelle dans l'alerte.
+  for (const n of jo.filter(x => !idDe.has(String(x.id)) && x.detail)) {
+    const motif = String(n.detail).trim().replace(/[%_\\]/g, c => `\\${c}`);
+    const { data } = await supabase.from("jorf_texts").select("id").ilike("explication", motif).limit(1);
+    if (data?.[0]?.id) idDe.set(String(n.id), data[0].id);
+  }
+  const infos = [...new Map(jo.filter(n => idDe.has(String(n.id))).map(n => {
+    const cle = `jotexte:${idDe.get(String(n.id))}`;
+    return [cle, { cle, titre: n.title, resume: n.detail, url: n.url }];
+  })).values()];
+  const enr = await lireEnrichissements(infos.map(i => i.cle));
+  const manquants = infos.filter(i => !enr.has(i.cle));
+  if (manquants.length && !process.argv.includes("--sans-ia"))
+    for (const [k, v] of await enrichir(manquants, { budget: Number(process.env.ALERTES_IA_BUDGET || 0.4) })) enr.set(k, v);
+  for (const n of jo) { const e = enr.get(`jotexte:${idDe.get(String(n.id))}`); if (e) res.set(String(n.id), e); }
+  console.log(`[Alertes] Journal officiel : ${res.size}/${jo.length} alerte(s) enrichie(s).`);
+  return res;
 }
 
 /** Le même fait n'apparaît qu'une fois dans l'e-mail : la première alerte le garde et
@@ -156,6 +192,7 @@ async function main() {
   if (!notifs?.length) { console.log("Aucune alerte en attente."); return; }
 
   const faits = await faitsDesAlertes(notifs);
+  const enrichis = await enrichissementsJo(notifs);
   const parMembre = new Map<string, any[]>();
   for (const n of notifs) parMembre.set(n.user_id, [...(parMembre.get(n.user_id) || []), n]);
   let ids = [...parMembre.keys()];
@@ -225,14 +262,14 @@ async function main() {
     if (!adresse || !aEnvoyer.length) { ignores++; continue; }
     const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");
     const t0Vote = t0?.donnees?.source === "scrutin_final" ? `${t0.donnees?.resultat?.adopte ? "Adopté" : "Rejeté"} ${t0.donnees?.chambre === "AN" ? "à l'Assemblée" : "au Sénat"}` : "Journal officiel";
-    const rendu = await html(profil.get(id)?.display_name || "", aEnvoyer);
+    const rendu = await html(profil.get(id)?.display_name || "", aEnvoyer, enrichis);
     const rv = rendu.votes;
-    const sujet = t0 ? resumeCourt(`${t0Vote} : ${t0.title}`, 110)
+    const sujet = t0 ? sujetCourt(`${t0Vote} : ${t0.title}`, 110)
       // Que des votes d'élus suivis : le texte, pas le nombre de scrutins (« 30 alertes pour vous »).
       : rv && rendu.unites === rv.nbTextes
-      ? resumeCourt(`Vos élus ont voté${rv.texte && rv.texte !== "Autres votes" ? ` : ${rv.texte}` : ""}${rv.nbTextes > 1 ? ` (et ${rv.nbTextes - 1} autre${rv.nbTextes > 2 ? "s" : ""} texte${rv.nbTextes > 2 ? "s" : ""})` : ""}`, 110)
+      ? sujetCourt(`Vos élus ont voté${rv.texte && rv.texte !== "Autres votes" ? ` : ${rv.texte}` : ""}${rv.nbTextes > 1 ? ` (et ${rv.nbTextes - 1} autre${rv.nbTextes > 2 ? "s" : ""} texte${rv.nbTextes > 2 ? "s" : ""})` : ""}`, 110)
       : rendu.unites === 1 && aEnvoyer.length === 1
-      ? resumeCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}`
+      ? sujetCourt(aEnvoyer[0].position ? `Vote : ${aEnvoyer[0].detail || aEnvoyer[0].title}`
         : ["suivis", "veille"].includes(categorieDe(aEnvoyer[0])) && aEnvoyer[0].domain ? `${aEnvoyer[0].domain} : ${aEnvoyer[0].title}` : aEnvoyer[0].title, 110)
       : `${rendu.unites} alertes pour vous`;
     const apercu = process.argv.find(x => x.startsWith("--apercu="))?.split("=").slice(1).join("=");

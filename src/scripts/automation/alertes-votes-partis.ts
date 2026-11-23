@@ -42,7 +42,8 @@ const sujet = (s: any) => {
     : s.type === "LOI" || s.type === "AUTRE" ? (s.title || s.objet || "") : (s.objet || s.title || "")).trim();
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
-const court = (t: string, n: number) => (t.length > n ? `${t.slice(0, t.lastIndexOf(" ", n))}…` : t);
+// 23/11/2026 : plus de coupe « … » dans ce qui part chez les abonnés (titres, objets, exposés complets).
+const court = (t: string, _n: number) => t;
 
 type Pos = { cle: "pour" | "contre" | "abstention" | "partage" | "absent"; verbe: string; pour: number; contre: number; abstention: number };
 function position(s: any, po: string): Pos {

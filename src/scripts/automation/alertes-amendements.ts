@@ -16,7 +16,8 @@ import { fetchAll } from "./generate-interest-notifications.js";
  */
 const DRY = process.argv.includes("--dry");
 const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
-const court = (t: string, n: number) => (t.length > n ? `${t.slice(0, t.lastIndexOf(" ", n))}…` : t);
+// 23/11/2026 : plus de coupe « … » dans ce qui part chez les abonnés (titres, objets, exposés complets).
+const court = (t: string, _n: number) => t;
 // Exposés relevés avec leurs entités HTML ; auteurs de commission notés « rapporteur null ».
 const propre = (t: string | null) => (t || "").replace(/&amp;/g, "&").replace(/&nbsp;|&#160;/g, " ").replace(/&#0?39;|&rsquo;/g, "’").replace(/&quot;/g, "\"").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
   .replace(/\s*\bnull\b/g, "").replace(/\s+/g, " ").trim();

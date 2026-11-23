@@ -40,6 +40,27 @@ const COULEUR_POS: Record<string, string> = { POUR: "#059669", CONTRE: "#e11d48"
 const MOT_POS: Record<string, string> = { POUR: "pour", CONTRE: "contre", ABSTENTION: "abstention" };
 const CHAMBRE: Record<Chambre, string> = { SENAT: "Sénat", AN: "Assemblée nationale", PE: "Parlement européen" };
 
+/**
+ * Secours quand aucun vote du texte n'est rattaché à un dossier (projet de loi « relance et
+ * décentralisation du logement », 17/11/2026) : la fiche du site retrouvée par les mots
+ * distinctifs de l'intitulé, dans l'ordre (« %relance%décentralisation%logement% »).
+ */
+const cacheDossiers = new Map<string, string | null>();
+async function dossierParTitre(texte: string): Promise<string | null> {
+  if (!texte || /^autres votes$/i.test(texte)) return null;
+  if (cacheDossiers.has(texte)) return cacheDossiers.get(texte)!;
+  const coeur = texte.replace(/^(projet|proposition) de loi( organique| constitutionnelle)?(,[^,]*,)?\s*/i, "");
+  const mots = coeur.split(/[\s'’,«»()]+/).filter(m => m.length > 4 && !/^(visant|relative|relatif|portant|concernant|dans|leurs|cette|entre|notamment)$/i.test(m)).slice(0, 4);
+  let id: string | null = null;
+  if (mots.length >= 2) {
+    const { data } = await supabase.from("legislative_dossiers").select("id").ilike("title", `%${mots.join("%")}%`)
+      .order("latest_step_at", { ascending: false, nullsFirst: false }).limit(1);
+    id = data?.[0]?.id ?? null;
+  }
+  cacheDossiers.set(texte, id);
+  return id;
+}
+
 const propre = (s: string | null | undefined) => String(s ?? "").replace(/\\[rn]|[\r\n]/g, " ").replace(/&nbsp;| /g, " ").replace(/\s+/g, " ").trim();
 const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -294,6 +315,15 @@ export async function votesRegroupes(alertes: Alerte[], { maxTextes = 4, maxDeta
     parTranches(ids("SENAT"), async lot => (await supabase.from("legislative_scrutins").select("id, official_id, title, result_label, for_count, against_count, abstain_count, voted_at, source_url, dossier_id").in("official_id", lot)).data || []),
     parTranches(ids("AN"), async lot => (await supabase.from("scrutins").select("id, objet, title, resultat, pour, contre, abstention, date_scrutin").in("id", lot)).data || []),
   ]);
+  // Le dossier législatif de chaque vote de l'Assemblée (fiche du texte sur le site) : le scrutin
+  // rattaché par la synchronisation, à défaut le rapprochement de la navette (scrutin_navette).
+  const dossierAn = new Map<string, string>();
+  const [lsAn, navAn] = await Promise.all([
+    parTranches(ids("AN"), async lot => (await supabase.from("legislative_scrutins").select("official_id, dossier_id").in("official_id", lot).not("dossier_id", "is", null)).data || []),
+    parTranches(ids("AN"), async lot => (await supabase.from("scrutin_navette").select("scrutin_id, dossier_id").in("scrutin_id", lot).not("dossier_id", "is", null)).data || []),
+  ]);
+  for (const x of navAn as any[]) dossierAn.set(String(x.scrutin_id), String(x.dossier_id));
+  for (const x of lsAn as any[]) dossierAn.set(String(x.official_id), String(x.dossier_id));
   const champsAmdt = "numero, texte_uid, texte_titre, division, expose, auteur, groupe, url, scrutin_id";
   const [amSen, amAn] = await Promise.all([
     parTranches(sen.map((s: any) => s.id), async lot => (await supabase.from("amendements_senat").select(champsAmdt).in("scrutin_id", lot)).data || []),
@@ -338,7 +368,7 @@ export async function votesRegroupes(alertes: Alerte[], { maxTextes = 4, maxDeta
         resultat: s ? { adopte, pour, contre, abstention: s?.abstain_count ?? s?.abstention ?? null } : null,
         amendements: am, elus: new Map(), nature, article: articleVise(titre, am[0]),
         texte: chambre === "PE" ? "Parlement européen" : texteDuScrutin(titre) || (am[0]?.texte_titre ? propre(am[0].texte_titre) : "Autres votes"),
-        dossier: s?.dossier_id || null,
+        dossier: s?.dossier_id || (chambre === "AN" && a.scrutin_id ? dossierAn.get(String(a.scrutin_id)) || null : null),
       };
       votes.set(cle, v);
     }
@@ -413,10 +443,14 @@ export async function votesRegroupes(alertes: Alerte[], { maxTextes = 4, maxDeta
       </div>`);
     }
     const reste = g.length - detail.length;
+    // La fiche du texte sur le site (résumé, parcours, tous les votes) : le dossier d'un des votes du groupe.
+    const dossierTexte = g.find(v => v.dossier)?.dossier || (v0.chambre !== "PE" ? await dossierParTitre(v0.texte) : null);
+    const lienTexte = dossierTexte ? `${SITE_URL}/lois/?dossier=${encodeURIComponent(dossierTexte)}` : null;
     const liens = [...bilan.keys()].filter(e => fiche.has(e)).map(e => `<a href="${esc(fiche.get(e))}" style="color:#4f46e5">${esc(noms.get(e))}</a>`);
     html += `<div style="padding:16px 0;border-bottom:1px solid ${COULEURS.filet}">
       <div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#4f46e5">${esc(CHAMBRE[v0.chambre])}${quand ? ` · ${esc(quand)}` : ""} · ${g.length} vote${g.length > 1 ? "s" : ""}</div>
-      <div style="font-size:16px;line-height:1.35;font-weight:800;color:${COULEURS.encre};margin-top:4px">${esc(majuscule(v0.texte))}</div>
+      <div style="font-size:16px;line-height:1.35;font-weight:800;color:${COULEURS.encre};margin-top:4px">${lienTexte ? `<a href="${esc(lienTexte)}" style="color:${COULEURS.encre};text-decoration:none">${esc(majuscule(v0.texte))}</a>` : esc(majuscule(v0.texte))}</div>
+      ${lienTexte ? `<div style="margin-top:8px"><a href="${esc(lienTexte)}" style="display:inline-block;padding:7px 12px;border-radius:10px;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:800;text-decoration:none">Voir le texte sur La Politique c'est Simple →</a></div>` : ""}
       ${lignesBilan.length ? `<div style="font-size:13px;line-height:1.6;color:#334155;margin-top:6px">${lignesBilan.join("<br>")}</div>` : ""}
       ${cartes.join("")}
       ${reste > 0 ? `<div style="font-size:12px;color:#64748b;margin-top:10px">+ ${reste} autre${reste > 1 ? "s" : ""} vote${reste > 1 ? "s" : ""} sur ce texte${liens.length ? ` — tout voir sur la fiche de ${liens.join(", de ")}` : ""}.</div>` : ""}

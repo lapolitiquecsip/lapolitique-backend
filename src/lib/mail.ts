@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase.js";
+import type { Enrichissement } from "./enrichissement-pro.js";
 
 /**
  * Envoi des e-mails aux membres (Resend) et habillage commun.
@@ -160,7 +161,69 @@ export function antiDoublon() {
   };
 }
 
-export const resumeCourt = (s: string | null | undefined, max = 190) => {
+/**
+ * Texte d'une alerte ou d'une info dans un e-mail : TOUJOURS complet (23/11/2026, demande de
+ * l'éditeur : un abonné Premium ou Pro ne doit jamais lire une explication coupée par « … »).
+ * `max` n'est plus appliqué ; gardé pour ne pas toucher les appels. Si la source elle-même
+ * finit par des points de suspension, on s'arrête à sa dernière phrase complète.
+ */
+export const resumeCourt = (s: string | null | undefined, _max = 190) => sansSuspension(String(s || "").replace(/\s+/g, " ").trim());
+
+/** Fin de la dernière phrase complète (index après le point), en ignorant les abréviations « M. », « Mme. »… ; -1 sinon. */
+function finDePhrase(t: string): number {
+  let fin = -1;
+  for (const m of t.matchAll(/[.!?»](?=\s+[A-ZÀÂÇÉÈÊËÎÏÔÛÙÜŸŒ«"0-9])/g)) {
+    const i = m.index!;
+    if (t[i] === "." && /(^|[\s(])([A-Z]|Mme|Mlle|Dr|Pr|St|art|n°|cf|etc)$/.test(t.slice(Math.max(0, i - 5), i))) continue;
+    fin = i + 1;
+  }
+  return fin;
+}
+
+/**
+ * Un texte jamais coupé : une fin « … » / « ... », ou un long texte arrêté en plein mot par sa
+ * source (résumé de presse limité en caractères : « …pose une alternative directe : l'a »),
+ * revient à sa dernière phrase complète.
+ */
+export function sansSuspension(t: string): string {
+  const suspendu = /(\.\.\.|…)\s*$/.test(t);
+  const sans = t.replace(/\s*(\.\.\.|…)\s*$/, "");
+  const inacheve = suspendu || (sans.length > 160 && !/[.!?»)"”\]]$/.test(sans));
+  if (!inacheve) return t;
+  const fin = finDePhrase(sans);
+  return fin > sans.length * 0.4 ? sans.slice(0, fin) : sans;
+}
+
+/** Objet d'un e-mail : la seule chose qui reste courte (les messageries le coupent de toute façon). */
+export const sujetCourt = (s: string | null | undefined, max = 110) => {
   const t = String(s || "").replace(/\s+/g, " ").trim();
   return t.length <= max ? t : t.slice(0, t.lastIndexOf(" ", max)) + "…";
 };
+
+/**
+ * Une information enrichie (l'essentiel, faits clés, qui est concerné, rapport de force, suite, enjeu) :
+ * rendu commun à l'e-mail Pro (digest-pro) et aux alertes Premium/Pro (send-notification-emails).
+ */
+export function ligneEnrichie(i: { titre: string; url?: string | null; etiquette?: string | null; meta?: string | null }, e: Enrichissement, couleur: string, court = false): string {
+  const titre = esc(i.titre.charAt(0).toUpperCase() + i.titre.slice(1));
+  const t = i.url ? `<a href="${esc(i.url)}" style="color:${COULEURS.encre};text-decoration:none">${titre}</a>` : titre;
+  if (court) e = { ...e, points: [], concernes: "", suite: "", enjeu: "" };
+  const rubriqueCourte = (libelle: string, texte: string) => texte
+    ? `<div style="font-size:13px;line-height:1.55;color:${COULEURS.doux};margin-top:6px"><span style="font-weight:800;color:${couleur}">${libelle}</span> ${esc(texte)}</div>` : "";
+  return `<div style="padding:16px 0;border-bottom:1px solid ${COULEURS.filet}">
+  ${i.etiquette ? `<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${couleur};margin-bottom:4px">${esc(i.etiquette)}</div>` : ""}
+  <div style="font-size:15px;line-height:1.4;font-weight:700;color:${COULEURS.encre}">${t}</div>
+  <div style="font-size:14px;line-height:1.55;color:${COULEURS.encre};margin-top:6px">${esc(e.essentiel)}</div>
+  ${e.points.length ? `<table role="presentation" style="margin-top:6px;border-collapse:collapse">${e.points.map(p => `<tr><td style="vertical-align:top;padding:3px 8px 3px 0;color:${couleur};font-size:13px;line-height:1.5">●</td><td style="padding:3px 0;font-size:13px;line-height:1.5;color:${COULEURS.doux}">${esc(p)}</td></tr>`).join("")}</table>` : ""}
+  ${!court && e.amendements?.length ? `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#faf8f3;border:1px solid ${COULEURS.filet}">
+    <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${couleur};margin-bottom:4px">Ce que proposaient les amendements</div>
+    ${e.amendements.map(a => `<div style="font-size:13px;line-height:1.5;color:${COULEURS.doux};padding:4px 0"><b style="color:${COULEURS.encre}">${esc(a.numero)}</b> · ${esc(a.auteur)} — ${esc(a.objet)}</div>`).join("")}
+  </div>` : ""}
+  ${e.amendements_texte ? `<div style="margin-top:8px"><a href="${esc(`${SITE_URL}/premium/?amdt-texte=${encodeURIComponent(e.amendements_texte)}#amendements`)}" style="display:inline-block;padding:8px 12px;border-radius:10px;background:${couleur};color:#ffffff;font-size:12px;font-weight:800;text-decoration:none">Lire le texte complet des amendements →</a></div>` : ""}
+  ${rubriqueCourte("Qui est concerné ·", e.concernes)}
+  ${rubriqueCourte("Rapport de force ·", e.rapport_de_force)}
+  ${rubriqueCourte("Et ensuite ·", e.suite)}
+  ${rubriqueCourte("L'enjeu ·", e.enjeu)}
+  ${i.meta ? `<div style="font-size:11px;color:${COULEURS.pale};margin-top:7px">${esc(i.meta)}</div>` : ""}
+</div>`;
+}

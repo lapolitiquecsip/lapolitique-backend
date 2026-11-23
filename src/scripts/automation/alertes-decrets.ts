@@ -13,7 +13,8 @@ import { fetchAll } from "./generate-interest-notifications.js";
  */
 const DRY = process.argv.includes("--dry");
 const SITE_URL = process.env.SITE_URL || "https://lapolitiquecestsimple.fr";
-const court = (t: string, n: number) => (t.length > n ? `${t.slice(0, t.lastIndexOf(" ", n))}…` : t);
+// 23/11/2026 : plus de coupe « … » dans ce qui part chez les abonnés (titres, objets, exposés complets).
+const court = (t: string, _n: number) => t;
 const dateFr = (d: string) => new Date(`${d.slice(0, 10)}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
 async function main() {
