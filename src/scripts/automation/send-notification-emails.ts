@@ -40,8 +40,83 @@ const POSITION: Record<string, [string, string]> = {
   pour: ["pour", "#059669"], contre: ["contre", "#e11d48"], abstention: ["abstention", "#d97706"],
 };
 const aVote = (p: string) => (POSITION[p] ? `a voté <strong style="color:${POSITION[p][1]}">${POSITION[p][0]}</strong>` : "n'a <strong>pas pris part au vote</strong>");
-function carteTexte(n: any): string {
+/* ─────────── Analyse détaillée du site, dans l'e-mail des membres Pro (24/11/2026) ─────────── */
+
+type AnalyseDetaillee = { analyse_loi: any; cadre: any; sources: { titre: string; url: string }[] | null; generated_at: string | null };
+/** Analyses par dossier, et dossiers dont l'analyse a échoué (texte illisible) : on ne promet rien pour ceux-là. */
+type Analyses = { parDossier: Map<string, AnalyseDetaillee>; impossibles: Set<string> };
+
+const plein = (s: any) => typeof s === "string" && s.trim().length > 1;
+const titreBloc = (t: string, couleur = "#b45309") =>
+  `<div style="margin:22px 0 10px;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:${couleur}">${esc(t)}</div>`;
+const para = (t: string, style = "") => `<div style="font-size:14px;line-height:1.6;color:#334155;${style}">${esc(t)}</div>`;
+
+/** L'analyse entière, comme sur la fiche du texte : rien n'est coupé ni résumé. */
+function blocAnalyse(a: AnalyseDetaillee): string {
+  const l = a.analyse_loi || {}; const c = a.cadre || null;
+  const mesures = (l.mesures || []).filter((m: any) => plein(m.titre));
+  let h = `<div style="margin-top:16px;padding:18px;border-radius:16px;border:1px solid #fcd34d;background:#fffbeb">
+    <div style="display:inline-block;padding:3px 10px;border-radius:999px;background:#f59e0b;color:#111827;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase">Analyse Pro</div>
+    <div style="font-size:20px;line-height:1.2;font-weight:800;color:#0f172a;margin-top:8px">Analyse détaillée complète</div>
+    <div style="font-size:12px;color:#92400e;margin-top:2px">Rédigée d'après le texte officiel${a.generated_at ? ` · ${new Date(a.generated_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })}` : ""}</div>`;
+  if (plein(l.en_une_phrase)) h += para(l.en_une_phrase, "margin-top:12px;font-weight:700;color:#0f172a;font-size:15px");
+  if (plein(l.contexte)) h += para(l.contexte, "margin-top:10px");
+  if (l.chiffres_cles?.length) {
+    h += titreBloc("Les chiffres clés") + `<div style="padding:4px 12px;border-radius:12px;background:#fff;border:1px solid #fde68a">${l.chiffres_cles.map((k: any, i: number) =>
+      `<div style="padding:8px 0;${i ? "border-top:1px solid #fef3c7;" : ""}font-size:13px;line-height:1.5;color:#475569"><strong style="font-size:15px;color:#b45309">${esc(k.valeur)}</strong> — ${esc(k.libelle)}</div>`).join("")}</div>`;
+  }
+  if (mesures.length) {
+    h += titreBloc(`Toutes les mesures (${mesures.length})`) + mesures.map((m: any, i: number) => `
+      <div style="margin:0 0 12px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e7e2d6">
+        <div style="font-size:15px;line-height:1.4;font-weight:800;color:#0f172a"><span style="color:#b45309">${i + 1}.</span> ${esc(m.titre)}</div>
+        ${plein(m.article) ? `<div style="margin-top:4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b">${esc(m.article)}</div>` : ""}
+        ${plein(m.avant) ? `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#fff1f2;border:1px solid #fecdd3"><div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#e11d48">Avant</div>${para(m.avant, "margin-top:3px;font-size:13px")}</div>` : ""}
+        ${plein(m.apres) ? `<div style="margin-top:8px;padding:10px 12px;border-radius:10px;background:#ecfdf5;border:1px solid #a7f3d0"><div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#047857">Ce que change la loi</div>${para(m.apres, "margin-top:3px;font-size:13px")}</div>` : ""}
+        ${plein(m.detail) ? para(m.detail, "margin-top:10px;font-size:13.5px") : ""}
+        ${plein(m.qui) ? `<div style="margin-top:8px;font-size:12.5px;line-height:1.5;color:#64748b"><strong style="color:#0f172a">Concerne :</strong> ${esc(m.qui)}</div>` : ""}
+      </div>`).join("");
+  }
+  if (l.concernes?.length) h += titreBloc("Ce que ça change, pour qui") + l.concernes.map((p: any) =>
+    `<div style="margin:0 0 8px;font-size:13.5px;line-height:1.55;color:#334155"><strong style="color:#0f172a">${esc(p.public)} :</strong> ${esc(p.effet)}</div>`).join("");
+  if (l.calendrier?.length) h += titreBloc("Quand ça s'applique") + l.calendrier.map((e: any) =>
+    `<div style="margin:0 0 8px;font-size:13.5px;line-height:1.55;color:#334155"><strong style="color:#b45309">${esc(e.quand)}</strong> — ${esc(e.quoi)}</div>`).join("");
+  if (l.sanctions?.length) h += titreBloc("Sanctions prévues", "#be123c") + l.sanctions.map((s: string) => para(`• ${s}`, "margin:0 0 6px")).join("");
+  if (plein(l.financement)) h += titreBloc("Coût et financement") + para(l.financement);
+  if (plein(l.apports_parlement)) h += titreBloc("Ce qu'ont changé les parlementaires") + para(l.apports_parlement);
+  if (l.points_debat?.length) h += titreBloc("Les points qui font débat") + l.points_debat.map((p: string) => para(`• ${p}`, "margin:0 0 6px")).join("");
+  if (c && (plein(c.synthese) || c.dispositifs?.length)) {
+    h += `<div style="margin-top:22px;padding:14px;border-radius:14px;background:#f0f9ff;border:1px solid #bae6fd">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#0369a1">Ce qui existe déjà sur ce sujet</div>
+      <div style="font-size:12px;color:#64748b;margin-top:2px">Le droit qui s'applique aujourd'hui dans ce domaine, indépendamment de ce texte.</div>
+      ${plein(c.synthese) ? para(c.synthese, "margin-top:10px") : ""}
+      ${(c.dispositifs || []).map((d: any) => `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #e0f2fe"><strong style="font-size:13.5px;color:#0f172a">${esc(d.nom)}</strong>${para(d.description, "margin-top:3px;font-size:13px")}${plein(d.reference) ? `<div style="margin-top:4px;font-size:11px;font-weight:700;color:#0369a1">${esc(d.reference)}</div>` : ""}</div>`).join("")}
+      ${(c.chiffres || []).map((k: any) => `<div style="margin-top:8px;font-size:13px;line-height:1.5;color:#334155"><strong style="color:#0369a1">${esc(k.valeur)}</strong> — ${esc(k.libelle)}</div>`).join("")}
+      ${c.acteurs?.length ? `<div style="margin-top:10px;font-size:12.5px;line-height:1.5;color:#475569"><strong style="color:#0f172a">Qui intervient aujourd'hui :</strong> ${esc(c.acteurs.join(" · "))}</div>` : ""}
+      ${plein(c.lacunes) ? `<div style="margin-top:6px;font-size:12.5px;line-height:1.5;color:#475569"><strong style="color:#0f172a">Ce que le droit actuel ne règle pas :</strong> ${esc(c.lacunes)}</div>` : ""}
+    </div>`;
+  }
+  if (plein(l.limites)) h += `<div style="margin-top:16px;font-size:12px;line-height:1.5;font-style:italic;color:#78716c">${esc(l.limites)}</div>`;
+  if (a.sources?.length) h += `<div style="margin-top:10px;font-size:11.5px;color:#78716c">Documents lus : ${a.sources.map(s => `<a href="${esc(s.url)}" style="color:#92400e">${esc(s.titre)}</a>`).join(" · ")}. Analyse rédigée avec l'aide d'une IA à partir de ces documents officiels.</div>`;
+  return h + `</div>`;
+}
+
+function carteTexte(n: any, analyses?: Analyses | null): string {
   const d = n.donnees || {}; const r = d.resultat;
+  // Membre Pro : l'analyse détaillée du site, entière ; à défaut, elle est annoncée pour plus tard.
+  const dossier = d.dossier_id ? String(d.dossier_id) : null;
+  const analyse = analyses && dossier ? analyses.parDossier.get(dossier) : undefined;
+  const suite = analyse ? blocAnalyse(analyse)
+    : analyses && dossier && !analyses.impossibles.has(dossier)
+    ? `<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;font-size:13px;line-height:1.5;color:#92400e"><strong>Analyse détaillée en cours de rédaction.</strong> Elle est écrite à partir du texte officiel, mesure par mesure : vous la recevrez par e-mail dès qu'elle sera prête.</div>`
+    : "";
+  if (d.source === "analyse") {
+    return `<div style="padding:18px 0;border-bottom:1px solid #e7e2d6">
+    <div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#b45309">Analyse détaillée · ${d.chambre === "SENAT" ? "texte voté au Sénat" : "texte voté à l'Assemblée nationale"}</div>
+    <div style="font-size:17px;line-height:1.35;font-weight:800;color:#0f172a;margin-top:5px"><a href="${esc(n.url || SITE_URL)}" style="color:#0f172a;text-decoration:none">${esc(n.title)}</a></div>
+    ${r ? `<div style="margin-top:6px;font-size:13px;color:#475569">${r.adopte ? "Adopté" : "Rejeté"}${r.pour != null ? ` (${r.pour} pour, ${r.contre} contre, ${r.abstention} abstentions)` : ""}.</div>` : ""}
+    ${suite}
+  </div>`;
+  }
   const jour = d.date_vote ? ` · ${new Date(d.date_vote).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" })}` : "";
   const sur = d.source === "scrutin_final" ? `${d.intitule || "Vote final"} · ${d.chambre === "AN" ? "Assemblée nationale" : "Sénat"}${jour}` : d.source === "loi" ? "Loi · Journal officiel" : "Décret · Journal officiel";
   let vote = "";
@@ -72,7 +147,7 @@ function carteTexte(n: any): string {
     ${(d.pourquoi || []).length ? `<div style="margin-top:8px;font-size:12px;color:#7c3aed;font-weight:700">Pour vous : ${esc(d.pourquoi.join(" ; "))}</div>` : ""}
     ${n.detail ? `<div style="font-size:14px;line-height:1.55;color:#334155;margin-top:8px">${esc(n.detail)}</div>` : ""}
     ${d.extrait && /[.!?»)]$/.test(String(d.extrait).trim()) ? `<div style="margin-top:8px;padding-left:10px;border-left:3px solid #e2e8f0;font-size:12px;line-height:1.5;color:#64748b;font-style:italic">Extrait du résumé officiel : « ${esc(d.extrait)} »</div>` : ""}
-    ${vote}${elus}${partis}
+    ${vote}${elus}${partis}${suite}
   </div>`;
 }
 
@@ -90,18 +165,19 @@ const couleurVote = (p: string) => (p === "POUR" ? "#059669" : p === "CONTRE" ? 
 /** Alertes de vote d'un élu suivi (une par scrutin et par élu) : regroupées par texte dans l'e-mail. */
 const estVoteElu = (n: any) => categorieDe(n) === "votes" && !!n.position && n.type === "vote";
 
-async function html(prenom: string, alertes: any[], enrichis: Map<string, Enrichissement> = new Map()): Promise<{ html: string; unites: number; votes: Awaited<ReturnType<typeof votesRegroupes>> | null }> {
+async function html(prenom: string, alertes: any[], enrichis: Map<string, Enrichissement> = new Map(), analyses: Analyses | null = null): Promise<{ html: string; unites: number; votes: Awaited<ReturnType<typeof votesRegroupes>> | null }> {
   const parCat = new Map<string, any[]>();
   for (const a of alertes) { const c = categorieDe(a); parCat.set(c, [...(parCat.get(c) || []), a]); }
-  const textes = (parCat.get("textes") || []).map(carteTexte).join("");
-  const votes = (parCat.get("textes") || []).every(t => t.donnees?.source === "scrutin_final");
+  const textes = (parCat.get("textes") || []).map(n => carteTexte(n, analyses)).join("");
+  const seulementAnalyses = (parCat.get("textes") || []).every(t => t.donnees?.source === "analyse");
+  const votes = (parCat.get("textes") || []).every(t => t.donnees?.source === "scrutin_final" || t.donnees?.source === "analyse");
   // Votes des élus suivis : un bloc par texte (bilan de chaque élu, quelques votes expliqués), plus une ligne par vote.
   const votesElus = (parCat.get("votes") || []).filter(estVoteElu);
   const autresVotes = (parCat.get("votes") || []).filter(n => !estVoteElu(n));
   if (autresVotes.length) parCat.set("votes", autresVotes); else parCat.delete("votes");
   const regroupes = votesElus.length ? await votesRegroupes(votesElus) : null;
   const blocVotes = regroupes?.html ? rubrique(...(INTITULES.votes as [string, string, string]), regroupes.html) : "";
-  const blocs = (textes ? rubrique(votes ? "🗳️" : "📜", votes ? "Textes votés au Parlement" : "Un texte vous concerne", "#7c3aed", textes) : "") + ["veille", "decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c) || (c === "votes" && blocVotes)).map(c => {
+  const blocs = (textes ? rubrique(seulementAnalyses ? "📘" : votes ? "🗳️" : "📜", seulementAnalyses ? "Analyse détaillée d'un texte voté" : votes ? "Textes votés au Parlement" : "Un texte vous concerne", seulementAnalyses ? "#b45309" : "#7c3aed", textes) : "") + ["veille", "decrets", "amendements", "votes", "suivis", "local", "lois"].filter(c => parCat.has(c) || (c === "votes" && blocVotes)).map(c => {
     const [emoji, intitule, couleur] = INTITULES[c];
     if (c === "votes" && blocVotes) return blocVotes + (parCat.has("votes") ? parCat.get("votes")!.slice(0, 12).map(n => ligne({ titre: n.title, url: n.url, resume: resumeCourt(n.detail, 160), couleur })).join("") : "");
     const lignes = parCat.get(c)!.slice(0, 12).map(n => n.position
@@ -193,6 +269,18 @@ async function main() {
 
   const faits = await faitsDesAlertes(notifs);
   const enrichis = await enrichissementsJo(notifs);
+  // Analyses détaillées des textes votés (jointes aux e-mails des membres Pro).
+  const dossiersVotes = [...new Set(notifs.filter(n => categorieDe(n) === "textes" && n.donnees?.dossier_id).map(n => String(n.donnees.dossier_id)))];
+  const analyses: Analyses = { parDossier: new Map(), impossibles: new Set() };
+  if (dossiersVotes.length) {
+    const { data: lues } = await supabase.from("dossier_analyses_approfondies").select("dossier_id, analyse_loi, cadre, sources, generated_at").in("dossier_id", dossiersVotes);
+    for (const a of lues || []) analyses.parDossier.set(String(a.dossier_id), a as AnalyseDetaillee);
+    const { data: ratees } = await supabase.from("dossier_analyses_tentatives").select("dossier_id").in("dossier_id", dossiersVotes);
+    for (const t of ratees || []) if (!analyses.parDossier.has(String(t.dossier_id))) analyses.impossibles.add(String(t.dossier_id));
+    console.log(`[Alertes] Analyses détaillées : ${analyses.parDossier.size}/${dossiersVotes.length} texte(s) voté(s) prêt(s).`);
+  }
+  /** Alertes de vote parties AVEC leur analyse : marquées, pour qu'elle ne reparte pas seule (alertes-textes). */
+  const jointes: any[] = [];
   const parMembre = new Map<string, any[]>();
   for (const n of notifs) parMembre.set(n.user_id, [...(parMembre.get(n.user_id) || []), n]);
   let ids = [...parMembre.keys()];
@@ -261,8 +349,10 @@ async function main() {
     const adresse = abonne.get(id)?.email || adresses.get(id);
     if (!adresse || !aEnvoyer.length) { ignores++; continue; }
     const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");
-    const t0Vote = t0?.donnees?.source === "scrutin_final" ? `${t0.donnees?.resultat?.adopte ? "Adopté" : "Rejeté"} ${t0.donnees?.chambre === "AN" ? "à l'Assemblée" : "au Sénat"}` : "Journal officiel";
-    const rendu = await html(profil.get(id)?.display_name || "", aEnvoyer, enrichis);
+    const t0Vote = t0?.donnees?.source === "scrutin_final" ? `${t0.donnees?.resultat?.adopte ? "Adopté" : "Rejeté"} ${t0.donnees?.chambre === "AN" ? "à l'Assemblée" : "au Sénat"}`
+      : t0?.donnees?.source === "analyse" ? "Analyse détaillée" : "Journal officiel";
+    const rendu = await html(profil.get(id)?.display_name || "", aEnvoyer, enrichis, pro ? analyses : null);
+    if (pro) jointes.push(...aEnvoyer.filter(a => a.donnees?.source === "scrutin_final" && a.donnees?.dossier_id && analyses.parDossier.has(String(a.donnees.dossier_id))));
     const rv = rendu.votes;
     const sujet = t0 ? sujetCourt(`${t0Vote} : ${t0.title}`, 110)
       // Que des votes d'élus suivis : le texte, pas le nombre de scrutins (« 30 alertes pour vous »).
@@ -284,8 +374,15 @@ async function main() {
       const { error: e } = await supabase.from("user_notifications").update({ emailed_at: maintenant }).in("id", traites.slice(i, i + 200));
       if (e) console.error("[MAIL] emailed_at :", e.message);
     }
+    for (const a of jointes) {
+      const { error: e } = await supabase.from("user_notifications").update({ donnees: { ...a.donnees, analyse_jointe: true } }).eq("id", a.id);
+      if (e) console.error("[MAIL] analyse_jointe :", e.message);
+    }
   }
   console.log(`[Alertes ${MODE}] ${envoyes} e-mail(s) envoyé(s), ${ignores} membre(s) sans adresse ou désabonné(s), ${traites.length} alerte(s) traitée(s)${simulation ? " — SIMULATION" : ""}.`);
 }
 
-main().catch(e => { console.error(e); process.exitCode = 1; });
+// Lancé seulement en direct : un aperçu peut importer le rendu (blocAnalyse, carteTexte) sans rien envoyer.
+if (process.argv[1]?.replace(/\\/g, "/").endsWith("send-notification-emails.ts")) main().catch(e => { console.error(e); process.exitCode = 1; });
+
+export { blocAnalyse, carteTexte, html as rendreEmail };

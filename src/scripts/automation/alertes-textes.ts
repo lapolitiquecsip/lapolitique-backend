@@ -45,7 +45,9 @@ export const PUBLICS = ["tous", "contribuables", "salaries", "fonctionnaires", "
 export const SECTEURS = ["sante", "education", "agriculture", "btp_logement", "commerce_artisanat", "industrie", "transport", "numerique", "culture_medias", "securite_defense", "justice", "social", "energie_environnement", "tourisme_restauration", "finance_assurance", "fonction_publique"];
 const DOMAINES = ["economie", "emploi", "retraites", "sante", "education", "ecologie", "agriculture", "securite", "immigration", "europe", "social", "logement", "institutions", "transports", "numerique", "culture"];
 
-type Texte = { source: string; source_id: string; chambre: string; titre: string; resume: string; url: string; date: string; resultat?: any; scrutinId?: string; intitule?: string };
+type Texte = { source: string; source_id: string; chambre: string; titre: string; resume: string; url: string; date: string; resultat?: any; scrutinId?: string; intitule?: string;
+  /** Dossier législatif du texte voté : sert à joindre l'analyse détaillée aux e-mails des Pro. */
+  dossierId?: string | null };
 
 /** Ce que tranche un scrutin de l'Assemblée, ou null si ce n'est pas le vote d'un texte. */
 function voteDeTexteAN(s: any): string | null {
@@ -90,7 +92,7 @@ async function textesRecents(): Promise<Texte[]> {
   for (const s of an) {
     const adopte = /adopt/i.test(s.resultat || "") && !/pas adopt/i.test(s.resultat || "");
     out.push({
-      source: "scrutin_final", source_id: String(s.id), chambre: "AN", scrutinId: String(s.id), intitule: voteDeTexteAN(s)!,
+      source: "scrutin_final", source_id: String(s.id), chambre: "AN", scrutinId: String(s.id), intitule: voteDeTexteAN(s)!, dossierId: navette.get(s.id) ?? null,
       titre: sujetAN(s), resume: [s.summary, s.why_it_matters].filter(Boolean).join("\n\n").slice(0, 6000),
       url: navette.get(s.id) ? `${SITE_URL}/lois/?dossier=${navette.get(s.id)}` : `https://www.assemblee-nationale.fr/dyn/17/scrutins/${s.numero}`, date: s.date_scrutin,
       resultat: { adopte, libelle: s.resultat, pour: s.pour, contre: s.contre, abstention: s.abstention,
@@ -126,7 +128,7 @@ async function textesRecents(): Promise<Texte[]> {
     // Le libellé du résultat est vide au Sénat : adopté = plus de « pour » que de « contre ».
     const adopte = s.result_label ? /adopt/i.test(s.result_label) && !/pas adopt|rejet/i.test(s.result_label) : (s.for_count || 0) > (s.against_count || 0);
     out.push({
-      source: "scrutin_final", source_id: String(s.id), chambre: "SENAT", scrutinId: String(s.official_id || s.id), intitule: "Vote sur l'ensemble",
+      source: "scrutin_final", source_id: String(s.id), chambre: "SENAT", scrutinId: String(s.official_id || s.id), intitule: "Vote sur l'ensemble", dossierId: s.dossier_id ?? null,
       titre: s.title.replace(/^(sur )?l'ensemble (du |de la |des |de l')?/i, "").replace(/^./, (c: string) => c.toUpperCase()),
       resume: [s.explanation, resumes.get(s.dossier_id)].filter(Boolean).join("\n\n").slice(0, 6000),
       url: s.dossier_id ? `${SITE_URL}/lois/?dossier=${s.dossier_id}` : s.source_url, date: s.voted_at,
@@ -274,7 +276,7 @@ async function main() {
     }
     // Le résultat et les groupes viennent toujours du relevé du jour (corrigé depuis l'analyse, au Sénat).
     if (t.source === "scrutin_final") { a.resultat = t.resultat; a.titre = t.titre; a.url = t.url; }
-    a.scrutinId = t.scrutinId; a.intitule = t.intitule;
+    a.scrutinId = t.scrutinId; a.intitule = t.intitule; a.dossierId = t.dossierId ?? null;
     analyses.push(a);
   }
   const votes = analyses.filter(a => a.source === "scrutin_final");
@@ -355,7 +357,7 @@ async function main() {
         title: t.titre.slice(0, 300), detail: t.explication, url: t.url, event_at: t.date_texte,
         domain: t.chambre === "AN" ? "Assemblée nationale" : t.chambre === "SENAT" ? "Sénat" : "Journal officiel",
         scrutin_id: t.source === "scrutin_final" ? t.scrutinId : null,
-        donnees: { source: t.source, chambre: t.chambre, intitule: t.intitule, date_vote: t.date_texte, resultat: t.resultat, pourquoi, elus, partis, extrait: t.extrait },
+        donnees: { source: t.source, chambre: t.chambre, intitule: t.intitule, date_vote: t.date_texte, resultat: t.resultat, pourquoi, elus, partis, extrait: t.extrait, dossier_id: t.dossierId ?? null },
         created_at: maintenant, read: false, dedup_key: `texte|${t.source}|${t.source_id}`,
       });
     }
@@ -368,6 +370,46 @@ async function main() {
   }
 }
 
+/* ─────────────── 4. Analyse détaillée arrivée après l'e-mail (Pro) ─────────────── */
+
+/**
+ * Le membre Pro reçoit, avec chaque texte voté, l'analyse détaillée du site (24/11/2026, demande de
+ * l'éditeur). Elle est rédigée chaque heure : si elle n'était pas prête quand l'e-mail du vote est
+ * parti, elle part seule dès qu'elle l'est, UNE fois par texte et par membre (clé analyse|<dossier>).
+ * Quand l'e-mail du vote l'a déjà jointe, send-notification-emails pose cette même clé : rien ne repart.
+ */
+export async function analysesArrivees() {
+  const depuis = new Date(Date.now() - 21 * 86400000).toISOString();
+  const alertes = await fetchAll("user_notifications", "user_id, title, url, donnees",
+    q => q.eq("categorie", "textes").eq("type", "texte").not("emailed_at", "is", null).gte("created_at", depuis).not("donnees->>dossier_id", "is", null));
+  if (!alertes.length) return;
+  const pros = new Set((await fetchAll("profiles", "id", q => q.eq("subscription_tier", "pro").in("id", [...new Set(alertes.map((a: any) => a.user_id))])))
+    .map((p: any) => p.id));
+  // Déjà jointe à l'e-mail d'un vote sur ce texte (AN ou Sénat) : rien à renvoyer pour ce membre.
+  const dejaJointes = new Set(alertes.filter((a: any) => a.donnees.analyse_jointe).map((a: any) => `${a.user_id}|${a.donnees.dossier_id}`));
+  const aPro = alertes.filter((a: any) => pros.has(a.user_id) && !dejaJointes.has(`${a.user_id}|${a.donnees.dossier_id}`));
+  const dossiers = [...new Set(aPro.map((a: any) => String(a.donnees.dossier_id)))];
+  if (!dossiers.length) return;
+  const prets = new Set((await fetchAll("dossier_analyses_approfondies", "dossier_id", q => q.in("dossier_id", dossiers))).map((d: any) => d.dossier_id));
+  const maintenant = new Date().toISOString();
+  const lignes = [...new Map(aPro.filter((a: any) => prets.has(String(a.donnees.dossier_id))).map((a: any) => {
+    const dossier = String(a.donnees.dossier_id);
+    return [`${a.user_id}|${dossier}`, {
+      user_id: a.user_id, type: "analyse_texte", categorie: "textes", importance: 4,
+      title: a.title, detail: null, url: a.url, event_at: maintenant,
+      domain: a.donnees.chambre === "SENAT" ? "Sénat" : "Assemblée nationale",
+      donnees: { source: "analyse", chambre: a.donnees.chambre, dossier_id: dossier, intitule: "Analyse détaillée", date_vote: a.donnees.date_vote, resultat: a.donnees.resultat },
+      created_at: maintenant, read: false, dedup_key: `analyse|${dossier}`,
+    }];
+  })).values()];
+  if (!lignes.length) return;
+  if (DRY) { console.log(`[Textes] ${lignes.length} analyse(s) détaillée(s) à envoyer après coup (--dry).`); return; }
+  // ignoreDuplicates : une analyse déjà envoyée (ou jointe à l'e-mail du vote) ne repart jamais.
+  const { error } = await supabase.from("user_notifications").upsert(lignes, { onConflict: "user_id,dedup_key", ignoreDuplicates: true });
+  if (error) throw error;
+  console.log(`[Textes] ${lignes.length} analyse(s) détaillée(s) prête(s) proposée(s) aux membres Pro (déjà envoyées ignorées).`);
+}
+
 if (process.argv[1] && process.argv[1].endsWith("alertes-textes.ts")) {
-  main().then(() => { process.exitCode = 0; }).catch(e => { console.error(e); process.exitCode = 1; });
+  main().then(analysesArrivees).then(() => { process.exitCode = 0; }).catch(e => { console.error(e); process.exitCode = 1; });
 }
