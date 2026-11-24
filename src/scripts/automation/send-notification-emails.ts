@@ -44,7 +44,7 @@ const aVote = (p: string) => (POSITION[p] ? `a voté <strong style="color:${POSI
 
 type AnalyseDetaillee = { analyse_loi: any; cadre: any; sources: { titre: string; url: string }[] | null; generated_at: string | null };
 /** Analyses par dossier, et dossiers dont l'analyse a échoué (texte illisible) : on ne promet rien pour ceux-là. */
-type Analyses = { parDossier: Map<string, AnalyseDetaillee>; impossibles: Set<string> };
+type Analyses = { parDossier: Map<string, AnalyseDetaillee>; impossibles: Set<string>; niveau?: "Pro" | "Premium" };
 
 const plein = (s: any) => typeof s === "string" && s.trim().length > 1;
 const titreBloc = (t: string, couleur = "#b45309") =>
@@ -52,11 +52,11 @@ const titreBloc = (t: string, couleur = "#b45309") =>
 const para = (t: string, style = "") => `<div style="font-size:14px;line-height:1.6;color:#334155;${style}">${esc(t)}</div>`;
 
 /** L'analyse entière, comme sur la fiche du texte : rien n'est coupé ni résumé. */
-function blocAnalyse(a: AnalyseDetaillee): string {
+function blocAnalyse(a: AnalyseDetaillee, niveau: "Pro" | "Premium" = "Pro"): string {
   const l = a.analyse_loi || {}; const c = a.cadre || null;
   const mesures = (l.mesures || []).filter((m: any) => plein(m.titre));
   let h = `<div style="margin-top:16px;padding:18px;border-radius:16px;border:1px solid #fcd34d;background:#fffbeb">
-    <div style="display:inline-block;padding:3px 10px;border-radius:999px;background:#f59e0b;color:#111827;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase">Analyse Pro</div>
+    <div style="display:inline-block;padding:3px 10px;border-radius:999px;background:#f59e0b;color:#111827;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase">Analyse ${niveau}</div>
     <div style="font-size:20px;line-height:1.2;font-weight:800;color:#0f172a;margin-top:8px">Analyse détaillée complète</div>
     <div style="font-size:12px;color:#92400e;margin-top:2px">Rédigée d'après le texte officiel${a.generated_at ? ` · ${new Date(a.generated_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })}` : ""}</div>`;
   if (plein(l.en_une_phrase)) h += para(l.en_une_phrase, "margin-top:12px;font-weight:700;color:#0f172a;font-size:15px");
@@ -105,7 +105,7 @@ function carteTexte(n: any, analyses?: Analyses | null): string {
   // Membre Pro : l'analyse détaillée du site, entière ; à défaut, elle est annoncée pour plus tard.
   const dossier = d.dossier_id ? String(d.dossier_id) : null;
   const analyse = analyses && dossier ? analyses.parDossier.get(dossier) : undefined;
-  const suite = analyse ? blocAnalyse(analyse)
+  const suite = analyse ? blocAnalyse(analyse, analyses?.niveau)
     : analyses && dossier && !analyses.impossibles.has(dossier)
     ? `<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;font-size:13px;line-height:1.5;color:#92400e"><strong>Analyse détaillée en cours de rédaction.</strong> Elle est écrite à partir du texte officiel, mesure par mesure : vous la recevrez par e-mail dès qu'elle sera prête.</div>`
     : "";
@@ -351,8 +351,10 @@ async function main() {
     const t0 = aEnvoyer.find(a => categorieDe(a) === "textes");
     const t0Vote = t0?.donnees?.source === "scrutin_final" ? `${t0.donnees?.resultat?.adopte ? "Adopté" : "Rejeté"} ${t0.donnees?.chambre === "AN" ? "à l'Assemblée" : "au Sénat"}`
       : t0?.donnees?.source === "analyse" ? "Analyse détaillée" : "Journal officiel";
-    const rendu = await html(profil.get(id)?.display_name || "", aEnvoyer, enrichis, pro ? analyses : null);
-    if (pro) jointes.push(...aEnvoyer.filter(a => a.donnees?.source === "scrutin_final" && a.donnees?.dossier_id && analyses.parDossier.has(String(a.donnees.dossier_id))));
+    // Premium et Pro : l'analyse détaillée du site leur est ouverte, elle part donc aussi dans leurs e-mails.
+    const lecteurAnalyse = pro || profil.get(id)?.subscription_tier === "elite";
+    const rendu = await html(profil.get(id)?.display_name || "", aEnvoyer, enrichis, lecteurAnalyse ? { ...analyses, niveau: pro ? "Pro" : "Premium" } : null);
+    if (lecteurAnalyse) jointes.push(...aEnvoyer.filter(a => a.donnees?.source === "scrutin_final" && a.donnees?.dossier_id && analyses.parDossier.has(String(a.donnees.dossier_id))));
     const rv = rendu.votes;
     const sujet = t0 ? sujetCourt(`${t0Vote} : ${t0.title}`, 110)
       // Que des votes d'élus suivis : le texte, pas le nombre de scrutins (« 30 alertes pour vous »).

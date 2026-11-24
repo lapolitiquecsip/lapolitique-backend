@@ -383,7 +383,8 @@ export async function analysesArrivees() {
   const alertes = await fetchAll("user_notifications", "user_id, title, url, donnees",
     q => q.eq("categorie", "textes").eq("type", "texte").not("emailed_at", "is", null).gte("created_at", depuis).not("donnees->>dossier_id", "is", null));
   if (!alertes.length) return;
-  const pros = new Set((await fetchAll("profiles", "id", q => q.eq("subscription_tier", "pro").in("id", [...new Set(alertes.map((a: any) => a.user_id))])))
+  // Premium et Pro : l'analyse détaillée leur est ouverte sur le site (24/11/2026).
+  const pros = new Set((await fetchAll("profiles", "id", q => q.in("subscription_tier", ["pro", "elite"]).in("id", [...new Set(alertes.map((a: any) => a.user_id))])))
     .map((p: any) => p.id));
   // Déjà jointe à l'e-mail d'un vote sur ce texte (AN ou Sénat) : rien à renvoyer pour ce membre.
   const dejaJointes = new Set(alertes.filter((a: any) => a.donnees.analyse_jointe).map((a: any) => `${a.user_id}|${a.donnees.dossier_id}`));
