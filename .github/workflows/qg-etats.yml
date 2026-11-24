@@ -1,0 +1,25 @@
+name: QG — état des agents
+# Pastilles de l'organigramme du QG (vert / orange / rouge) : dernier passage de chaque tâche
+# GitHub, toutes les 30 minutes. Gratuit, sans IA. Voir src/scripts/agents/qg-etats.ts.
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: qg-etats
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  etats:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/agents/qg-etats.ts
