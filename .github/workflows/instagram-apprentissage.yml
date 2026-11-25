@@ -1,0 +1,34 @@
+name: Instagram — Noémie apprend
+# Toutes les 6 heures : relève les statistiques du compte et des posts (gratuit, sans IA), puis traite
+# les décisions d'Hippolyte sur la stratégie (WhatsApp). Le lundi à 05:17 UTC (heures creuses DeepSeek) :
+# analyse de la semaine et nouvelle stratégie proposée sur WhatsApp. Voir src/scripts/marketing/.
+on:
+  schedule:
+    - cron: '17 5,11,17,23 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Mode : normal, tout (relire tous les posts), analyse (forcer l'analyse), initiale (proposer la v1)"
+        type: choice
+        options: [normal, tout, analyse, initiale]
+        default: normal
+concurrency:
+  group: instagram-apprentissage
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  apprendre:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-data-job
+      - run: npx tsx src/scripts/marketing/instagram-stats.ts ${{ inputs.mode == 'tout' && '--tout' || '' }}
+      - run: npx tsx src/scripts/marketing/noemie-strategie.ts ${{ inputs.mode == 'analyse' && '--analyse' || '' }} ${{ inputs.mode == 'initiale' && '--initiale' || '' }}

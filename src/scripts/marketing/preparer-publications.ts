@@ -72,7 +72,45 @@ async function dejaProposee(cle: string) {
   return r.results.length > 0;
 }
 
-async function deposer(idee: any, fichiers: string[]) {
+/**
+ * Fiche de fabrication (instagram_fiches) : ce qui a servi à faire le post. Noémie la relie aux
+ * statistiques une fois le post publié, pour apprendre ce qui marche (voir instagram-stats.ts).
+ */
+async function noterFiche(idee: any, type: string, fichiers: string[]) {
+  const b = idee.brief ?? {};
+  const fiche = {
+    idee: idee.cle, type, rubrique: idee.source.split("·")[0].replace(/\(.*\)/, "").trim().slice(0, 40),
+    gabarit: type === "indicateur" ? "chiffre" : "idee", palette: PALETTE_TYPE[type] ?? "rose",
+    slides: fichiers.filter(f => !basename(f).startsWith("linkedin")).length,
+    accroche: (b.accroche ?? idee.titre ?? "").slice(0, 200), longueur_accroche: (b.accroche ?? "").length,
+    importance: idee.importance ?? null, source: idee.source, prepare_le: new Date().toISOString(),
+  };
+  const { error } = await supabase.from("instagram_fiches").upsert({ ref: reference(idee.cle), fiche });
+  if (error) console.log(`::notice::Fiche de fabrication non rangée (${error.message}).`);
+}
+
+/**
+ * Stratégie active de Noémie (instagram_strategie, validée sur WhatsApp) : combien de carrousels
+ * aujourd'hui et à quelle heure. Sans stratégie active : PUBLICATIONS_PAR_JOUR, sans heure.
+ */
+async function programmeDuJour(): Promise<{ heures: (string | null)[]; repos: boolean }> {
+  const { data } = await supabase.from("instagram_strategie").select("version, calendrier").eq("statut", "active").maybeSingle();
+  if (!data) return { heures: Array(PAR_JOUR).fill(null), repos: false };
+  const jour = new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", weekday: "long" });
+  const creneaux = ((data.calendrier as any)?.[jour] ?? []).filter((c: any) => c.format === "carrousel");
+  console.log(`Stratégie v${data.version} : ${creneaux.length} carrousel(s) prévu(s) ce ${jour}.`);
+  return { heures: creneaux.map((c: any) => c.heure ?? null), repos: !creneaux.length };
+}
+
+/** « 12:30 » aujourd'hui, heure de Paris, en ISO avec décalage (été comme hiver). */
+function aujourdhuiA(heure: string) {
+  const d = new Date();
+  const jour = d.toLocaleDateString("sv-SE", { timeZone: "Europe/Paris" });
+  const decalage = Math.round((new Date(d.toLocaleString("en-US", { timeZone: "Europe/Paris" })).getTime() - new Date(d.toLocaleString("en-US", { timeZone: "UTC" })).getTime()) / 3600e3);
+  return `${jour}T${heure}:00+0${decalage}:00`;
+}
+
+async function deposer(idee: any, fichiers: string[], type: string, heure: string | null = null) {
   await supabase.storage.createBucket(BUCKET, { public: true }).catch(() => null);
   const urls: { name: string; external: { url: string } }[] = [];
   const dossier = `${new Date().toISOString().slice(0, 10)}/${reference(idee.cle).slice(4)}`;
@@ -97,8 +135,10 @@ async function deposer(idee: any, fichiers: string[]) {
       "Texte LinkedIn": { rich_text: texteRiche(linkedin) },
       "Légende Instagram": { rich_text: texteRiche(legende) },
       Visuel: { files: urls },
+      ...(heure ? { "Date prévue": { date: { start: aujourdhuiA(heure) } } } : {}),
     },
   });
+  await noterFiche(idee, type, fichiers);
   return page.url as string;
 }
 
@@ -114,10 +154,12 @@ async function main() {
     .order("importance", { ascending: false }).order("detecte_le", { ascending: false }).limit(100);
   if (error) throw new Error(error.message);
 
+  const programme = ESSAI ? { heures: Array(PAR_JOUR).fill(null), repos: false } : await programmeDuJour();
+  if (programme.repos) { console.log("::notice::Jour sans carrousel dans la stratégie active : rien à préparer."); return; }
   let faits = 0;
   const sourcesVues = new Set<string>();
   for (const idee of data ?? []) {
-    if (faits >= PAR_JOUR) break;
+    if (faits >= programme.heures.length) break;
     const type = idee.cle.split(":")[0];
     if (EXCLUS.has(type) || sourcesVues.has(idee.source)) continue;
     sourcesVues.add(idee.source);
@@ -126,7 +168,7 @@ async function main() {
       const sortie = SORTIE ? join(SORTIE, reference(idee.cle).slice(4)) : join(tmpdir(), `publication-${Date.now()}`);
       const fichiers = await rendreSlides(visuels(idee, type), sortie, ESSAI ? { channel: "chrome" } : {});
       if (ESSAI) console.log(`[essai] ${idee.cle}\n  ${idee.brief.accroche}\n  ${fichiers.length} visuels dans ${sortie}`);
-      else console.log(`Déposé : ${idee.titre} → ${await deposer(idee, fichiers)}`);
+      else console.log(`Déposé : ${idee.titre} → ${await deposer(idee, fichiers, type, programme.heures[faits])}`);
       faits++;
     } catch (e) {
       console.log(`::warning::Idée écartée (${idee.cle}) : ${(e as Error).message}`);

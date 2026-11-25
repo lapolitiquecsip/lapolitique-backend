@@ -2,6 +2,7 @@ import "dotenv/config";
 import { chromium } from "playwright";
 import { supabase } from "../../config/supabase.js";
 import { lireTexte, notion, notionActif } from "../../lib/notion.js";
+import { instagram, lireJson } from "../../lib/instagram.js";
 
 /**
  * Publie ce qui a été VALIDÉ À LA MAIN dans Notion Publications : statut « Validé », date prévue atteinte
@@ -11,54 +12,23 @@ import { lireTexte, notion, notionActif } from "../../lib/notion.js";
  * Une plateforme sans clé est simplement sautée. `--essai` liste sans rien envoyer.
  * `--verifier` contrôle le jeton Instagram (compte, type, quota du jour) sans rien publier.
  *
- * Jeton Instagram : posé une fois dans le secret INSTAGRAM_ACCESS_TOKEN (60 jours), renouvelé ici chaque
- * semaine et rangé dans la table jetons_reseaux, qui prime ensuite sur le secret.
+ * Jeton Instagram : table jetons_reseaux (sinon secret INSTAGRAM_ACCESS_TOKEN). Depuis le 25/11/2026,
+ * jeton permanent d'utilisateur système Meta (graph.facebook.com) ; voir src/lib/instagram.ts.
  */
 const ESSAI = process.argv.includes("--essai");
 const VERIFIER = process.argv.includes("--verifier");
 const BASE = process.env.NOTION_PUBLICATIONS_ID ?? "2a521d9901334926805216c885ac0499";
-const IG = "https://graph.instagram.com/v23.0";
 const LI_VERSION = process.env.LINKEDIN_VERSION ?? "202610";
 
-async function json(r: Response, quoi: string) {
-  const t = await r.text();
-  if (!r.ok) throw new Error(`${quoi} ${r.status} : ${t.slice(0, 400)}`);
-  return t ? JSON.parse(t) : {};
-}
+const json = lireJson;
 
-let ig: { jeton: string; compte: string } | null = null;
-
-/** Jeton le plus récent (table, sinon secret), renouvelé s'il a plus de 7 jours ; compte lu sur /me. */
-async function instagram(): Promise<{ jeton: string; compte: string } | null> {
-  if (ig) return ig;
-  const { data: rangee } = await supabase.from("jetons_reseaux").select("jeton, maj_le").eq("plateforme", "instagram").maybeSingle();
-  const secret = process.env.INSTAGRAM_ACCESS_TOKEN;
-  let jeton = rangee?.jeton ?? secret;
-  if (!jeton) return null;
-  let maj = rangee?.maj_le ? new Date(rangee.maj_le).getTime() : 0;
-  const essayer = async (j: string) => fetch(`${IG}/me?fields=user_id,username,account_type&access_token=${j}`).then(r => json(r, "Instagram compte"));
-  let moi: any;
-  try { moi = await essayer(jeton); } catch (e) {
-    // Jeton de la table mort mais secret remplacé à la main depuis : on repart du secret.
-    if (!secret || jeton === secret) throw e;
-    jeton = secret; maj = 0; moi = await essayer(jeton);
-  }
-  if (Date.now() - maj > 7 * 86400_000) {
-    try {
-      const n = await fetch(`https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${jeton}`).then(r => json(r, "Instagram renouvellement"));
-      jeton = n.access_token;
-      const { error } = await supabase.from("jetons_reseaux").upsert({ plateforme: "instagram", jeton, compte: moi.username, expire_le: new Date(Date.now() + n.expires_in * 1000).toISOString(), maj_le: new Date().toISOString() });
-      if (error) console.log(`::warning::Jeton Instagram renouvelé mais pas rangé : ${error.message}`);
-      else console.log(`Jeton Instagram renouvelé (expire dans ${Math.round(n.expires_in / 86400)} jours).`);
-    } catch (e) {
-      // Un jeton de moins de 24 h refuse le renouvellement : sans gravité, on réessaiera.
-      console.log(`::notice::${(e as Error).message}`);
-    }
-  }
-  ig = { jeton, compte: process.env.INSTAGRAM_USER_ID || String(moi.user_id ?? moi.id) };
+/** Vérifie le jeton (compte, quota du jour) ; voir src/lib/instagram.ts pour les deux sortes de jeton. */
+async function verifier() {
+  const ig = await instagram();
+  if (!ig) return null;
   if (VERIFIER) {
-    const q = await fetch(`${IG}/${ig.compte}/content_publishing_limit?fields=quota_usage,config&access_token=${jeton}`).then(r => json(r, "Instagram quota"));
-    console.log(`::notice::Instagram OK : @${moi.username} (${moi.account_type}), ${q.data?.[0]?.quota_usage ?? 0}/${q.data?.[0]?.config?.quota_total ?? 50} publications sur 24 h.`);
+    const q = await fetch(`${ig.base}/${ig.compte}/content_publishing_limit?fields=quota_usage,config&access_token=${ig.jeton}`).then(r => json(r, "Instagram quota"));
+    console.log(`::notice::Instagram OK : @${ig.pseudo} (jeton ${ig.jeton.startsWith("EAA") ? "permanent" : "60 jours"}), ${q.data?.[0]?.quota_usage ?? 0}/${q.data?.[0]?.config?.quota_total ?? 50} publications sur 24 h.`);
   }
   return ig;
 }
@@ -91,8 +61,8 @@ async function enJpeg(urls: string[]): Promise<string[]> {
   }
 }
 
-async function publierInstagram(images: string[], legende: string): Promise<string> {
-  const { compte, jeton } = (await instagram())!;
+async function publierInstagram(images: string[], legende: string): Promise<{ id: string; permalink: string }> {
+  const { compte, jeton, base: IG } = (await instagram())!;
   images = await enJpeg(images.slice(0, 10));
   // Instagram : 2 200 caractères et 30 mots-dièse au plus, sinon refus.
   let n = 0;
@@ -125,7 +95,21 @@ async function publierInstagram(images: string[], legende: string): Promise<stri
   await attendre(conteneur);
   const { id } = await fetch(`${IG}/${compte}/media_publish`, { method: "POST", body: new URLSearchParams({ creation_id: conteneur, access_token: jeton }) }).then(r => json(r, "Instagram publication"));
   const { permalink } = await fetch(`${IG}/${id}?fields=permalink&access_token=${jeton}`).then(r => json(r, "Instagram lien"));
-  return permalink;
+  return { id, permalink };
+}
+
+/**
+ * Relie le post publié à sa fiche de fabrication (ref:… dans « Sources ») : instagram-stats.ts
+ * y ajoutera ses chiffres. Sans gravité si la table manque : la publication est faite.
+ */
+async function relierFiche(id: string, permalink: string, sources: string, nbVisuels: number) {
+  const ref = /ref:[0-9a-f]{16}/.exec(sources)?.[0] ?? null;
+  const { data } = ref ? await supabase.from("instagram_fiches").select("fiche").eq("ref", ref).maybeSingle() : { data: null };
+  const { error } = await supabase.from("instagram_posts").upsert({
+    media_id: id, format: nbVisuels > 1 ? "carrousel" : "image", publie_le: new Date().toISOString(), permalink, ref,
+    fiche: { ...(data?.fiche ?? {}), via: "agent" },
+  });
+  if (error) console.log(`::notice::Post non relié à sa fiche (${error.message}).`);
 }
 
 async function publierLinkedIn(images: string[], texte: string): Promise<string> {
@@ -154,7 +138,7 @@ async function publierLinkedIn(images: string[], texte: string): Promise<string>
 
 async function main() {
   if (VERIFIER) {
-    if (!(await instagram())) console.log("::warning::Aucun jeton Instagram : poser le secret INSTAGRAM_ACCESS_TOKEN.");
+    if (!(await verifier())) console.log("::warning::Aucun jeton Instagram : poser le secret INSTAGRAM_ACCESS_TOKEN.");
     return;
   }
   if (!notionActif()) {
@@ -189,8 +173,10 @@ async function main() {
     }
     try {
       if (veutIg && !lienIg && igActif) {
-        lienIg = await publierInstagram(carrousel, lireTexte(p["Légende Instagram"]));
+        const publie = await publierInstagram(carrousel, lireTexte(p["Légende Instagram"]));
+        lienIg = publie.permalink;
         liens["Lien publié"] = { url: lienIg };
+        await relierFiche(publie.id, publie.permalink, lireTexte(p.Sources), carrousel.length);
       }
       if (veutLi && !lienLi && liActif) {
         lienLi = await publierLinkedIn(brief.length ? brief : carrousel.slice(0, 9), lireTexte(p["Texte LinkedIn"]));
