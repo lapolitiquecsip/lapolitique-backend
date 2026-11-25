@@ -12,7 +12,7 @@ Sans --slug : tous les candidats déclarés qui ont une photo et pas encore de p
 Modèle : https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net_human_seg.onnx
 Variables : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (ou .env du dépôt).
 """
-import argparse, io, json, os, re, sys, time, urllib.parse, urllib.request
+import argparse, io, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 import numpy as np
 import onnxruntime as ort
 from PIL import Image, ImageFilter, ImageOps
@@ -56,7 +56,13 @@ def existe(nom):
 
 
 def telecharger(url):
-    return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60).read()
+    for essai in range(5):
+        try:
+            return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60).read()
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 503) or essai == 4:
+                raise
+            time.sleep(int(e.headers.get("Retry-After") or 0) or 8 * (essai + 1))
 
 
 def credit_commons(url):
@@ -93,7 +99,8 @@ def original_non_recadre(url):
 
 
 def masque(session, image):
-    """U²-Net : masque 0-1 de la personne, à la taille de l'image."""
+    """U²-Net : masque de la personne, à la taille de l'image. Bord NET (retour d'Hippolyte du 25/11 :
+    « l'image ne doit pas être floue autour ») : transition de quelques pixels seulement."""
     petit = image.convert("RGB").resize((320, 320), Image.LANCZOS)
     x = np.asarray(petit, dtype=np.float32)
     x = x / max(x.max(), 1e-6)
@@ -101,62 +108,113 @@ def masque(session, image):
     x = x.transpose(2, 0, 1)[None].astype(np.float32)
     sortie = session.run(None, {session.get_inputs()[0].name: x})[0][0, 0]
     sortie = (sortie - sortie.min()) / max(sortie.max() - sortie.min(), 1e-6)
-    m = Image.fromarray((sortie * 255).astype(np.uint8)).resize(image.size, Image.LANCZOS)
-    # Bord net mais pas crénelé : léger lissage, puis seuil doux.
-    m = m.filter(ImageFilter.GaussianBlur(1))
-    return m.point(lambda v: 0 if v < 40 else 255 if v > 200 else int((v - 40) * 255 / 160))
+    m = Image.fromarray((sortie * 255).astype(np.uint8)).resize(image.size, Image.BICUBIC)
+    m = m.filter(ImageFilter.GaussianBlur(0.6))
+    return m.point(lambda v: 0 if v < 105 else 255 if v > 150 else int((v - 105) * 255 / 45))
 
 
 def detourer(session, contenu):
+    """Renvoie (portrait RGBA noir et blanc, qualité) ; qualité dit si la personne touche un bord
+    de la photo (coupée), et quelle part de l'image elle occupe."""
     image = Image.open(io.BytesIO(contenu))
     image = ImageOps.exif_transpose(image).convert("RGB")
-    if max(image.size) > 1600:
-        image.thumbnail((1600, 1600), Image.LANCZOS)
+    if max(image.size) > 2000:
+        image.thumbnail((2000, 2000), Image.LANCZOS)
     m = masque(session, image)
-    # Une personne coupée par le bord de la photo laisse un trait droit : on l'estompe sur 7 %.
-    a = np.asarray(m, dtype=np.float32)
-    h, w = a.shape
-    for cote, bande in (("haut", a[0, :]), ("gauche", a[:, 0]), ("droite", a[:, -1])):
-        if (bande > 128).mean() > 0.04:
-            n = max(8, int(0.07 * (h if cote == "haut" else w)))
-            rampe = np.linspace(0, 1, n, dtype=np.float32)
-            if cote == "haut":
-                a[:n, :] *= rampe[:, None]
-            elif cote == "gauche":
-                a[:, :n] *= rampe[None, :]
-            else:
-                a[:, -n:] *= rampe[::-1][None, :]
-    m = Image.fromarray(a.clip(0, 255).astype(np.uint8))
-    gris = ImageOps.autocontrast(ImageOps.grayscale(image), cutoff=2)
-    # Noir et blanc « presse », comme les visuels faits main : contrasté et net.
-    gris = gris.point(lambda v: int(255 * ((v / 255) ** 1.18)))
-    gris = gris.filter(ImageFilter.UnsharpMask(radius=2, percent=80, threshold=2))
-    rgba = Image.merge("RGBA", (gris, gris, gris, m))
-    boite = m.point(lambda v: 255 if v > 25 else 0).getbbox()
-    if not boite:
-        return rgba
-    g, h, d, b = boite
-    # Cadrage serré « tête et épaules », comme les visuels faits main (proportion 2:3) : centré sur la
-    # tête (repérée en haut du masque), les épaules coupées sur les côtés, bords estompés.
     A = np.asarray(m, dtype=np.float32)
+    qualite = {
+        "touche_haut": float((A[0, :] > 128).mean()), "touche_gauche": float((A[:, 0] > 128).mean()),
+        "touche_droite": float((A[:, -1] > 128).mean()), "aire": float((A > 128).mean()),
+        "largeur": image.size[0], "hauteur": image.size[1],
+    }
+    gris = ImageOps.autocontrast(ImageOps.grayscale(image), cutoff=1.5)
+    # Noir et blanc « presse », comme les visuels faits main : contrasté et net.
+    gris = gris.point(lambda v: int(255 * ((v / 255) ** 1.15)))
+    gris = gris.filter(ImageFilter.UnsharpMask(radius=2, percent=70, threshold=2))
+    rgba = Image.merge("RGBA", (gris, gris, gris, m))
+    boite = m.point(lambda v: 255 if v > 128 else 0).getbbox()
+    if not boite:
+        return rgba, qualite
+    g, h, d, b = boite
+    # Tête et épaules : on coupe SEULEMENT en bas (le bas du portrait est posé sur le bord de la
+    # slide). Les contours gauche et droit restent ceux de la personne, sans fondu.
     haut = A[h + int(0.05 * (b - h)): h + int(0.2 * (b - h)) + 1, :]
     xs = np.where(haut.max(axis=0) > 128)[0]
-    if len(xs):
-        tete = max(xs.max() - xs.min(), 40)
-        cx = (xs.max() + xs.min()) / 2
-        hc = min(b - h, int(tete * 2.3))
-        wc = int(hc / 1.45)
-        g2, d2 = int(max(0, cx - wc / 2)), int(min(A.shape[1], cx + wc / 2))
-        b2 = h + hc
-        sortie = rgba.crop((g2, h, d2, b2))
-        alpha = np.asarray(sortie.getchannel("A"), dtype=np.float32)
-        n = max(8, int(0.08 * alpha.shape[1]))
-        rampe = np.linspace(0, 1, n, dtype=np.float32)
-        if g2 > g: alpha[:, :n] *= rampe[None, :]
-        if d2 < d: alpha[:, -n:] *= rampe[::-1][None, :]
-        sortie.putalpha(Image.fromarray(alpha.astype(np.uint8)))
-        return sortie
-    return rgba.crop((g, h, d, b))
+    tete = max(xs.max() - xs.min(), 40) if len(xs) else (d - g) / 2.5
+    qualite["tete"] = int(tete)
+    return rgba.crop((g, h, d, min(b, h + int(tete * 2.6)))), qualite
+
+
+DATE = re.compile(r"(20\d\d)[-:](\d\d)[-:](\d\d)")
+
+
+def _api(params):
+    """API de Commons, avec patience : Wikimedia freine les rafales (429), on réessaie en espaçant."""
+    q = urllib.parse.urlencode({**params, "format": "json", "maxlag": 5})
+    for essai in range(5):
+        try:
+            return json.load(urllib.request.urlopen(urllib.request.Request(f"https://commons.wikimedia.org/w/api.php?{q}", headers=UA), timeout=40))
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 503) or essai == 4:
+                raise
+            time.sleep(int(e.headers.get("Retry-After") or 0) or 8 * (essai + 1))
+
+
+def photos_recentes(nom, combien=8):
+    """Les photos de Wikimedia Commons les plus récentes d'une personne (licence libre, assez
+    grandes), de la plus récente à la plus ancienne : [(date de prise de vue, url 1800 px, page)].
+    Sources : la catégorie Commons de la personne (et ses sous-catégories « … in 2025 ») + la recherche."""
+    titres = set()
+    cats = [f"Category:{nom}"]
+    try:
+        sous = _api({"action": "query", "list": "categorymembers", "cmtitle": cats[0], "cmtype": "subcat", "cmlimit": 50})
+        cats += [c["title"] for c in sous.get("query", {}).get("categorymembers", []) if re.search(r"20(2[3-9]|3\d)", c["title"])]
+        for c in cats:
+            d = _api({"action": "query", "list": "categorymembers", "cmtitle": c, "cmtype": "file", "cmsort": "timestamp", "cmdir": "desc", "cmlimit": 60})
+            titres |= {m["title"] for m in d.get("query", {}).get("categorymembers", [])}
+    except Exception:
+        pass
+    try:
+        d = _api({"action": "query", "list": "search", "srsearch": f'filetype:bitmap "{nom}"', "srnamespace": 6, "srlimit": 50})
+        titres |= {m["title"] for m in d.get("query", {}).get("search", [])}
+    except Exception:
+        pass
+    titres = [t for t in titres if re.search(r"\.(jpe?g|png|webp|tiff?)$", t, re.I)]
+    sortie = []
+    for i in range(0, len(titres), 40):
+        d = _api({"action": "query", "titles": "|".join(titres[i:i + 40]), "prop": "imageinfo", "iiprop": "url|size|extmetadata", "iiurlwidth": 1800})
+        for p in (d.get("query", {}).get("pages", {}) or {}).values():
+            info = (p.get("imageinfo") or [{}])[0]
+            meta = info.get("extmetadata", {})
+            licence = (meta.get("LicenseShortName", {}).get("value") or "").lower()
+            if not any(x in licence for x in ("cc", "public domain", "domaine public", "pd")) or info.get("width", 0) < 900:
+                continue
+            brut = " ".join(str(meta.get(k, {}).get("value") or "") for k in ("DateTimeOriginal", "DateTime")) + " " + p.get("title", "")
+            m = DATE.search(brut)
+            if m:
+                sortie.append((f"{m.group(1)}-{m.group(2)}-{m.group(3)}", info.get("thumburl") or info.get("url"), info.get("descriptionurl")))
+        time.sleep(1)
+    sortie.sort(reverse=True)
+    return sortie[:combien]
+
+
+def meilleure_photo(session, nom, depuis="2023-01-01"):
+    """La photo récente la plus exploitable : la plus récente où la personne est seule, entière
+    (ni coupée en haut ni sur les côtés) et assez grande. None si aucune ne convient."""
+    for date, url, page in photos_recentes(nom):
+        if date < depuis:
+            break
+        try:
+            portrait, q = detourer(session, telecharger(url))
+        except Exception:
+            continue
+        time.sleep(2)
+        if q["touche_haut"] > 0.01 or q["touche_gauche"] > 0.03 or q["touche_droite"] > 0.03:
+            continue
+        if not (0.06 < q["aire"] < 0.6) or q.get("tete", 0) < 160:
+            continue
+        return portrait, url, page, date
+    return None
 
 
 def main():
@@ -165,6 +223,7 @@ def main():
     a.add_argument("--slug")
     a.add_argument("--sortie")
     a.add_argument("--refaire", action="store_true")
+    a.add_argument("--fiche", action="store_true", help="prendre la photo de la fiche du site, pas la plus récente de Commons")
     o = a.parse_args()
     session = ort.InferenceSession(o.modele, providers=["CPUExecutionProvider"])
     filtre = f"&slug=eq.{o.slug}" if o.slug else "&status=eq.declared"
@@ -176,14 +235,22 @@ def main():
             continue
         try:
             png = io.BytesIO()
-            source = g["photo_url"]
-            try:
-                source = original_non_recadre(source) or source
-            except Exception:
-                pass
-            detourer(session, telecharger(source)).save(png, "PNG", optimize=True)
-            credit = credit_commons(g["photo_url"]) or {"auteur": None, "licence": None, "source": g["photo_url"]}
-            credit["texte"] = "Photo : " + " · ".join(x for x in [credit.get("auteur"), credit.get("licence"), "Wikimedia Commons" if "wikimedia" in g["photo_url"] else g.get("photo_credit")] if x)
+            choix = meilleure_photo(session, g["full_name"]) if not o.fiche else None
+            if choix:
+                portrait, source, page, date = choix
+                print(f"photo récente : {date} {page}")
+            else:
+                source = g["photo_url"]
+                try:
+                    source = original_non_recadre(source) or source
+                except Exception:
+                    pass
+                portrait, _ = detourer(session, telecharger(source))
+                date = None
+            portrait.save(png, "PNG", optimize=True)
+            credit = credit_commons(source) or {"auteur": None, "licence": None, "source": source}
+            credit["date"] = date
+            credit["texte"] = "Photo : " + " · ".join(x for x in [credit.get("auteur"), credit.get("licence"), "Wikimedia Commons" if "wikimedia" in source else g.get("photo_credit")] if x)
             if o.sortie:
                 os.makedirs(o.sortie, exist_ok=True)
                 open(os.path.join(o.sortie, f"{g['slug']}.png"), "wb").write(png.getvalue())

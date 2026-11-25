@@ -83,7 +83,11 @@ html, body { background: #000; }
 .source { font-weight: 600; font-size: 21px; text-transform: uppercase; letter-spacing: .02em; text-align: right; max-width: 52%; }
 .credit { position: absolute; z-index: 4; font-weight: 500; font-size: 15px; color: #222; background: rgba(255,255,255,.6); padding: 2px 8px; }
 .portrait { position: absolute; z-index: 2; right: 0; bottom: 0; width: 600px; height: 880px; object-fit: contain; object-position: right bottom; }
-.objet { position: absolute; z-index: 2; right: 60px; bottom: 120px; width: 330px; filter: drop-shadow(0 0 0 #fff) drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff); }
+.objet { position: absolute; z-index: 2; right: 56px; bottom: 120px; width: 320px; image-rendering: auto;
+  filter: drop-shadow(4px 0 0 #fff) drop-shadow(-4px 0 0 #fff) drop-shadow(0 4px 0 #fff) drop-shadow(0 -4px 0 #fff); }
+.eclat-objet { right: 250px; bottom: 440px; width: 96px; }
+.actu .objet { bottom: 110px; width: 360px; }
+.actu .eclat-objet { right: 300px; bottom: 460px; }
 .eclat { position: absolute; z-index: 3; width: 110px; }
 /* — actu — */
 .actu { color: #fff; }
@@ -125,6 +129,37 @@ const cadre = (f: Famille, format: keyof typeof FORMAT, contenu: string, classes
   return `${FILTRES}<section class="slide ${format} ${f} ${classes}" style="--fond:${c.fond};--encre:${c.encre}">${contenu}</section>`;
 };
 
+/**
+ * La bibliothèque d'objets noir et blanc (assets/visuels/objets, générés par Hippolyte le 25/11) :
+ * chaque slide a son image à droite (« pour chaque post, image en noir et blanc de haute qualité,
+ * à droite »). L'ordre compte : « sécurité sociale » est de la santé avant d'être de la sécurité.
+ */
+const OBJETS: [RegExp, string][] = [
+  [/sécurité sociale|santé|hôpita|médec|soins?\b|maladie|handicap|dépendance/i, "sante"],
+  [/retraite|pension/i, "retraites"],
+  [/défense|armée|militaire|otan|guerre|soldat|dissuasion/i, "defense"],
+  [/école|éducation|enseign|élève|universit|jeunesse|étudiant|savoir/i, "ecole"],
+  [/impôt|fiscal|taxe|budget|dette|déficit|finances publiques|cotisation/i, "fiscalite"],
+  [/justice|tribunal|juge|pénal|prison|droit\b/i, "justice"],
+  [/sécurité|police|gendarm|délinqu|crime|terroris|narcotrafic/i, "securite"],
+  [/logement|loyer|locat|immobili|passoire|hlm/i, "logement"],
+  [/agricult|paysan|éleveur|alimentation|ruralit/i, "agriculture"],
+  [/énergie|nucléaire|électricit|éolien|carburant|renouvelable/i, "energie"],
+  [/europ|bruxelles|\bue\b/i, "europe"],
+  [/numérique|intelligence artificielle|\bia\b|internet|technolog|innovation|recherche/i, "numerique"],
+  [/travail|emploi|chômage|salaire|entreprise|smic|industri/i, "travail"],
+  [/immigr|migra|frontière|asile|nationalit/i, "immigration"],
+  [/écolog|climat|environnement|biodiversit|\beau\b|communs/i, "ecologie"],
+  [/pouvoir d.achat|prix|inflation|consomm/i, "pouvoir-achat"],
+  [/international|diplomat|monde|étrangère|afrique|chine|russie|ukraine/i, "international"],
+  [/assemblée|député|hémicycle|parlement|amendement/i, "assemblee"],
+  [/démocrat|référendum|élection|scrutin|citoyen|vote/i, "democratie"],
+];
+
+/** L'objet qui illustre un texte (titre de thème, actu…) ; à défaut, les colonnes des institutions. */
+export const objetPour = (texte: string, dossier: string) =>
+  `${dossier}/objets/${(OBJETS.find(([r]) => r.test(texte)) ?? [null, "institutions"])[1]}.png`;
+
 const pagination = (i: number, n: number) => `${String(i).padStart(2, "0")} / ${String(n).padStart(2, "0")}`;
 
 // ─── Programme d'un candidat ──────────────────────────────────────────────────
@@ -138,6 +173,7 @@ export type DonneesProgramme = {
   themes: { titre: string; points: { titre: string; detail: string }[]; source: string; objet?: string }[];
   capture?: string;                       // capture de la fiche du site (dernière slide)
   totalPropositions?: number;
+  dossier: string;                        // assets (polices, objets)
 };
 
 const coupeNom = (nom: string) => {
@@ -168,17 +204,18 @@ export function carrouselProgramme(d: DonneesProgramme): Page[] {
 ${d.creditPhoto ? `<div class="credit" style="right:24px;bottom:18px">${echapper(d.creditPhoto)}</div>` : ""}`),
   });
   themes.forEach((t, k) => {
+    const objet = t.objet ?? objetPour(`${t.titre} ${t.points.map(p => `${p.titre} ${p.detail}`).join(" ")}`, d.dossier);
     pages.push({
       nom: String(k + 2).padStart(2, "0"), format: "carre", html: cadre("programme", "carre", `${tete(k + 2)}
 <div class="corps">
   <div class="surtitre">Programme de ${echapper(d.candidat)}</div>
-  <div class="A titre" data-ajuster style="font-size:${t.titre.length > 22 ? 118 : 150}px;max-width:${t.objet ? 900 : 940}px">${echapper(t.titre)}</div>
+  <div class="A titre" data-ajuster style="font-size:${t.titre.length > 22 ? 118 : 150}px;max-width:900px">${echapper(t.titre)}</div>
   <div class="filet"></div>
-  <div class="points" style="max-width:${t.objet ? 700 : 940}px">${t.points.slice(0, 3).map((p, i) => `
+  <div class="points" style="max-width:680px">${t.points.slice(0, 3).map((p, i) => `
     <div class="point"><div class="n">${String(i + 1).padStart(2, "0")}</div><div class="A t" data-ajuster>${echapper(p.titre)}</div><div class="d" data-ajuster>${echapper(p.detail)}</div></div>`).join("")}
   </div>
 </div>
-${t.objet ? `${eclat(c.encre, "eclat")}<img class="objet" src="${t.objet}">` : ""}
+${eclat(c.encre, "eclat eclat-objet")}<img class="objet" src="${objet}">
 <div class="pied"><div><div class="site">lapolitiquecestsimple.fr</div><div class="quoi">Propositions du programme</div></div><div class="source">Source : ${echapper(t.source)}</div></div>`),
     });
   });
@@ -223,7 +260,7 @@ export type BlocActu =
   | { genre: "paragraphe"; texte: string }
   | { genre: "conclusion"; texte: string };               // CE N'EST PAS AUTOMATIQUE. (menthe)
 
-export type SlideActu = { blocs: BlocActu[]; source?: string; visuel?: "assemblee" | "loi" | string };
+export type SlideActu = { blocs: BlocActu[]; source?: string; visuel?: "batiment" | string };   // visuel = nom d'objet (« sante »), URL, ou « batiment »
 
 export function carrouselActu(d: { slides: SlideActu[]; capture?: string; dossier: string }): Page[] {
   const n = d.slides.length + (d.capture ? 1 : 0);
@@ -239,11 +276,15 @@ export function carrouselActu(d: { slides: SlideActu[]; capture?: string; dossie
     }
     void k;
   };
-  const visuel = (v?: string) => !v ? "" : `<div class="eclat" style="right:70px;bottom:420px;position:absolute">${eclat(COULEURS.actu.accent)}</div><img class="batiment" src="${/^https?:|^file:/.test(v) ? v : `${d.dossier}/${v}.png`}">`;
+  const texteDe = (s: SlideActu) => s.blocs.map(b => ("texte" in b ? b.texte : "lignes" in b ? b.lignes.join(" ") : "") + ("valeur" in b ? b.valeur : "")).join(" ");
+  // Chaque slide a son image noir et blanc à droite : l'objet du thème, ou le bâtiment si demandé.
+  const visuel = (s: SlideActu) => s.visuel === "batiment"
+    ? `<div class="eclat" style="right:70px;bottom:420px;position:absolute">${eclat(COULEURS.actu.accent)}</div><img class="batiment" src="${d.dossier}/assemblee.png">`
+    : `${eclat(COULEURS.actu.accent, "eclat eclat-objet")}<img class="objet" src="${s.visuel && /^https?:|^file:/.test(s.visuel) ? s.visuel : s.visuel ? `${d.dossier}/objets/${s.visuel}.png` : objetPour(texteDe(s), d.dossier)}">`;
   const pages: Page[] = d.slides.map((s, i) => ({
     nom: String(i + 1).padStart(2, "0"), format: "carre" as const, html: cadre("actu", "carre", `${tete}
-<div class="corps" style="max-width:${s.visuel ? 900 : 940}px">${(compact = s.blocs.filter(b => b.genre === "chiffre").length > 1, s.blocs.map(bloc).join(""))}</div>
-${visuel(s.visuel)}
+<div class="corps" style="max-width:900px">${(compact = s.blocs.filter(b => b.genre === "chiffre").length > 1, s.blocs.map(bloc).join(""))}</div>
+${visuel(s)}
 <div class="pied">${s.source ? `<div class="src-actu"><b>Source :</b> ${echapper(s.source)}</div>` : "<div></div>"}</div>
 <div class="dechire menthe page-actu">${pagination(i + 1, n)}</div>`),
   }));
