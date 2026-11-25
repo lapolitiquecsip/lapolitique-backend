@@ -31,4 +31,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npx tsx src/scripts/marketing/instagram-stats.ts ${{ inputs.mode == 'tout' && '--tout' || '' }}
+      - run: npx tsx src/scripts/marketing/rose-portraits.ts
       - run: npx tsx src/scripts/marketing/noemie-strategie.ts ${{ inputs.mode == 'analyse' && '--analyse' || '' }} ${{ inputs.mode == 'initiale' && '--initiale' || '' }}
