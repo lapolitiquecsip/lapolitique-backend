@@ -20,7 +20,7 @@ permissions:
 jobs:
   apprendre:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -31,5 +31,34 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npx tsx src/scripts/marketing/instagram-stats.ts ${{ inputs.mode == 'tout' && '--tout' || '' }}
-      - run: npx tsx src/scripts/marketing/rose-portraits.ts
+        continue-on-error: true
+      # Rose : applique les choix de portraits ; dit s'il y a du détourage à faire (photos envoyées
+      # sur WhatsApp, nouveaux candidats sans portrait). Le détourage (Python, modèles U²-Net et YuNet
+      # gardés en cache) ne s'installe QUE dans ce cas : les passages ordinaires restent rapides.
+      - id: rose
+        run: npx tsx src/scripts/marketing/rose-portraits.ts
+      - if: fromJSON(steps.rose.outputs.recus || '0') > 0 || fromJSON(steps.rose.outputs.manquants || '0') > 0
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - if: fromJSON(steps.rose.outputs.recus || '0') > 0 || fromJSON(steps.rose.outputs.manquants || '0') > 0
+        uses: actions/cache@v4
+        with:
+          path: ~/modeles
+          key: modeles-detourage-v1
+      - if: fromJSON(steps.rose.outputs.recus || '0') > 0 || fromJSON(steps.rose.outputs.manquants || '0') > 0
+        name: Détourage — dépendances et modèles
+        run: |
+          pip install -q onnxruntime numpy pillow opencv-python-headless
+          mkdir -p ~/modeles
+          [ -s ~/modeles/u2net_human_seg.onnx ] || curl -sSfL -o ~/modeles/u2net_human_seg.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net_human_seg.onnx
+          [ -s ~/modeles/yunet.onnx ] || curl -sSfL -o ~/modeles/yunet.onnx https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+      - if: fromJSON(steps.rose.outputs.recus || '0') > 0
+        name: Détourage — photos envoyées sur WhatsApp
+        run: python scripts/visuels/detourer.py --modele ~/modeles/u2net_human_seg.onnx --visages ~/modeles/yunet.onnx --recus
+      - if: fromJSON(steps.rose.outputs.manquants || '0') > 0
+        name: Détourage — portraits proposés pour les nouveaux candidats
+        run: python scripts/visuels/detourer.py --modele ~/modeles/u2net_human_seg.onnx --visages ~/modeles/yunet.onnx --proposer --programmes --manquants
+        continue-on-error: true
       - run: npx tsx src/scripts/marketing/noemie-strategie.ts ${{ inputs.mode == 'analyse' && '--analyse' || '' }} ${{ inputs.mode == 'initiale' && '--initiale' || '' }}
+        if: ${{ !cancelled() }}

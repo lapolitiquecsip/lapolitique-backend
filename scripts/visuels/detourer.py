@@ -41,9 +41,11 @@ E = env()
 URL, CLE = E["SUPABASE_URL"].rstrip("/"), E["SUPABASE_SERVICE_ROLE_KEY"]
 
 
-def rest(chemin):
-    r = urllib.request.Request(f"{URL}/rest/v1/{chemin}", headers={"apikey": CLE, "Authorization": f"Bearer {CLE}"})
-    return json.load(urllib.request.urlopen(r, timeout=30))
+def rest(chemin, methode="GET", corps=None):
+    r = urllib.request.Request(f"{URL}/rest/v1/{chemin}", method=methode, data=json.dumps(corps).encode() if corps is not None else None,
+                               headers={"apikey": CLE, "Authorization": f"Bearer {CLE}", "Content-Type": "application/json", "Prefer": "return=minimal"})
+    reponse = urllib.request.urlopen(r, timeout=30).read()
+    return json.loads(reponse) if reponse else None
 
 
 def deposer(nom, contenu, type_):
@@ -356,6 +358,8 @@ def main():
     a.add_argument("--programmes", action="store_true", help="seulement les candidats qui ont un programme en base")
     a.add_argument("--depuis", help="détourer CETTE image (URL ou fichier, ex. envoyée par Hippolyte sur WhatsApp) pour --slug")
     a.add_argument("--credit", help="crédit photo de l'image --depuis (ex. « Photo : X »)")
+    a.add_argument("--recus", action="store_true", help="détourer les photos envoyées par Hippolyte sur WhatsApp (demandes choisir_portrait)")
+    a.add_argument("--manquants", action="store_true", help="avec --proposer : seulement les candidats sans portrait ni demande ouverte")
     o = a.parse_args()
     session = ort.InferenceSession(o.modele, providers=["CPUExecutionProvider"])
     global VISAGES
@@ -363,6 +367,26 @@ def main():
         if cv2 is None:
             sys.exit("--visages demande opencv-python-headless")
         VISAGES = cv2.FaceDetectorYN.create(o.visages, "", (320, 320), 0.75)
+    if o.recus:
+        # Photos envoyées sur WhatsApp (rose-portraits.ts les a mises de côté, statut « annulee »).
+        for d in rest("qg_demandes?select=id,apercu,resultat,agent,equipe,societe,titre&action=eq.choisir_portrait&statut=eq.annulee&resultat->>a_detourer=not.is.null&resultat->>fait=is.null"):
+            slug, image = (d.get("apercu") or {}).get("slug"), d["resultat"]["a_detourer"]
+            try:
+                portrait, q = detourer(session, telecharger(image), exiger_visage=VISAGES is not None)
+                png = io.BytesIO()
+                portrait.save(png, "PNG", optimize=True)
+                url = deposer(f"portraits/{slug}.png", png.getvalue(), "image/png")
+                deposer(f"portraits/{slug}.json", json.dumps({"texte": None, "source": image, "fourni": True}, ensure_ascii=False).encode(), "application/json")
+                rest(f"qg_demandes?id=eq.{d['id']}", "PATCH", {"statut": "executee", "resultat": {**d["resultat"], "fait": True, "portrait": url}})
+                rest("qg_activite", "POST", {"agent": d["agent"], "equipe": d["equipe"], "societe": d["societe"], "genre": "succes", "demande": d["id"], "lien": url,
+                                             "message": f"Portrait détouré depuis ta photo : {slug}" + (" (coupé en haut ou à gauche)" if q.get("coupee") else "")})
+                print(f"portrait de {slug} détouré depuis la photo envoyée")
+            except Exception as e:
+                rest(f"qg_demandes?id=eq.{d['id']}", "PATCH", {"resultat": {**d["resultat"], "fait": True, "erreur": str(e)[:200]}})
+                rest("qg_activite", "POST", {"agent": d["agent"], "equipe": d["equipe"], "societe": d["societe"], "genre": "attention", "demande": d["id"], "lien": image,
+                                             "message": f"Je n'ai pas pu détourer ta photo pour {slug} : {str(e)[:120]}. Envoie-en une autre (visage net, seul au premier plan)."})
+                print(f"::warning::{slug} : {e}")
+        return
     if o.depuis:
         if not o.slug:
             sys.exit("--depuis demande --slug")
@@ -387,6 +411,12 @@ def main():
             if rest(f"candidate_proposals?select=id&candidate_id=eq.{g['id']}&limit=1"):
                 avec.add(g["id"])
         gens = [g for g in gens if g["id"] in avec]
+    if o.proposer and o.manquants:
+        faits = {f["name"].removesuffix(".png") for f in json.load(urllib.request.urlopen(urllib.request.Request(
+            f"{URL}/storage/v1/object/list/publications", data=json.dumps({"prefix": "portraits/", "limit": 1000}).encode(), method="POST",
+            headers={"apikey": CLE, "Authorization": f"Bearer {CLE}", "Content-Type": "application/json"}), timeout=30))}
+        ouvertes = {(d.get("apercu") or {}).get("slug") for d in rest("qg_demandes?select=apercu&action=eq.choisir_portrait&statut=in.(a_valider,a_modifier,validee)")}
+        gens = [g for g in gens if g["slug"] not in faits and g["slug"] not in ouvertes]
     if o.proposer:
         for g in gens:
             print(f"{g['full_name']} :")

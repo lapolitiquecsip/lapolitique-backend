@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { appendFileSync } from "node:fs";
 import { supabase } from "../../config/supabase.js";
 import { aExecuter, aRevoir, executee, noter } from "../../lib/qg.js";
 
@@ -8,8 +9,11 @@ import { aExecuter, aRevoir, executee, noter } from "../../lib/qg.js";
  * scripts/visuels/detourer.py --proposer dépose pour chaque candidat une demande « choisir_portrait »
  * avec jusqu'à 3 photos récentes libres de droits, déjà détourées (stockage publications/portraits/
  * propositions/<slug>/<n>.png). Sur WhatsApp : ✅ = la n° 1 ; ✏️ puis « 2 » ou « 3 » = une autre ;
- * ✏️ avec une image jointe = sa propre photo (à détourer par detourer.py --depuis) ; ❌ = on garde
+ * ✏️ avec une image jointe = sa propre photo (détourée sur GitHub par detourer.py --recus) ; ❌ = on garde
  * l'actuel. Le portrait retenu devient publications/portraits/<slug>.png (+ crédit en .json).
+ *
+ * En fin de passage, dit à GitHub s'il y a du détourage à faire (sorties `recus` et `manquants`) :
+ * l'étape Python (onnxruntime + modèles, ~3 min) ne s'installe que dans ce cas.
  */
 const NOEMIE = "tache:back:publications-reseaux.yml";
 const ACTION = "choisir_portrait";
@@ -40,11 +44,32 @@ async function main() {
       // Sa propre photo : le détourage demande le modèle U²-Net (Python), fait à part.
       await supabase.from("qg_demandes").update({ statut: "annulee", resultat: { a_detourer: image } }).eq("id", d.id);
       await noter({ agent: NOEMIE, equipe: "marketing", genre: "info", demande: d.id, lien: image,
-        message: `Rose détourera ta photo pour ${(d.apercu as any)?.slug} (python scripts/visuels/detourer.py --depuis <image> --slug <slug>).` });
+        message: `Rose détoure ta photo pour ${(d.apercu as any)?.slug} (dans la foulée, sur GitHub).` });
       continue;
     }
     console.log(`::notice::${d.titre} : consigne sans numéro ni image (« ${consigne.slice(0, 80)} »), laissée en attente.`);
   }
+  await travailDeDetourage();
+}
+
+/** Photos envoyées à détourer, et candidats avec un programme mais sans portrait ni demande ouverte. */
+async function travailDeDetourage() {
+  const { count: recus } = await supabase.from("qg_demandes").select("id", { count: "exact", head: true })
+    .eq("action", ACTION).eq("statut", "annulee").not("resultat->>a_detourer", "is", null).is("resultat->>fait", null);
+  const { data: gens } = await supabase.from("presidential_candidates").select("id, slug").eq("status", "declared").not("photo_url", "is", null);
+  // Une requête par candidat : Supabase plafonne à 1 000 lignes (Mélenchon en a plus de 1 800).
+  const avecProgramme = new Set<string>();
+  for (const g of gens ?? []) {
+    const { count } = await supabase.from("candidate_proposals").select("id", { count: "exact", head: true }).eq("candidate_id", g.id);
+    if (count) avecProgramme.add(g.id);
+  }
+  const { data: fichiers } = await B.list("portraits", { limit: 1000 });
+  const faits = new Set((fichiers ?? []).map(f => f.name.replace(/\.png$/, "")));
+  const { data: ouvertes } = await supabase.from("qg_demandes").select("apercu").eq("action", ACTION).in("statut", ["a_valider", "a_modifier", "validee"]);
+  const enCours = new Set((ouvertes ?? []).map((d: any) => d.apercu?.slug));
+  const manquants = (gens ?? []).filter((g: any) => avecProgramme.has(g.id) && !faits.has(g.slug) && !enCours.has(g.slug)).length;
+  console.log(`Détourage à faire : ${recus ?? 0} photo(s) reçue(s), ${manquants} candidat(s) sans portrait.`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, [`recus=${recus ?? 0}`, `manquants=${manquants}`, ""].join("\n"));
 }
 
 main().then(() => process.exit(0)).catch(e => { console.log(`::error::${String(e?.message ?? e).slice(0, 400)}`); process.exit(1); });
