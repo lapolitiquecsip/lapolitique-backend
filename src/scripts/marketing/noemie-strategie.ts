@@ -153,12 +153,18 @@ async function decisions() {
   }
 }
 
+// Format JSON Schema (redaction-ia.ts en tire le squelette montré au modèle, puis remet la réponse en forme).
+const T = { type: "string" };
+const CRENEAU = { type: "object", properties: { format: T, heure: T, contenu: T } };
 const SCHEMA = {
-  lecons: [{ lecon: "…", preuve: "…", confiance: "…" }],
-  calendrier: Object.fromEntries(JOURS.map(j => [j, [{ format: "…", heure: "…", contenu: "…" }]])),
-  regles: { stories: "…", exploration: "…", autres: "…" },
-  raisons: "…",
-  changements: ["…"],
+  type: "object",
+  properties: {
+    lecons: { type: "array", items: { type: "object", properties: { lecon: T, preuve: T, confiance: T } } },
+    calendrier: { type: "object", properties: Object.fromEntries(JOURS.map(j => [j, { type: "array", items: CRENEAU }])) },
+    regles: { type: "object", properties: { stories: T, exploration: T, autres: T } },
+    raisons: T,
+    changements: { type: "array", items: T },
+  },
 };
 
 const SYSTEME = `Tu es Noémie, community manager du compte Instagram @lapolitique_cest_simple (« La politique, c'est simple » : actualité politique française expliquée simplement, neutre et sourcée, public 18-34 ans surtout).

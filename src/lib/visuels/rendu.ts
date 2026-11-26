@@ -79,7 +79,14 @@ const AJUSTER_CHARTE = `(() => {
   for (const o of slide.querySelectorAll(".objet")) {
     const gene = () => textes.some(e => { const b = boite(e); return b.width && touche(b, o.getBoundingClientRect()); });
     for (let k = 0; k < 12 && gene() && o.getBoundingClientRect().width > 200; k++) o.style.width = (o.getBoundingClientRect().width * 0.9) + "px";
-    if (gene()) { o.remove(); slide.querySelectorAll(".eclat-objet").forEach(x => x.remove()); }
+    if (gene()) { o.remove(); slide.querySelectorAll(".eclat-objet").forEach(x => x.remove()); continue; }
+    // Les trois traits se posent au-dessus de l'objet, là où il a fini ; retirés s'ils touchent un texte.
+    for (const e of slide.querySelectorAll(".eclat-objet")) {
+      const b = o.getBoundingClientRect();
+      e.style.left = (b.left - S.left + b.width * 0.3) + "px"; e.style.top = (b.top - S.top - 70) + "px";
+      e.style.right = "auto"; e.style.bottom = "auto";
+      if (textes.some(t => { const r = boite(t); return r.width && touche(r, e.getBoundingClientRect()); })) e.remove();
+    }
   }
   return fautifs().map(e => (e.textContent || "").trim().slice(0, 60));
 })()`;
