@@ -415,7 +415,9 @@ def main():
         faits = {f["name"].removesuffix(".png") for f in json.load(urllib.request.urlopen(urllib.request.Request(
             f"{URL}/storage/v1/object/list/publications", data=json.dumps({"prefix": "portraits/", "limit": 1000}).encode(), method="POST",
             headers={"apikey": CLE, "Authorization": f"Bearer {CLE}", "Content-Type": "application/json"}), timeout=30))}
-        ouvertes = {(d.get("apercu") or {}).get("slug") for d in rest("qg_demandes?select=apercu&action=eq.choisir_portrait&statut=in.(a_valider,a_modifier,validee)")}
+        # Demande ouverte, ou réponse de moins de 30 jours : un refus ne relance pas les mêmes photos.
+        depuis = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 30 * 86400))
+        ouvertes = {(d.get("apercu") or {}).get("slug") for d in rest(f"qg_demandes?select=apercu&action=eq.choisir_portrait&or=(statut.in.(a_valider,a_modifier,validee),cree_le.gte.{depuis})")}
         gens = [g for g in gens if g["slug"] not in faits and g["slug"] not in ouvertes]
     if o.proposer:
         for g in gens:

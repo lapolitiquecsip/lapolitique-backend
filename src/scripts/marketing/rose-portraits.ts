@@ -65,7 +65,9 @@ async function travailDeDetourage() {
   }
   const { data: fichiers } = await B.list("portraits", { limit: 1000 });
   const faits = new Set((fichiers ?? []).map(f => f.name.replace(/\.png$/, "")));
-  const { data: ouvertes } = await supabase.from("qg_demandes").select("apercu").eq("action", ACTION).in("statut", ["a_valider", "a_modifier", "validee"]);
+  // Une demande ouverte, ou une réponse de moins de 30 jours (un refus ne doit pas relancer les mêmes photos).
+  const { data: ouvertes } = await supabase.from("qg_demandes").select("apercu").eq("action", ACTION)
+    .or(`statut.in.(a_valider,a_modifier,validee),cree_le.gte.${new Date(Date.now() - 30 * 86400e3).toISOString()}`);
   const enCours = new Set((ouvertes ?? []).map((d: any) => d.apercu?.slug));
   const manquants = (gens ?? []).filter((g: any) => avecProgramme.has(g.id) && !faits.has(g.slug) && !enCours.has(g.slug)).length;
   console.log(`Détourage à faire : ${recus ?? 0} photo(s) reçue(s), ${manquants} candidat(s) sans portrait.`);
