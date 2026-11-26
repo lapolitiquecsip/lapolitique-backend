@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { CSS, HAUTEUR, LARGEUR, type Slide } from "./gabarits.js";
-import { CSS_CHARTE, FORMAT, type Page } from "./charte.js";
+import { carrouselProgramme, CSS_CHARTE, FORMAT, type DonneesProgramme, type Page } from "./charte.js";
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const DOSSIER_ASSETS = pathToFileURL(join(RACINE, "assets/visuels")).href;
@@ -51,32 +51,40 @@ export async function rendreSlides(slides: Slide[], sortie: string, options: { c
   return fichiers;
 }
 
-// ─── Charte v2 (Rose, 25/11/2026) : formats carré 4:5 et story 9:16 ──────────────
+// ─── Charte v3 (Rose, 26/11/2026) : formats 4:5 et 9:16 ─────────────────────────
 
 /**
- * Charte v2 : seuls les TEXTES comptent (portraits et objets dépassent exprès du cadre). Les blocs
- * [data-ajuster] rétrécissent ensemble jusqu'à ce que chaque texte tienne dans la slide et que le
- * corps ne déborde plus ; sinon le rendu est refusé (renvoie la liste des textes fautifs).
+ * Seuls les TEXTES comptent (portraits et objets peuvent aller au bord). 1) Les blocs [data-ajuster]
+ * rétrécissent ensemble, jamais sous 30 px, jusqu'à ce que chaque texte tienne. 2) Un objet qui
+ * chevauche un texte est réduit (jusqu'à 200 px), puis retiré avec ses traits (« si l'objet gêne la
+ * lecture, réduis-le ou retire-le »). Renvoie les textes qui débordent encore (le rendu est alors
+ * refusé : l'appelant répartit sur deux slides).
  */
 const AJUSTER_CHARTE = `(() => {
   const slide = document.querySelector(".slide");
   const S = slide.getBoundingClientRect();
   const corps = slide.querySelector(".corps");
   const textes = [...slide.querySelectorAll(".corps *, .pied *")].filter(e => e.childNodes.length && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()));
+  const boite = e => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect(); };
   const fautifs = () => {
-    const f = textes.filter(e => { const r = document.createRange(); r.selectNodeContents(e); const b = r.getBoundingClientRect();
-      return b.width && (b.right > S.right - 28 || b.left < S.left + 20 || b.bottom > S.bottom - 14); });
+    const f = textes.filter(e => { const b = boite(e); return b.width && (b.right > S.right - 28 || b.left < S.left + 20 || b.bottom > S.bottom - 14); });
     if (corps && corps.scrollHeight > corps.clientHeight + 1) f.push(corps);
     return f;
   };
   const blocs = [...slide.querySelectorAll("[data-ajuster]")];
-  for (let k = 0; k < 50 && fautifs().length; k++) {
-    for (const t of blocs) t.style.fontSize = Math.max(26, parseFloat(getComputedStyle(t).fontSize) * 0.97) + "px";
+  for (let k = 0; k < 60 && fautifs().length; k++) {
+    for (const t of blocs) t.style.fontSize = Math.max(30, parseFloat(getComputedStyle(t).fontSize) * 0.97) + "px";
+  }
+  const touche = (a, b) => !(a.right < b.left + 6 || a.left > b.right - 6 || a.bottom < b.top + 6 || a.top > b.bottom - 6);
+  for (const o of slide.querySelectorAll(".objet")) {
+    const gene = () => textes.some(e => { const b = boite(e); return b.width && touche(b, o.getBoundingClientRect()); });
+    for (let k = 0; k < 12 && gene() && o.getBoundingClientRect().width > 200; k++) o.style.width = (o.getBoundingClientRect().width * 0.9) + "px";
+    if (gene()) { o.remove(); slide.querySelectorAll(".eclat-objet").forEach(x => x.remove()); }
   }
   return fautifs().map(e => (e.textContent || "").trim().slice(0, 60));
 })()`;
 
-/** Photographie les pages de la charte v2 (src/lib/visuels/charte.ts) en JPEG, chacune à son format. */
+/** Photographie les pages de la charte (src/lib/visuels/charte.ts) en JPEG, chacune à son format. */
 export async function rendrePages(pages: Page[], sortie: string, options: { channel?: string; tolerer?: boolean } = {}): Promise<string[]> {
   mkdirSync(sortie, { recursive: true });
   const navigateur = await chromium.launch(options.channel ? { channel: options.channel } : {});
@@ -91,9 +99,9 @@ export async function rendrePages(pages: Page[], sortie: string, options: { chan
       await page.evaluate("document.fonts.ready");
       const fautifs = (await page.evaluate(AJUSTER_CHARTE)) as string[];
       const jpg = join(sortie, `${p.nom}.jpg`);
-      await page.locator(".slide").screenshot({ path: jpg, type: "jpeg", quality: 92 });
+      await page.locator(".slide").screenshot({ path: jpg, type: "jpeg", quality: 94 });
       await page.close();
-      if (fautifs.length && !options.tolerer) throw new Error(`Le texte déborde du visuel ${p.nom} : ${fautifs.join(" | ")}`);
+      if (fautifs.length && !options.tolerer) throw new DebordeError(p.nom, fautifs);
       if (fautifs.length) console.log(`::warning::${p.nom} déborde : ${fautifs.join(" | ")}`);
       fichiers.push(jpg);
     }
@@ -103,26 +111,51 @@ export async function rendrePages(pages: Page[], sortie: string, options: { chan
   return fichiers;
 }
 
-/**
- * Capture d'une page du site, vue sur téléphone (390 px, rendu ×2,4), pour la dernière slide.
- * Bandeaux de cookies et d'abonnement masqués ; `selecteur` vise une partie de la page.
- */
-export async function captureSite(url: string, fichier: string, options: { channel?: string; hauteur?: number; selecteur?: string } = {}): Promise<string> {
-  const navigateur = await chromium.launch(options.channel ? { channel: options.channel } : {});
+export class DebordeError extends Error {
+  constructor(public slide: string, public textes: string[]) { super(`Le texte déborde du visuel ${slide} : ${textes.join(" | ")}`); }
+}
+
+/** Carrousel programme : 3 mesures par slide ; si un texte ne tient pas même à 30 px, 2 par slide. */
+export async function rendreProgramme(d: DonneesProgramme, sortie: string, options: { channel?: string } = {}): Promise<string[]> {
   try {
-    const page = await navigateur.newPage({ viewport: { width: 390, height: options.hauteur ?? 620 }, deviceScaleFactor: 2.4, colorScheme: "light" });
+    return await rendrePages(carrouselProgramme({ ...d, parSlide: 3 }), sortie, options);
+  } catch (e) {
+    if (!(e instanceof DebordeError)) throw e;
+    console.log(`::notice::${e.message} — réparti sur deux slides.`);
+    return rendrePages(carrouselProgramme({ ...d, parSlide: 2 }), sortie, options);
+  }
+}
+
+/**
+ * Captures d'une page du site vue sur téléphone (390 px, rendu ×2,4) pour la dernière slide : le
+ * haut de la page (ou de la fiche, qui s'ouvre dans une fenêtre), puis chaque rubrique demandée
+ * (« Programme », « Parcours »…) amenée en haut de l'écran. Une rubrique introuvable est sautée.
+ */
+export async function capturesSite(url: string, dossier: string, rubriques: string[] = [], options: { channel?: string; hauteur?: number } = {}): Promise<string[]> {
+  mkdirSync(dossier, { recursive: true });
+  const navigateur = await chromium.launch(options.channel ? { channel: options.channel } : {});
+  const fichiers: string[] = [];
+  try {
+    const page = await navigateur.newPage({ viewport: { width: 390, height: options.hauteur ?? 640 }, deviceScaleFactor: 2.4, colorScheme: "light" });
     await page.goto(url, { waitUntil: "networkidle", timeout: 60_000 });
     // Seulement le bandeau de cookies : la fiche d'un candidat s'ouvre justement dans une fenêtre.
     await page.addStyleTag({ content: "#cookie-banner,[class*=CookieBanner],[class*=cookie-banner],[data-cookie]{display:none!important}" });
     await page.waitForTimeout(2500);
-    // Amène en haut de l'écran la partie voulue (un sélecteur, ou un texte comme le nom du candidat).
-    const cible = options.selecteur ? page.locator(options.selecteur).first() : null;
-    if (cible) {
-      await cible.evaluate((e: Element) => { const y = e.getBoundingClientRect().top + window.scrollY - 90; window.scrollTo(0, Math.max(0, y)); }).catch(() => null);
-      await page.waitForTimeout(800);
+    const principal = join(dossier, "capture-1.jpg");
+    await page.screenshot({ path: principal, type: "jpeg", quality: 90 });
+    fichiers.push(principal);
+    for (const [i, r] of rubriques.entries()) {
+      const zone = (await page.locator("[role=dialog]").count()) ? page.locator("[role=dialog]") : page.locator("body");
+      const titre = zone.getByRole("heading", { name: new RegExp(r, "i") }).first();
+      const cible = (await titre.count()) ? titre : zone.getByText(new RegExp(`^\s*${r}`, "i")).first();
+      if (!(await cible.count())) continue;
+      await cible.evaluate((e: Element) => e.scrollIntoView({ block: "start" })).catch(() => null);
+      await page.waitForTimeout(700);
+      const f = join(dossier, `capture-${i + 2}.jpg`);
+      await page.screenshot({ path: f, type: "jpeg", quality: 90 });
+      fichiers.push(f);
     }
-    await page.screenshot({ path: fichier, type: "jpeg", quality: 90 });
-    return fichier;
+    return fichiers;
   } finally {
     await navigateur.close();
   }
