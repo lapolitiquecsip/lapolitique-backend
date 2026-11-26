@@ -97,7 +97,17 @@ function sourceDe(titres: (string | null)[], theme: string) {
  * Rédige un carrousel programme. `themes` = thèmes retenus (par Noémie) ; on donne à Basile jusqu'à
  * `parTheme` propositions par thème, mot pour mot, pour qu'il choisisse les 2-3 plus parlantes.
  */
-export async function redigerProgramme(slug: string, themes: string[], parTheme = 8): Promise<ProgrammeBasile> {
+/** Consignes d'Hippolyte : celle du post en cours (prioritaire) et ses leçons passées (« Modifier »). */
+export type Consignes = { maintenant?: string; lecons?: string[] };
+const consignes = (k?: Consignes) => {
+  const t = [
+    k?.lecons?.length ? `LEÇONS D'HIPPOLYTE (ses corrections passées, à respecter) :\n${k.lecons.slice(0, 15).map(l => `- ${l}`).join("\n")}` : "",
+    k?.maintenant ? `CONSIGNE D'HIPPOLYTE POUR CE POST (prioritaire) : ${k.maintenant}` : "",
+  ].filter(Boolean).join("\n\n");
+  return t ? `\n\n${t}` : "";
+};
+
+export async function redigerProgramme(slug: string, themes: string[], parTheme = 8, k?: Consignes): Promise<ProgrammeBasile> {
   const { data: c } = await supabase.from("presidential_candidates").select("id, full_name, party").eq("slug", slug).single();
   if (!c) throw new Error(`candidat inconnu : ${slug}`);
   const { data: sources } = await supabase.from("programmes_sources").select("source_url, titre").eq("candidate_id", c.id);
@@ -110,7 +120,7 @@ export async function redigerProgramme(slug: string, themes: string[], parTheme 
   }
   if (!props.length) throw new Error(`aucune proposition pour ${slug} sur ${themes.join(", ")}`);
   const liste = themes.map(th => `THÈME : ${th}\n${props.map((p, i) => ({ p, i })).filter(x => x.p.theme === th).map(({ p, i }) => `[${i}] ${p.text.replace(/\s+/g, " ").slice(0, 700)}`).join("\n")}`).join("\n\n");
-  const user = `Carrousel « Programme ${c.full_name} » (${c.party ?? "sans étiquette"}), présidentielle 2027.\nPour chaque thème ci-dessous, écris un titre de thème et choisis 2 ou 3 mesures parmi ses propositions (texte officiel du programme, mot pour mot).\n\n${liste}`;
+  const user = `Carrousel « Programme ${c.full_name} » (${c.party ?? "sans étiquette"}), présidentielle 2027.\nPour chaque thème ci-dessous, écris un titre de thème et choisis 2 ou 3 mesures parmi ses propositions (texte officiel du programme, mot pour mot).\n\n${liste}${consignes(k)}`;
   const { json, usd, modele } = await ecrire(CONSIGNE_BASILE, user, SCHEMA_PROGRAMME, `Basile : programme ${slug}`);
   console.log(`[Basile] programme ${slug} écrit par ${modele} (${usd.toFixed(3)} $).`);
   if (!json) throw new Error("rédaction illisible");
@@ -163,8 +173,8 @@ Slide 1 : etiquette + titre (+ paragraphe court). Dernières slides : ce que ça
 export type ActuBasile = { slides: { blocs: any[]; source: string }[]; legende: string; hashtags: string[]; a_verifier: string[]; usd: number };
 
 /** Rédige un carrousel actu à partir d'une idée de Lucie (veille_posts : titre, faits, source, url). */
-export async function redigerActu(idee: { titre: string; faits: string; source: string; url?: string | null; date?: string | null }): Promise<ActuBasile> {
-  const user = `${FORMAT_ACTU}\n\nSUJET : ${idee.titre}\nDATE : ${idee.date ?? "?"}\nSOURCE : ${idee.source}${idee.url ? ` (${idee.url})` : ""}\n\nFAITS (les seules informations utilisables) :\n${idee.faits}`;
+export async function redigerActu(idee: { titre: string; faits: string; source: string; url?: string | null; date?: string | null }, k?: Consignes): Promise<ActuBasile> {
+  const user = `${FORMAT_ACTU}\n\nSUJET : ${idee.titre}\nDATE : ${idee.date ?? "?"}\nSOURCE : ${idee.source}${idee.url ? ` (${idee.url})` : ""}\n\nFAITS (les seules informations utilisables) :\n${idee.faits}${consignes(k)}`;
   const { json, usd, modele } = await ecrire(CONSIGNE_BASILE, user, SCHEMA_ACTU, "Basile : actu");
   console.log(`[Basile] actu écrite par ${modele} (${usd.toFixed(3)} $).`);
   if (!json) throw new Error("rédaction illisible");

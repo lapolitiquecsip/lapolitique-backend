@@ -70,3 +70,55 @@ export async function igGet(chemin: string, params: Record<string, string | numb
   const q = new URLSearchParams({ ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])), access_token: ig.jeton });
   return lireJson(await fetch(`${ig.base}/${chemin.replace(/^\//, "")}?${q}`), `Instagram ${chemin.split("?")[0]}`);
 }
+
+// ─── Publication (carrousel, image, story) ─────────────────────────────────────
+
+/** Attend qu'un conteneur Instagram soit prêt (traitement de l'image côté Meta). */
+async function pret(id: string) {
+  const ig = (await instagram())!;
+  for (let i = 0; i < 30; i++) {
+    const s = await fetch(`${ig.base}/${id}?fields=status_code&access_token=${ig.jeton}`).then(r => lireJson(r, "Instagram état"));
+    if (s.status_code === "FINISHED") return;
+    if (s.status_code === "ERROR") throw new Error(`Instagram a refusé le média ${id}`);
+    await new Promise(r => setTimeout(r, 5000));
+  }
+  throw new Error(`Instagram : média ${id} jamais prêt`);
+}
+
+async function creerMedia(p: Record<string, string>) {
+  const ig = (await instagram())!;
+  return fetch(`${ig.base}/${ig.compte}/media`, { method: "POST", body: new URLSearchParams({ ...p, access_token: ig.jeton }) }).then(r => lireJson(r, "Instagram média"));
+}
+
+async function publierConteneur(conteneur: string): Promise<{ id: string; permalink: string }> {
+  const ig = (await instagram())!;
+  await pret(conteneur);
+  const { id } = await fetch(`${ig.base}/${ig.compte}/media_publish`, { method: "POST", body: new URLSearchParams({ creation_id: conteneur, access_token: ig.jeton }) }).then(r => lireJson(r, "Instagram publication"));
+  const { permalink } = await fetch(`${ig.base}/${id}?fields=permalink&access_token=${ig.jeton}`).then(r => lireJson(r, "Instagram lien"));
+  return { id, permalink };
+}
+
+/**
+ * Publie un carrousel (2 à 10 images JPEG publiques) ou une image seule. La légende est coupée aux
+ * limites d'Instagram (2 200 caractères, 30 mots-dièse).
+ */
+export async function publierCarrousel(images: string[], legende: string): Promise<{ id: string; permalink: string }> {
+  if (!(await instagram())) throw new Error("Aucun jeton Instagram");
+  images = images.slice(0, 10);
+  if (!images.length) throw new Error("aucun visuel pour Instagram");
+  let n = 0;
+  legende = legende.replace(/#[\p{L}\d_]+/gu, m => (++n > 30 ? "" : m)).slice(0, 2200);
+  if (images.length === 1) return publierConteneur((await creerMedia({ image_url: images[0], caption: legende })).id);
+  const enfants: string[] = [];
+  for (const image_url of images) {
+    const { id } = await creerMedia({ image_url, is_carousel_item: "true" });
+    await pret(id);
+    enfants.push(id);
+  }
+  return publierConteneur((await creerMedia({ media_type: "CAROUSEL", children: enfants.join(","), caption: legende })).id);
+}
+
+/** Publie une story (image 9:16). Sans stickers : l'API ne permet ni sondage, ni quiz, ni lien. */
+export async function publierStory(image: string): Promise<{ id: string; permalink: string }> {
+  return publierConteneur((await creerMedia({ image_url: image, media_type: "STORIES" })).id);
+}

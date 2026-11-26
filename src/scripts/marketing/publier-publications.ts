@@ -158,7 +158,9 @@ async function main() {
     if (prevue && prevue > maintenant) continue;
     const titre = lireTexte(p.Sujet);
     const vise = lireTexte(p["Compte destinataire"]).toLowerCase();
-    const veutIg = !vise || vise.includes("insta");
+    // Depuis le 26/11/2026, Instagram passe par le QG (instagram-production.ts, validation WhatsApp) :
+    // plus de publication Instagram depuis Notion, sauf INSTAGRAM_VIA_NOTION=1 (retour en arrière).
+    const veutIg = process.env.INSTAGRAM_VIA_NOTION === "1" && (!vise || vise.includes("insta"));
     const veutLi = !vise || vise.includes("linkedin");
     const tous: { nom: string; url: string }[] = (p.Visuel?.files ?? []).map((f: any) => ({ nom: f.name, url: f.external?.url ?? f.file?.url })).filter((f: any) => f.url);
     const brief = tous.filter(f => f.nom.startsWith("linkedin")).map(f => f.url);
