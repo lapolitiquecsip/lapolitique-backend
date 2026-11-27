@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "preparer (posts du jour) ou publier (✏️ et ✅ en attente)"
+        description: "preparer (posts du jour), publier (✏️ et ✅ en attente) ou test (toute l'équipe, rien publié)"
         type: choice
-        options: [publier, preparer]
+        options: [publier, preparer, test]
         default: publier
 concurrency:
   group: instagram-production
@@ -20,7 +20,7 @@ permissions:
   contents: read
 jobs:
   preparer:
-    if: github.event.schedule == '10 7 * * *' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'preparer')
+    if: github.event.schedule == '10 7 * * *' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'preparer' || inputs.mode == 'test'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-data-job
       - run: npx playwright install --with-deps chromium
-      - run: npx tsx src/scripts/marketing/instagram-production.ts --preparer
+      - run: npx tsx src/scripts/marketing/instagram-production.ts ${{ inputs.mode == 'test' && '--test' || '--preparer' }}
   publier:
     if: github.event.schedule != '10 7 * * *' && (github.event_name != 'workflow_dispatch' || inputs.mode == 'publier')
     runs-on: ubuntu-24.04

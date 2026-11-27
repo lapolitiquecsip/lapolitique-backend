@@ -102,20 +102,42 @@ async function publierConteneur(conteneur: string): Promise<{ id: string; permal
  * Publie un carrousel (2 à 10 images JPEG publiques) ou une image seule. La légende est coupée aux
  * limites d'Instagram (2 200 caractères, 30 mots-dièse).
  */
-export async function publierCarrousel(images: string[], legende: string): Promise<{ id: string; permalink: string }> {
-  if (!(await instagram())) throw new Error("Aucun jeton Instagram");
+function couper(legende: string) {
+  let n = 0;
+  return legende.replace(/#[\p{L}\d_]+/gu, m => (++n > 30 ? "" : m)).slice(0, 2200);
+}
+
+/** Crée chez Instagram le conteneur du carrousel (images contrôlées par Meta), sans le publier. */
+async function conteneurCarrousel(images: string[], legende: string): Promise<{ conteneur: string; images: number }> {
   images = images.slice(0, 10);
   if (!images.length) throw new Error("aucun visuel pour Instagram");
-  let n = 0;
-  legende = legende.replace(/#[\p{L}\d_]+/gu, m => (++n > 30 ? "" : m)).slice(0, 2200);
-  if (images.length === 1) return publierConteneur((await creerMedia({ image_url: images[0], caption: legende })).id);
+  if (images.length === 1) return { conteneur: (await creerMedia({ image_url: images[0], caption: couper(legende) })).id, images: 1 };
   const enfants: string[] = [];
   for (const image_url of images) {
     const { id } = await creerMedia({ image_url, is_carousel_item: "true" });
     await pret(id);
     enfants.push(id);
   }
-  return publierConteneur((await creerMedia({ media_type: "CAROUSEL", children: enfants.join(","), caption: legende })).id);
+  return { conteneur: (await creerMedia({ media_type: "CAROUSEL", children: enfants.join(","), caption: couper(legende) })).id, images: enfants.length };
+}
+
+export async function publierCarrousel(images: string[], legende: string): Promise<{ id: string; permalink: string }> {
+  if (!(await instagram())) throw new Error("Aucun jeton Instagram");
+  return publierConteneur((await conteneurCarrousel(images, legende)).conteneur);
+}
+
+/**
+ * Pour les tests : fait TOUT le travail de publication chez Instagram (images téléchargées et
+ * contrôlées par Meta, carrousel et story prêts) SAUF la publication. Les conteneurs non publiés
+ * expirent seuls au bout de 24 h.
+ */
+export async function verifierPublication(images: string[], legende: string, story?: string | null) {
+  if (!(await instagram())) throw new Error("Aucun jeton Instagram");
+  const c = await conteneurCarrousel(images, legende);
+  await pret(c.conteneur);
+  let s: string | null = null;
+  if (story) { s = (await creerMedia({ image_url: story, media_type: "STORIES" })).id; await pret(s!); }
+  return { ...c, story: s };
 }
 
 /** Publie une story (image 9:16). Sans stickers : l'API ne permet ni sondage, ni quiz, ni lien. */

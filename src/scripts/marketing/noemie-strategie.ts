@@ -1,8 +1,7 @@
 import "dotenv/config";
 import { supabase } from "../../config/supabase.js";
-import { disponible } from "../../lib/budget-claude.js";
 import { aExecuter, aRevoir, demander, executee, noter, passage, type Demande } from "../../lib/qg.js";
-import { redigerJSON } from "../../lib/redaction-ia.js";
+import { ecrire } from "../../lib/basile.js";
 
 /**
  * Noémie apprend (25/11/2026). Chaque lundi matin, elle lit les chiffres relevés par instagram-stats.ts,
@@ -185,7 +184,6 @@ async function analyser(consigne = "", relance?: Demande) {
   const active = await strategieActive();
   const { data: lecons } = await supabase.from("instagram_lecons").select("source, lecon, cree_le").eq("active", true).order("cree_le", { ascending: false }).limit(30);
   if (ESSAI) console.log(JSON.stringify(stats, null, 1).slice(0, 4000));
-  if ((await disponible("reseaux")) < 0.03) { console.log("::warning::Budget IA du poste « reseaux » épuisé ce jour : analyse reportée."); return; }
   const user = [
     consigne,
     `STRATÉGIE EN VIGUEUR (v${active?.version ?? "aucune"}) :\n${JSON.stringify(active ? { calendrier: active.calendrier, regles: active.regles } : V1)}`,
@@ -193,9 +191,10 @@ async function analyser(consigne = "", relance?: Demande) {
     `STATISTIQUES (90 derniers jours) :\n${JSON.stringify(stats)}`,
     "Donne : 1 à 4 leçons nouvelles (pas de redite), le calendrier ajusté pour la semaine qui vient (les 7 jours), les règles, les raisons en 2-3 phrases, et la liste des changements par rapport à la stratégie en vigueur.",
   ].filter(Boolean).join("\n\n");
-  const { json, usd } = await redigerJSON("reseaux", { system: SYSTEME, user, schema: SCHEMA, detail: "Noémie : stratégie Instagram" });
+  // 27/11 : Gemini gratuit d'abord (DeepSeek, à 0 $ de solde, seulement en secours ; son budget est contrôlé par redigerJSON).
+  const { json, usd, modele } = await ecrire(SYSTEME, user, SCHEMA, "Noémie : stratégie Instagram");
   if (!json) throw new Error("analyse illisible");
-  console.log(`Analyse : ${usd.toFixed(3)} $.`);
+  console.log(`Analyse par ${modele} : ${usd.toFixed(3)} $.`);
   const calendrier = Object.fromEntries(JOURS.map(j => [j, (json.calendrier?.[j] ?? []).filter((c: any) => ["carrousel", "reel", "story"].includes(c.format) && /^\d{2}:\d{2}$/.test(c.heure))])) as Calendrier;
   const nouvelles = (json.lecons ?? []).filter((l: any) => l.lecon && l.lecon !== "…");
   if (!ESSAI && nouvelles.length) {

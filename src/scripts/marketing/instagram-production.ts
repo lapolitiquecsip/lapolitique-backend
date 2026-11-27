@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { supabase } from "../../config/supabase.js";
 import { redigerActu, redigerProgramme, type Consignes } from "../../lib/basile.js";
-import { publierCarrousel, publierStory } from "../../lib/instagram.js";
+import { publierCarrousel, publierStory, verifierPublication } from "../../lib/instagram.js";
 import { historique, jugerIdees, postsDuCandidat, resumePost, themeCite, type PostPasse } from "../../lib/instagram-historique.js";
 import { aExecuter, aRevoir, demander, echec, encoreValidee, executee, noter, passage } from "../../lib/qg.js";
 import { affiche, carrouselActu, paletteDuPost, type NomPalette } from "../../lib/visuels/charte.js";
@@ -26,6 +26,9 @@ import { capturesSite, DOSSIER_ASSETS, rendrePages, rendreProgramme } from "../.
  *     leçon) et le renvoient ; ✅ → publication à l'heure du créneau (ou tout de suite si l'heure est
  *     passée), avec la story pour les programmes.
  *   --essai [--type=programme|actu] : prépare en local, sans rien envoyer ni publier.
+ *   --test : TOUTE l'équipe en conditions réelles, tout de suite : un programme + une actu envoyés sur
+ *     WhatsApp (« 🧪 TEST ») ; ✅ → Instagram reçoit et contrôle les images (carrousel + story prêts)
+ *     mais RIEN n'est publié ; ✏️ → refait comme un vrai post. N'entre pas dans la rotation.
  *
  * Rien ne part sans ✅ (qg.ts). Coût : Gemini gratuit (DeepSeek en secours, budget « reseaux »).
  */
@@ -33,6 +36,7 @@ const NOEMIE = "tache:back:publications-reseaux.yml";
 const AGENT = "tache:back:instagram-production.yml";
 const ACTION = "publier_instagram";
 const ESSAI = process.argv.includes("--essai");
+const TEST = process.argv.includes("--test");
 const TYPE_FORCE = process.argv.find(a => a.startsWith("--type="))?.split("=")[1];
 const EXCLUS = new Set(["controverse", "suivi", "debat"]);
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
@@ -52,7 +56,7 @@ function aujourdhuiA(heure: string) {
 
 type Creneau = { format: string; heure: string; contenu: string };
 /** `deja` : les anciens posts du compte sur le même sujet ; `controle` : le verdict de Noémie, montré à Hippolyte. */
-type Sujet = ({ type: "programme"; slug: string; nom: string; themes: string[] } | { type: "actu"; cle: string }) & { deja?: string[]; controle?: string };
+type Sujet = ({ type: "programme"; slug: string; nom: string; themes: string[] } | { type: "actu"; cle: string }) & { deja?: string[]; controle?: string; essai?: boolean };
 const ATTENTE_CANDIDAT_JOURS = 21;
 
 /** Les carrousels du jour selon la stratégie active (et la montée en charge de décembre). */
@@ -133,7 +137,7 @@ async function choisirActu(indice: string, passe: PostPasse[]): Promise<Sujet | 
 async function enAttente(): Promise<PostPasse[]> {
   const { data } = await supabase.from("qg_demandes").select("id, apercu, cree_le").eq("action", ACTION)
     .in("statut", ["a_valider", "validee", "a_modifier"]).gte("cree_le", new Date(Date.now() - 3 * 86400_000).toISOString());
-  return (data ?? []).map((d: any) => ({ id: `qg:${d.id}`, date: d.apercu?.heure ?? d.cree_le, format: "carrousel", texte: d.apercu?.legende ?? "", lien: null, slug: d.apercu?.sujet?.slug ?? null, publie: false }));
+  return (data ?? []).filter((d: any) => !d.apercu?.sujet?.essai).map((d: any) => ({ id: `qg:${d.id}`, date: d.apercu?.heure ?? d.cree_le, format: "carrousel", texte: d.apercu?.legende ?? "", lien: null, slug: d.apercu?.sujet?.slug ?? null, publie: false }));
 }
 
 async function lecons(): Promise<string[]> {
@@ -204,12 +208,12 @@ async function deposer(sujet: Sujet, c: Creneau, heureIso: string, version = 1, 
   const ref = `ref:${createHash("md5").update(`${jourIso()}|${c.heure}|${JSON.stringify(sujet)}`).digest("hex").slice(0, 16)}`;
   const r = await fabriquer(sujet, palette, ref, { lecons: await lecons(), dejaPublie: sujet.deja, ...k });
   if (ESSAI) return;
-  await supabase.from("instagram_fiches").upsert({ ref, fiche: { ...r.fiche, prepare_le: new Date().toISOString(), heure: c.heure, version } });
-  const titre = sujet.type === "programme" ? `Programme de ${sujet.nom}` : String(r.fiche.accroche ?? "Actu");
+  if (!sujet.essai) await supabase.from("instagram_fiches").upsert({ ref, fiche: { ...r.fiche, prepare_le: new Date().toISOString(), heure: c.heure, version } });
+  const titre = `${sujet.essai ? "🧪 TEST — " : ""}${sujet.type === "programme" ? `Programme de ${sujet.nom}` : String(r.fiche.accroche ?? "Actu")}`;
   await demander({
-    agent: NOEMIE, equipe: "marketing", action: ACTION, cle: `ig-${jourIso()}-${c.heure}${version > 1 ? `-v${version}` : ""}`,
+    agent: NOEMIE, equipe: "marketing", action: ACTION, cle: `${sujet.essai ? "ig-test-" : "ig-"}${jourIso()}-${c.heure}${sujet.essai ? `-${sujet.type}` : ""}${version > 1 ? `-v${version}` : ""}`,
     titre: `Post Instagram ${c.heure} : ${titre}${version > 1 ? ` (v${version})` : ""}`,
-    resume: `${r.slides.length} slides${r.story ? " + story" : ""} · publication à ${c.heure}${r.aVerifier.length ? ` · ⚠️ À vérifier : ${r.aVerifier.slice(0, 3).join(" ; ")}` : " · rien à vérifier"}${sujet.controle ? ` · 🔁 ${sujet.controle}` : ""}`,
+    resume: `${sujet.essai ? "TEST : ✅ = Instagram contrôle les images, RIEN n'est publié · " : ""}${r.slides.length} slides${r.story ? " + story" : ""} · ${sujet.essai ? "test" : `publication à ${c.heure}`}${r.aVerifier.length ? ` · ⚠️ À vérifier : ${r.aVerifier.slice(0, 3).join(" ; ")}` : " · rien à vérifier"}${sujet.controle ? ` · 🔁 ${sujet.controle}` : ""}`,
     apercu: {
       image: r.slides[0], images: r.slides, story: r.story,
       texte: `${r.legende}\n\nSOURCES\n${r.sources.join("\n")}${r.aVerifier.length ? `\n\nÀ VÉRIFIER\n${r.aVerifier.join("\n")}` : ""}${sujet.controle ? `\n\nDÉJÀ PUBLIÉ ?\n${sujet.controle}` : ""}`,
@@ -248,6 +252,29 @@ async function preparer() {
   }
 }
 
+/** --test : un programme et une actu, tout de suite, avec le vrai choix de Noémie (anti-doublon compris). */
+async function preparerTest() {
+  await synchroniserObjets().catch(e => console.log(`::notice::objets : ${(e as Error).message}`));
+  const p = paris();
+  const heure = `${String(p.getHours()).padStart(2, "0")}:${String(p.getMinutes()).padStart(2, "0")}`;
+  for (const type of ["programme", "actu"] as const) {
+    const passe = [...(await historique()), ...(await enAttente())];
+    const sujet = type === "programme" ? await choisirProgramme(passe) : await choisirActu("Actu décryptée", passe);
+    if (!sujet) {
+      await noter({ agent: NOEMIE, equipe: "marketing", genre: "attention", message: `Test : aucun sujet « ${type} » disponible.` });
+      continue;
+    }
+    sujet.essai = true;
+    console.log(`Test ${type} : ${sujet.type === "programme" ? sujet.nom : sujet.cle} — ${sujet.controle ?? ""}`);
+    try {
+      await deposer(sujet, { format: "carrousel", heure, contenu: type === "programme" ? "Programme d'un candidat (test)" : "Actu décryptée (test)" }, new Date().toISOString());
+    } catch (e) {
+      console.log(`::warning::test ${type} : ${(e as Error).message}`);
+      await noter({ agent: NOEMIE, equipe: "marketing", genre: "panne", message: `Test ${type} non préparé : ${(e as Error).message}` });
+    }
+  }
+}
+
 async function publier() {
   // ✏️ : Basile et Rose refont le post avec la consigne, qui devient une leçon durable.
   for (const d of (await aRevoir(NOEMIE)).filter(x => x.action === ACTION)) {
@@ -267,6 +294,18 @@ async function publier() {
     const a = d.apercu as any;
     if (Date.parse(a.heure) > Date.now()) continue;
     if (!(await encoreValidee(d.id))) continue;
+    if (a.sujet?.essai) {
+      // Test : Instagram fait tout le travail (téléchargement, contrôle des images) sauf la publication.
+      try {
+        const v = await verifierPublication(a.images, a.legende ?? "", a.story);
+        await executee(d, { test: true, ...v });
+        await noter({ agent: NOEMIE, equipe: "marketing", genre: "succes", demande: d.id, message: `Test réussi : Instagram a accepté les ${v.images} images${v.story ? " et la story" : ""}, prêtes à partir. Rien n'a été publié.` });
+        console.log(`Test validé par Instagram : ${d.titre} (rien publié).`);
+      } catch (e) {
+        await echec(d, `Test : ${(e as Error).message}`);
+      }
+      continue;
+    }
     try {
       const { id, permalink } = await publierCarrousel(a.images, a.legende ?? "");
       let story: string | null = null;
@@ -290,6 +329,7 @@ async function main() {
     console.log(`${n} post(s) à refaire.`);
     return;
   }
+  if (TEST) await preparerTest();
   if (process.argv.includes("--preparer") || ESSAI) await preparer();
   if (process.argv.includes("--publier")) await publier();
   if (!ESSAI) await passage(AGENT, "ok").catch(() => null);
