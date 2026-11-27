@@ -88,6 +88,21 @@ const AJUSTER_CHARTE = `(() => {
       if (textes.some(t => { const r = boite(t); return r.width && touche(r, e.getBoundingClientRect()); })) e.remove();
     }
   }
+  // Image du coin (actu) : sa partie pleine suit un bord en diagonale, d'où les 4 zones. Si un texte la
+  // touche : l'image rétrécit (jusqu'à ~60 %), puis les textes un peu, sinon elle est retirée.
+  for (const c of slide.querySelectorAll(".coin")) {
+    const zones = () => { const b = c.getBoundingClientRect(); return [[0, .60], [.24, .38], [.48, .2], [.74, .06]].map(([x, y]) => ({ left: b.left + x * b.width, top: b.top + y * b.height, right: b.right, bottom: b.bottom })); };
+    const gene = () => textes.some(e => { const b = boite(e); return b.width && zones().some(z => touche(b, z)); });
+    for (let k = 0; k < 8 && gene(); k++) { const b = c.getBoundingClientRect(); c.style.width = (b.width * 0.94) + "px"; c.style.height = (b.height * 0.94) + "px"; }
+    for (let k = 0; k < 8 && gene(); k++) for (const t of blocs) t.style.fontSize = Math.max(30, parseFloat(getComputedStyle(t).fontSize) * 0.97) + "px";
+    if (gene()) { c.remove(); slide.querySelectorAll(".eclat-coin").forEach(x => x.remove()); continue; }
+    for (const e of slide.querySelectorAll(".eclat-coin")) {
+      const b = c.getBoundingClientRect();
+      e.style.left = (b.left - S.left - 20) + "px"; e.style.top = (b.top - S.top + b.height * 0.30 - 96) + "px";
+      e.style.right = "auto"; e.style.bottom = "auto";
+      if (textes.some(t => { const r = boite(t); return r.width && touche(r, e.getBoundingClientRect()); })) e.remove();
+    }
+  }
   return fautifs().map(e => (e.textContent || "").trim().slice(0, 60));
 })()`;
 

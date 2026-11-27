@@ -120,7 +120,7 @@ export async function jugerIdees(idees: Idee[], passe: PostPasse[]): Promise<Ver
   });
   const parDefaut = (i: Idee, k: number): Verdict => {
     const b = proches[k];
-    if (!b || b.s < 3) return { cle: i.cle, verdict: "nouveau", proche: null, raison: "aucun post proche (mots et chiffres)" };
+    if (!b || b.s < 5) return { cle: i.cle, verdict: "nouveau", proche: null, raison: "aucun post proche (mots et chiffres)" };
     return { cle: i.cle, verdict: b.s >= 7 ? "doublon" : "suite", proche: b.p, raison: `${b.s} mots ou chiffres en commun avec le post du ${jj(b.p.date)}` };
   };
   if (!recents.length || !idees.length) return idees.map(parDefaut);

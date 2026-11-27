@@ -9,7 +9,8 @@ import { redigerActu, redigerProgramme, type Consignes } from "../../lib/basile.
 import { publierCarrousel, publierStory, verifierPublication } from "../../lib/instagram.js";
 import { historique, jugerIdees, postsDuCandidat, resumePost, themeCite, type PostPasse } from "../../lib/instagram-historique.js";
 import { aExecuter, aRevoir, demander, echec, encoreValidee, executee, noter, passage } from "../../lib/qg.js";
-import { affiche, carrouselActu, paletteDuPost, type NomPalette } from "../../lib/visuels/charte.js";
+import { affiche, carrouselActu, FONDS_ACTU, PALETTES, plancheCouleurs, type NomFondActu, type NomPalette } from "../../lib/visuels/charte.js";
+import { couleursPubliees, fondsActuProposes, palettesProposees } from "../../lib/visuels/couleurs.js";
 import { capturesSite, DOSSIER_ASSETS, rendrePages, rendreProgramme } from "../../lib/visuels/rendu.js";
 
 /**
@@ -25,6 +26,10 @@ import { capturesSite, DOSSIER_ASSETS, rendrePages, rendreProgramme } from "../.
  *   --publier (toutes les 15 min) : ✏️ → Basile et Rose refont le post avec la consigne (gardée comme
  *     leçon) et le renvoient ; ✅ → publication à l'heure du créneau (ou tout de suite si l'heure est
  *     passée), avec la story pour les programmes.
+ *   COULEURS (27/11, consigne d'Hippolyte) : chaque post est rendu dans 4 couleurs PAS ENCORE
+ *     publiées sur le compte (couleurs.ts lit aussi les posts faits à la main) ; WhatsApp montre la
+ *     planche numérotée : ✅ = couleur 1, ✏️ « 2 » / « 3 » / « 4 » = cette couleur (vaut validation),
+ *     ✏️ + texte = refaire.
  *   --essai [--type=programme|actu] : prépare en local, sans rien envoyer ni publier.
  *   --test : TOUTE l'équipe en conditions réelles, tout de suite : un programme + une actu envoyés sur
  *     WhatsApp (« 🧪 TEST ») ; ✅ → Instagram reçoit et contrôle les images (carrousel + story prêts)
@@ -157,73 +162,104 @@ async function synchroniserObjets() {
   }
 }
 
-type Rendu = { slides: string[]; story: string | null; legende: string; aVerifier: string[]; sources: string[]; fiche: Record<string, unknown> };
+type Variante = { couleur: string; libelle: string; slides: string[]; story: string | null };
+type Rendu = { variantes: Variante[]; planche: string | null; legende: string; aVerifier: string[]; sources: string[]; fiche: Record<string, unknown> };
 
-/** Basile écrit, Rose met en page ; les JPEG sont rangés dans le stockage (URL publiques pour Instagram). */
-async function fabriquer(sujet: Sujet, palette: NomPalette, ref: string, k: Consignes): Promise<Rendu> {
+/**
+ * Basile écrit UNE fois, Rose met en page dans chaque couleur proposée ; une planche numérotée des
+ * couvertures sert au choix. Les JPEG sont rangés dans le stockage (URL publiques pour Instagram).
+ */
+async function fabriquer(sujet: Sujet, couleurs: string[], ref: string, k: Consignes): Promise<Rendu> {
   const sortie = join(tmpdir(), `ig-${ref.slice(4)}-${Date.now()}`);
-  let fichiers: string[] = [], story: string | null = null, legende = "", aVerifier: string[] = [], sources: string[] = [], fiche: Record<string, unknown>;
+  const locales: Variante[] = [];
+  let legende = "", aVerifier: string[] = [], sources: string[] = [], fiche: Record<string, unknown>;
   if (sujet.type === "programme") {
     const p = await redigerProgramme(sujet.slug, sujet.themes, 8, k);
     if (p.themes.length < 2) throw new Error(`Basile n'a pas assez de matière pour ${sujet.nom}`);
     const credit = await fetch(pub(`portraits/${sujet.slug}.json`)).then(r => (r.ok ? r.json() : {})).then((j: any) => j.texte ?? undefined).catch(() => undefined);
     const captures = await capturesSite(`https://lapolitiquecestsimple.fr/presidentielles-2027/?candidat=${sujet.slug}`, join(sortie, "captures"), ["Programme", "Parcours"], NAV).catch(() => []);
-    fichiers = await rendreProgramme({
-      candidat: sujet.nom, slug: sujet.slug, palette, portrait: pub(`portraits/${sujet.slug}.png`), creditPhoto: credit,
-      themes: p.themes, captures: captures.map(f => pathToFileURL(f).href), dossier: DOSSIER_ASSETS,
-    }, join(sortie, "slides"), NAV);
-    const [s] = await rendrePages([affiche({ nom: sujet.nom, liaison: "pour", theme: "2027 ?", contexte: "Son programme en " + p.themes.length + " thèmes · nouveau post",
-      portrait: pub(`portraits/${sujet.slug}.png`), objet: `${DOSSIER_ASSETS}/objets/democratie.png`, creditPhoto: credit, palette, format: "story" })], join(sortie, "story"), { ...NAV, tolerer: true });
-    story = s;
+    for (const couleur of couleurs as NomPalette[]) {
+      const slides = await rendreProgramme({
+        candidat: sujet.nom, slug: sujet.slug, palette: couleur, portrait: pub(`portraits/${sujet.slug}.png`), creditPhoto: credit,
+        themes: p.themes, captures: captures.map(f => pathToFileURL(f).href), dossier: DOSSIER_ASSETS,
+      }, join(sortie, couleur, "slides"), NAV);
+      const [story] = await rendrePages([affiche({ nom: sujet.nom, liaison: "pour", theme: "2027 ?", contexte: "Son programme en " + p.themes.length + " thèmes · nouveau post",
+        portrait: pub(`portraits/${sujet.slug}.png`), objet: `${DOSSIER_ASSETS}/objets/democratie.png`, creditPhoto: credit, palette: couleur, format: "story" })], join(sortie, couleur, "story"), { ...NAV, tolerer: true });
+      locales.push({ couleur, libelle: PALETTES[couleur].libelle, slides, story });
+    }
     legende = [p.legende, p.hashtags.join(" ")].filter(Boolean).join("\n\n");
     aVerifier = p.a_verifier;
     sources = p.themes.map((t, i) => `slide ${i + 2} (${t.titre}) : ${t.source}`);
-    fiche = { gabarit: "programme", type: "programme", slug: sujet.slug, themes: sujet.themes, palette, slides: fichiers.length, accroche: `Programme ${sujet.nom}` };
+    fiche = { gabarit: "programme", type: "programme", slug: sujet.slug, themes: sujet.themes, palette: couleurs[0], couleurs, slides: locales[0]?.slides.length, accroche: `Programme ${sujet.nom}` };
   } else {
     const { data: idee } = await supabase.from("veille_posts").select("cle, titre, faits, source, url, lien_site, jour, importance").eq("cle", sujet.cle).single();
     const a = await redigerActu({ titre: idee.titre, faits: idee.faits, source: idee.source, url: idee.url, date: idee.jour }, k);
     if (!a.slides.length) throw new Error(`Basile n'a rien pu écrire sur « ${idee.titre} »`);
     const captures = idee.lien_site ? await capturesSite(idee.lien_site, join(sortie, "captures"), [], NAV).catch(() => []) : [];
-    fichiers = await rendrePages(carrouselActu({ dossier: DOSSIER_ASSETS, slides: a.slides, captures: captures.map(f => pathToFileURL(f).href) }), join(sortie, "slides"), NAV);
+    for (const couleur of couleurs as NomFondActu[]) {
+      const slides = await rendrePages(carrouselActu({ dossier: DOSSIER_ASSETS, slides: a.slides, captures: captures.map(f => pathToFileURL(f).href), fond: couleur }), join(sortie, couleur, "slides"), NAV);
+      locales.push({ couleur, libelle: FONDS_ACTU[couleur].libelle, slides, story: null });
+    }
     legende = [a.legende, a.hashtags.join(" ")].filter(Boolean).join("\n\n");
     aVerifier = a.a_verifier;
     sources = [`toutes les slides : ${a.slides[0]?.source}${idee.url ? ` (${idee.url})` : ""}`];
-    fiche = { gabarit: "actu", type: idee.cle.split(":")[0], idee: idee.cle, importance: idee.importance, slides: fichiers.length, accroche: idee.titre, source: idee.source };
+    fiche = { gabarit: "actu", type: idee.cle.split(":")[0], idee: idee.cle, importance: idee.importance, fond_actu: couleurs[0], couleurs, slides: locales[0]?.slides.length, accroche: idee.titre, source: idee.source };
   }
-  if (ESSAI) { console.log(`[essai] ${fichiers.length} slides dans ${sortie}`); return { slides: fichiers, story, legende, aVerifier, sources, fiche }; }
+  const plancheLocale = locales.length > 1
+    ? (await rendrePages([plancheCouleurs(locales.map(v => ({ image: pathToFileURL(v.slides[0]).href, libelle: v.libelle })))], join(sortie, "planche"), { ...NAV, tolerer: true }))[0]
+    : null;
+  if (ESSAI) {
+    console.log(`[essai] ${locales.length} couleurs (${couleurs.join(", ")}), ${locales[0]?.slides.length} slides, dans ${sortie}`);
+    return { variantes: locales, planche: plancheLocale, legende, aVerifier, sources, fiche };
+  }
   const dossier = `ig/${jourIso()}/${ref.slice(4)}-${Date.now().toString(36)}`;
   const envoyer = async (f: string, nom: string) => {
     const { error } = await B.upload(`${dossier}/${nom}`, readFileSync(f), { contentType: "image/jpeg", upsert: true });
     if (error) throw new Error(`Stockage : ${error.message}`);
     return pub(`${dossier}/${nom}`);
   };
-  const slides: string[] = [];
-  for (const [i, f] of fichiers.entries()) slides.push(await envoyer(f, `${String(i + 1).padStart(2, "0")}.jpg`));
-  return { slides, story: story ? await envoyer(story, "story.jpg") : null, legende, aVerifier, sources, fiche };
+  const variantes: Variante[] = [];
+  for (const [n, v] of locales.entries()) {
+    const slides: string[] = [];
+    for (const [i, f] of v.slides.entries()) slides.push(await envoyer(f, `${n + 1}-${v.couleur}/${String(i + 1).padStart(2, "0")}.jpg`));
+    variantes.push({ couleur: v.couleur, libelle: v.libelle, slides, story: v.story ? await envoyer(v.story, `${n + 1}-${v.couleur}/story.jpg`) : null });
+  }
+  return { variantes, planche: plancheLocale ? await envoyer(plancheLocale, "couleurs.jpg") : null, legende, aVerifier, sources, fiche };
 }
 
 async function deposer(sujet: Sujet, c: Creneau, heureIso: string, version = 1, k: Consignes = {}) {
-  const { count } = await supabase.from("instagram_fiches").select("ref", { count: "exact", head: true }).eq("fiche->>gabarit", "programme");
-  const palette = paletteDuPost(count ?? 0);
+  // 4 couleurs pas encore publiées sur le compte (posts faits à la main compris).
+  const usages = await couleursPubliees(NAV).catch(e => { console.log(`::notice::couleurs publiées illisibles : ${(e as Error).message}`); return []; });
+  const couleurs: string[] = sujet.type === "programme" ? palettesProposees(usages) : fondsActuProposes(usages);
   const ref = `ref:${createHash("md5").update(`${jourIso()}|${c.heure}|${JSON.stringify(sujet)}`).digest("hex").slice(0, 16)}`;
-  const r = await fabriquer(sujet, palette, ref, { lecons: await lecons(), dejaPublie: sujet.deja, ...k });
+  const r = await fabriquer(sujet, couleurs, ref, { lecons: await lecons(), dejaPublie: sujet.deja, ...k });
   if (ESSAI) return;
   if (!sujet.essai) await supabase.from("instagram_fiches").upsert({ ref, fiche: { ...r.fiche, prepare_le: new Date().toISOString(), heure: c.heure, version } });
   const titre = `${sujet.essai ? "🧪 TEST — " : ""}${sujet.type === "programme" ? `Programme de ${sujet.nom}` : String(r.fiche.accroche ?? "Actu")}`;
+  const v1 = r.variantes[0];
+  const choix = r.variantes.map((v, i) => `${i + 1}. ${v.libelle}`).join(" · ");
   await demander({
     agent: NOEMIE, equipe: "marketing", action: ACTION, cle: `${sujet.essai ? "ig-test-" : "ig-"}${jourIso()}-${c.heure}${sujet.essai ? `-${sujet.type}` : ""}${version > 1 ? `-v${version}` : ""}`,
     titre: `Post Instagram ${c.heure} : ${titre}${version > 1 ? ` (v${version})` : ""}`,
-    resume: `${sujet.essai ? "TEST : ✅ = Instagram contrôle les images, RIEN n'est publié · " : ""}${r.slides.length} slides${r.story ? " + story" : ""} · ${sujet.essai ? "test" : `publication à ${c.heure}`}${r.aVerifier.length ? ` · ⚠️ À vérifier : ${r.aVerifier.slice(0, 3).join(" ; ")}` : " · rien à vérifier"}${sujet.controle ? ` · 🔁 ${sujet.controle}` : ""}`,
+    resume: `${sujet.essai ? "TEST : RIEN n'est publié · " : ""}Couleurs : ${choix} — ✅ = 1, ✏️ « 2 », « 3 » ou « 4 » = cette couleur · ${v1.slides.length} slides${v1.story ? " + story" : ""} · ${sujet.essai ? "test" : `publication à ${c.heure}`}${r.aVerifier.length ? ` · ⚠️ À vérifier : ${r.aVerifier.slice(0, 3).join(" ; ")}` : " · rien à vérifier"}${sujet.controle ? ` · 🔁 ${sujet.controle}` : ""}`,
     apercu: {
-      image: r.slides[0], images: r.slides, story: r.story,
-      texte: `${r.legende}\n\nSOURCES\n${r.sources.join("\n")}${r.aVerifier.length ? `\n\nÀ VÉRIFIER\n${r.aVerifier.join("\n")}` : ""}${sujet.controle ? `\n\nDÉJÀ PUBLIÉ ?\n${sujet.controle}` : ""}`,
+      image: r.planche ?? v1.slides[0], images: [...(r.planche ? [r.planche] : []), ...v1.slides], story: v1.story,
+      planche: r.planche, variantes: r.variantes, couleur: 1,
+      texte: `COULEURS : ${choix}\n✅ = couleur 1 · ✏️ « 2 », « 3 » ou « 4 » = cette couleur · ✏️ + texte = refaire\n\n${r.legende}\n\nSOURCES\n${r.sources.join("\n")}${r.aVerifier.length ? `\n\nÀ VÉRIFIER\n${r.aVerifier.join("\n")}` : ""}${sujet.controle ? `\n\nDÉJÀ PUBLIÉ ?\n${sujet.controle}` : ""}`,
       legende: r.legende, heure: heureIso, ref, sujet, creneau: c, version,
     },
     risque: r.aVerifier.length ? "normal" : "faible",
     expire_dans_heures: Math.max(6, (Date.parse(heureIso) - Date.now()) / 3600e3 + 12),
   });
-  console.log(`Déposé : ${titre} (${c.heure}, palette ${palette}, ${r.slides.length} slides).`);
+  console.log(`Déposé : ${titre} (${c.heure}, couleurs ${couleurs.join(", ")}, ${v1.slides.length} slides).`);
 }
+
+/** La couleur retenue (1 par défaut) : ses slides et sa story. */
+const retenue = (a: any) => {
+  const v = a?.variantes?.[(Number(a.couleur) || 1) - 1];
+  return v ? { images: v.slides as string[], story: (v.story ?? null) as string | null, couleur: v.couleur as string } : { images: a.images as string[], story: (a.story ?? null) as string | null, couleur: null };
+};
+const CHOIX_COULEUR = /^\s*(?:couleur\s*|n°\s*)?([1-4])\s*\.?\s*$/i;
 
 async function preparer() {
   if (!ESSAI) await synchroniserObjets().catch(e => console.log(`::notice::objets : ${(e as Error).message}`));
@@ -281,6 +317,16 @@ async function publier() {
     const a = d.apercu as any;
     const consigne = (d.commentaire ?? "").trim();
     if (!consigne || !a?.sujet) continue;
+    // « 2 », « 3 », « 4 » : le choix d'une couleur, qui vaut validation (pas une consigne à refaire).
+    const n = Number(CHOIX_COULEUR.exec(consigne)?.[1]);
+    if (n && a.variantes?.[n - 1]) {
+      const v = a.variantes[n - 1];
+      await supabase.from("qg_demandes").update({ statut: "validee", apercu: { ...a, couleur: n, images: v.slides, story: v.story ?? null } }).eq("id", d.id);
+      const { data: f } = await supabase.from("instagram_fiches").select("fiche").eq("ref", a.ref).maybeSingle();
+      if (f) await supabase.from("instagram_fiches").update({ fiche: { ...(f.fiche as any), [a.sujet.type === "programme" ? "palette" : "fond_actu"]: v.couleur } }).eq("ref", a.ref);
+      await noter({ agent: NOEMIE, equipe: "marketing", genre: "succes", demande: d.id, message: `Couleur ${n} (${v.libelle}) retenue${a.sujet.essai ? " (test)" : ` : publication à ${new Date(a.heure).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" })}`}.` });
+      continue;
+    }
     await supabase.from("instagram_lecons").insert({ source: "consigne", lecon: consigne.replace(/📎\s*\S+/g, "").trim() || consigne, preuve: { demande: d.id } });
     await supabase.from("qg_demandes").update({ statut: "annulee", resultat: { refait: true } }).eq("id", d.id);
     try {
@@ -294,10 +340,11 @@ async function publier() {
     const a = d.apercu as any;
     if (Date.parse(a.heure) > Date.now()) continue;
     if (!(await encoreValidee(d.id))) continue;
+    const choisie = retenue(a);
     if (a.sujet?.essai) {
       // Test : Instagram fait tout le travail (téléchargement, contrôle des images) sauf la publication.
       try {
-        const v = await verifierPublication(a.images, a.legende ?? "", a.story);
+        const v = await verifierPublication(choisie.images, a.legende ?? "", choisie.story);
         await executee(d, { test: true, ...v });
         await noter({ agent: NOEMIE, equipe: "marketing", genre: "succes", demande: d.id, message: `Test réussi : Instagram a accepté les ${v.images} images${v.story ? " et la story" : ""}, prêtes à partir. Rien n'a été publié.` });
         console.log(`Test validé par Instagram : ${d.titre} (rien publié).`);
@@ -307,11 +354,13 @@ async function publier() {
       continue;
     }
     try {
-      const { id, permalink } = await publierCarrousel(a.images, a.legende ?? "");
+      const { id, permalink } = await publierCarrousel(choisie.images, a.legende ?? "");
       let story: string | null = null;
-      if (a.story) story = await publierStory(a.story).then(s => s.permalink).catch(e => { console.log(`::notice::story : ${(e as Error).message}`); return null; });
+      if (choisie.story) story = await publierStory(choisie.story).then(s => s.permalink).catch(e => { console.log(`::notice::story : ${(e as Error).message}`); return null; });
       const { data: f } = await supabase.from("instagram_fiches").select("fiche").eq("ref", a.ref).maybeSingle();
-      await supabase.from("instagram_posts").upsert({ media_id: id, format: "carrousel", publie_le: new Date().toISOString(), permalink, ref: a.ref, fiche: { ...(f?.fiche ?? {}), via: "qg" } });
+      // La couleur publiée est notée : Rose ne la reproposera qu'après toutes les autres.
+      const couleur = choisie.couleur ? { [a.sujet?.type === "programme" ? "palette" : "fond_actu"]: choisie.couleur } : {};
+      await supabase.from("instagram_posts").upsert({ media_id: id, format: "carrousel", publie_le: new Date().toISOString(), permalink, ref: a.ref, fiche: { ...(f?.fiche ?? {}), ...couleur, via: "qg" } });
       await executee(d, { lien: permalink, story });
       console.log(`Publié : ${d.titre} → ${permalink}`);
     } catch (e) {
@@ -323,7 +372,7 @@ async function publier() {
 async function main() {
   // Pour GitHub : faut-il installer le navigateur (refaire un post après ✏️) ?
   if (process.argv.includes("--besoin")) {
-    const n = (await aRevoir(NOEMIE)).filter(x => x.action === ACTION).length;
+    const n = (await aRevoir(NOEMIE)).filter(x => x.action === ACTION && (x.commentaire ?? "").trim() && !CHOIX_COULEUR.test(x.commentaire ?? "")).length;
     if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT, `refaire=${n}
 `, { flag: "a" });
     console.log(`${n} post(s) à refaire.`);

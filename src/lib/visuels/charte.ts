@@ -14,6 +14,10 @@
  *   objets noir et blanc de la bibliothèque (images ChatGPT d'Hippolyte), réduits ou retirés s'ils
  *   gênent un texte (rendu.ts) ;
  * - la famille « actu » (bleu électrique, menthe, papier déchiré), absente de la consigne, est gardée.
+ * 27/11 (consignes d'Hippolyte sur WhatsApp) : « une couleur profonde en fond, une couleur plus claire
+ * qui surligne le nom » ; des couleurs PAS ENCORE FAITES sur le compte, 3-4 proposées à chaque post
+ * (couleurs.ts) ; actu : le fond change aussi (corail, violet…) et l'image prend TOUT le coin en bas à
+ * droite, bord de papier déchiré (son exemple : le post Sécu du 08/11).
  * Gabarit A : carrousel « Programme [Prénom Nom] ». Gabarit B : affiche « Les programmes en détail »
  * (9:16, et 4:5 pour le fil). Export JPEG (seul format accepté par l'API de publication d'Instagram).
  *
@@ -24,17 +28,45 @@ export const FORMAT = { carre: { largeur: 1080, hauteur: 1350 }, story: { largeu
 
 export type Page = { html: string; nom: string; format: keyof typeof FORMAT };
 
-/** Les 4 palettes de la consigne (fond, texte, cartouche/accent, lettres sur l'accent). */
+/**
+ * Palettes (fond, texte, cartouche/accent, lettres sur l'accent ; teinte = couleur dominante du fond,
+ * pour reconnaître une couleur déjà publiée). « profonde » : fond foncé + surlignage clair, la seule
+ * forme proposée depuis le 27/11 (rose et ciel, clairs, restent pour les anciens posts).
+ */
+const prof = (haut: string, bas: string, encre: string, accent: string, libelle: string) =>
+  ({ fond: `linear-gradient(165deg, ${haut} 0%, ${bas} 100%)`, encre, accent, surAccent: bas, sombre: true, profonde: true, teinte: haut, libelle });
 export const PALETTES = {
-  rose: { fond: "#EDBDC9", encre: "#45162A", accent: "#561C35", surAccent: "#FFF9F4", sombre: false },
-  cobalt: { fond: "linear-gradient(165deg, #1738A9 0%, #092283 100%)", encre: "#F7F9FF", accent: "#BDEDFC", surAccent: "#09235F", sombre: true },
-  ciel: { fond: "#B1DBF4", encre: "#0B2A42", accent: "#0B2A42", surAccent: "#B1DBF4", sombre: false },
-  bordeaux: { fond: "#670828", encre: "#F8F4D9", accent: "#F8F4D9", surAccent: "#670828", sombre: true },
+  rose: { fond: "#EDBDC9", encre: "#45162A", accent: "#561C35", surAccent: "#FFF9F4", sombre: false, profonde: false, teinte: "#EDBDC9", libelle: "Rose pâle" },
+  cobalt: { ...prof("#1738A9", "#092283", "#F7F9FF", "#BDEDFC", "Bleu cobalt"), surAccent: "#09235F" },
+  ciel: { fond: "#B1DBF4", encre: "#0B2A42", accent: "#0B2A42", surAccent: "#B1DBF4", sombre: false, profonde: false, teinte: "#B1DBF4", libelle: "Bleu ciel" },
+  bordeaux: { fond: "#670828", encre: "#F8F4D9", accent: "#F8F4D9", surAccent: "#670828", sombre: true, profonde: true, teinte: "#670828", libelle: "Bordeaux" },
+  emeraude: prof("#0E6B47", "#063D29", "#F3FBF6", "#BDF2D3", "Émeraude"),
+  violet: prof("#4A1F96", "#2A0F5C", "#F8F5FF", "#DCCBFF", "Violet"),
+  petrole: prof("#0D5966", "#06343D", "#F2FCFC", "#B8F0EE", "Bleu pétrole"),
+  nuit: prof("#1A2550", "#0B1230", "#F7F8FF", "#FFE58F", "Bleu nuit"),
+  prune: prof("#6B1F57", "#3F0D33", "#FFF6FB", "#FFC9E6", "Prune"),
+  rouille: prof("#9A3412", "#5C1D07", "#FFF8F1", "#FFD9B8", "Rouille"),
+  sapin: prof("#2F4A1A", "#1A2C0C", "#F8FBEF", "#E3F5A6", "Vert sapin"),
+  carmin: prof("#A0122B", "#650A1A", "#FFF6F4", "#FFD3CC", "Carmin"),
+  ardoise: prof("#2B3440", "#151B23", "#F5F7FA", "#9FE7F5", "Ardoise"),
 } as const;
 export type NomPalette = keyof typeof PALETTES;
 export const ROTATION: NomPalette[] = ["rose", "cobalt", "ciel", "bordeaux"];
-/** La palette du n-ième post (rotation) : jamais liée à la personne ou au parti. */
+/** Ancienne rotation (avant le 27/11) ; Rose propose désormais des couleurs pas encore publiées (couleurs.ts). */
 export const paletteDuPost = (n: number): NomPalette => ROTATION[((n % 4) + 4) % 4];
+
+/** Fonds de la famille actu (menthe et bandes noires gardées) ; le corail est celui du post Sécu du 08/11. */
+export const FONDS_ACTU = {
+  bleu: { fond: "#1E2BF0", libelle: "Bleu électrique" },
+  corail: { fond: "#F2664C", libelle: "Corail" },
+  violet: { fond: "#6B2BE8", libelle: "Violet vif" },
+  fuchsia: { fond: "#D81B72", libelle: "Fuchsia" },
+  rouge: { fond: "#D7263D", libelle: "Rouge" },
+  vert: { fond: "#0F8A5F", libelle: "Vert" },
+  turquoise: { fond: "#0E8C99", libelle: "Turquoise" },
+  aubergine: { fond: "#7A2A8C", libelle: "Aubergine" },
+} as const;
+export type NomFondActu = keyof typeof FONDS_ACTU;
 
 const ACTU = { fond: "#1E2BF0", encre: "#FFFFFF", accent: "#8FF0CF", noir: "#0B0B12" };
 
@@ -153,9 +185,17 @@ html, body { background: #000; }
 .sous { font-weight: 800; font-size: 72px; margin-top: 4px; align-self: center; }
 .src-actu { font-weight: 500; font-size: 22px; max-width: 46%; position: relative; z-index: 4; }
 .src-actu b { font-weight: 800; }
-.page-actu { position: absolute; right: 60px; bottom: 50px; z-index: 4; font-size: 34px; font-weight: 800; }
+.page-actu { position: absolute; right: 60px; top: 66px; z-index: 4; font-size: 34px; font-weight: 800; }
 .actu .objet { bottom: 110px; width: 360px; }
 .actu .eclat-objet { right: 300px; bottom: 460px; }
+/* L'image du coin (exemple d'Hippolyte, 27/11) : collée au coin bas-droit, elle déborde du cadre ;
+   bord haut-gauche en papier déchiré blanc ; l'objet noir et blanc est posé sur ce papier. */
+.coin { position: absolute; right: 0; bottom: 0; width: 660px; height: 540px; z-index: 2; }
+.coin .papier { position: absolute; inset: 0; filter: url(#dechire); }
+.coin .papier i { position: absolute; inset: 0; background: #fff; clip-path: var(--bord); }
+.coin .photo { position: absolute; left: 16px; top: 16px; right: 0; bottom: 0; overflow: hidden; clip-path: var(--bord); background: #fff; }
+.coin .photo img { position: absolute; right: -2%; bottom: -3%; width: 104%; height: 106%; object-fit: cover; object-position: 70% 60%; filter: url(#net) grayscale(1) contrast(1.08); }
+.actu .eclat-coin { right: 430px; bottom: 470px; }
 .actu .eclat-logo { position: absolute; left: 68px; top: -46px; width: 52px; }
 .actu .capture { border-color: #fff; }
 .actu .bandeau { background: ${ACTU.accent}; color: ${ACTU.noir}; }
@@ -166,8 +206,26 @@ const cadre = (p: NomPalette, format: keyof typeof FORMAT, contenu: string, clas
   return `${FILTRES}<section class="slide ${format} pal-${p} ${classes}" style="--fond:${c.fond};--encre:${c.encre};--accent:${c.accent};--sur-accent:${c.surAccent}">${contenu}</section>`;
 };
 
-const cadreActu = (contenu: string) =>
-  `${FILTRES}<section class="slide carre actu" style="--fond:${ACTU.fond};--encre:${ACTU.encre};--accent:${ACTU.accent};--sur-accent:${ACTU.noir}">${contenu}</section>`;
+const cadreActu = (contenu: string, fond: NomFondActu = "bleu") =>
+  `${FILTRES}<section class="slide carre actu" style="--fond:${FONDS_ACTU[fond].fond};--encre:${ACTU.encre};--accent:${ACTU.accent};--sur-accent:${ACTU.noir}">${contenu}</section>`;
+
+/**
+ * Bord déchiré du coin : une ligne irrégulière qui monte du bas-gauche au haut-droit (mêmes points
+ * pour un même post : graine fixe). En pourcentages de la boîte, pour le papier comme pour la photo.
+ */
+const bordDechire = (graine = 7) => {
+  let x = graine;
+  const alea = () => ((x = (x * 9301 + 49297) % 233280) / 233280);
+  const pts: string[] = [];
+  const n = 34;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    // courbe : part de (0 %, 62 %), s'aplatit vers (100 %, 2 %)
+    const px = t * 100, py = 62 * Math.pow(1 - t, 1.6) + 2;
+    pts.push(`${px.toFixed(1)}% ${Math.max(0, py + (alea() - 0.5) * 5).toFixed(1)}%`);
+  }
+  return `polygon(${pts.join(", ")}, 100% 100%, 0% 100%)`;
+};
 
 /**
  * La bibliothèque d'objets noir et blanc (images ChatGPT d'Hippolyte, storage publications/objets et
@@ -345,7 +403,8 @@ export type BlocActu =
 
 export type SlideActu = { blocs: BlocActu[]; source?: string; visuel?: string };   // visuel = nom d'objet (« sante ») ou URL
 
-export function carrouselActu(d: { slides: SlideActu[]; captures?: string[]; dossier: string }): Page[] {
+export function carrouselActu(d: { slides: SlideActu[]; captures?: string[]; dossier: string; fond?: NomFondActu }): Page[] {
+  const fond = d.fond ?? "bleu";
   const [grande, ...petites] = (d.captures ?? []).filter(Boolean);
   const n = d.slides.length + (grande ? 1 : 0);
   const tete = `<div class="tete">${eclat("#fff", "eclat eclat-logo")}<div class="marque-actu">${logoOrigine()}<div class="sep"></div><div class="A nom">La politique<br>c’est simple</div></div></div>`;
@@ -364,9 +423,9 @@ export function carrouselActu(d: { slides: SlideActu[]; captures?: string[]; dos
   const pages: Page[] = d.slides.map((s, i) => ({
     nom: String(i + 1).padStart(2, "0"), format: "carre" as const, html: cadreActu(`${tete}
 <div class="corps" style="max-width:900px">${(compact = s.blocs.filter(b => b.genre === "chiffre").length > 1, s.blocs.map(bloc).join(""))}</div>
-${eclat(ACTU.accent, "eclat eclat-objet")}<img class="objet" src="${objet(s)}">
+${eclat(ACTU.accent, "eclat eclat-coin")}<div class="coin" style="--bord:${bordDechire(7 + i)}"><div class="papier"><i></i></div><div class="photo"><img src="${objet(s)}"></div></div>
 <div class="pied">${s.source ? `<div class="src-actu"><b>Source :</b> ${echapper(s.source)}</div>` : "<div></div>"}</div>
-<div class="dechire menthe page-actu">${pagination(i + 1, n)}</div>`),
+<div class="dechire menthe page-actu">${pagination(i + 1, n)}</div>`, fond),
   }));
   if (grande) pages.push({
     nom: String(n).padStart(2, "0"), format: "carre", html: cadreActu(`${tete}
@@ -375,7 +434,20 @@ ${eclat(ACTU.accent, "eclat eclat-objet")}<img class="objet" src="${objet(s)}">
   <div class="dechire menthe A moyen n2">sur notre site</div>
   <div class="captures"><div class="capture grande"><img src="${grande}"></div>${petites.slice(0, 2).map(u => `<div class="capture"><img src="${u}"></div>`).join("")}</div>
   <div class="bandeau">lapolitiquecestsimple.fr · lien en bio ${FLECHE}</div>
-</div>`),
+</div>`, fond),
   });
   return pages;
+}
+
+/** Planche de choix : les couvertures d'un post dans 2 à 4 couleurs, numérotées (WhatsApp, QG). */
+export function plancheCouleurs(couvertures: { image: string; libelle: string }[], format: keyof typeof FORMAT = "carre"): Page {
+  const cases = couvertures.slice(0, 4).map((c, i) => `<div style="position:relative;display:flex;flex-direction:column;gap:10px;min-height:0">
+  <img src="${c.image}" style="width:100%;flex:1;min-height:0;object-fit:contain;object-position:center top;border-radius:10px">
+  <div style="display:flex;align-items:center;gap:14px;color:#fff;font-weight:800;font-size:34px"><span style="background:#fff;color:#111;border-radius:50%;width:58px;height:58px;display:inline-flex;align-items:center;justify-content:center;font-size:36px">${i + 1}</span>${echapper(c.libelle)}</div></div>`).join("");
+  return {
+    nom: "couleurs", format,
+    html: `<section class="slide ${format}" style="--fond:#121212;--encre:#fff;padding:44px 40px 40px">
+<div style="font-weight:800;font-size:40px;color:#fff;margin-bottom:22px">Quelle couleur ? Réponds ✏️ « 2 », « 3 »… (✅ = 1)</div>
+<div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:26px 24px">${cases}</div></section>`,
+  };
 }
