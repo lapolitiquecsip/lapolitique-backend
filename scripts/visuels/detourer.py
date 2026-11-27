@@ -137,6 +137,35 @@ def visages(image):
     return sorted([tuple(float(v) / r for v in (x[0], x[1], x[2], x[3])) + (float(x[14]),) for x in f if x[14] >= 0.75], key=lambda v: -v[2] * v[3])
 
 
+def separer(image, A, principal, autres):
+    """Une autre personne collée au sujet dans le masque (27/11 : un homme flou derrière l'épaule de
+    Retailleau) : on partage le masque entre les visages par ligne de partage des eaux sur la photo.
+    La frontière suit les contours nets (l'épaule du sujet). On garde la part du visage principal.
+    Repères : le visage et le buste du sujet (sous son visage) ; le visage de chaque autre personne."""
+    h, w = A.shape
+    centre = lambda v: (min(int(v[0] + v[2] / 2), w - 1), min(int(v[1] + v[3] / 2), h - 1))
+    dedans = [v for v in autres if A[centre(v)[1], centre(v)[0]] > 128]
+    if not dedans:
+        return A
+    marques = np.zeros((h, w), np.int32)
+    marques[A < 20] = 1
+    cx, cy = centre(principal)
+    cv2.ellipse(marques, (cx, cy), (int(principal[2] * 0.35), int(principal[3] * 0.35)), 0, 0, 360, 2, -1)
+    buste = np.zeros((h, w), np.uint8)
+    haut = min(h - 1, int(principal[1] + principal[3] * 1.25))
+    cv2.rectangle(buste, (int(cx - principal[2] * 0.25), haut), (int(cx + principal[2] * 0.25), h - 1), 1, -1)
+    marques[(buste == 1) & (A > 128)] = 2
+    for i, v in enumerate(dedans):
+        cv2.ellipse(marques, centre(v), (max(2, int(v[2] * 0.35)), max(2, int(v[3] * 0.35))), 0, 0, 360, 3 + i, -1)
+    cv2.watershed(cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR), marques)
+    # On ne retire QUE la part des autres personnes (le fond peut déborder dans le masque sans que ce
+    # soit faux : ce qui n'est à personne d'autre reste au sujet).
+    autre = cv2.dilate((marques >= 3).astype(np.uint8), np.ones((3, 3), np.uint8))
+    garde = 1 - autre
+    print(f"  {len(dedans)} autre(s) personne(s) collée(s) au sujet : retirée(s)")
+    return A * garde
+
+
 def detourer(session, contenu, exiger_visage=False):
     """Renvoie (portrait RGBA noir et blanc, qualité) ; qualité dit si la personne touche un bord
     de la photo (coupée), et quelle part de l'image elle occupe. Avec exiger_visage : refuse les
@@ -146,7 +175,7 @@ def detourer(session, contenu, exiger_visage=False):
     image = ImageOps.exif_transpose(image).convert("RGB")
     if max(image.size) > 2000:
         image.thumbnail((2000, 2000), Image.LANCZOS)
-    principal = None
+    principal, v = None, []
     if exiger_visage and VISAGES is not None:
         v = visages(image)
         if not v:
@@ -158,13 +187,20 @@ def detourer(session, contenu, exiger_visage=False):
             raise ValueError("visage trop petit")
     m = masque(session, image)
     A = np.asarray(m, dtype=np.float32)
+    if principal is not None and cv2 is not None and len(v) > 1:
+        A = separer(image, A, principal, v[1:])
+        m = Image.fromarray(A.astype(np.uint8))
     if principal is not None and cv2 is not None:
-        n, lab = cv2.connectedComponents((A > 128).astype(np.uint8))
+        # Une ouverture détache d'abord les filets étroits (restes d'un voisin, d'un micro) ; la
+        # dilatation finale rend au sujet ses détails fins (mèches) proches de lui.
+        r = max(5, int(principal[2] * 0.04)) | 1
+        rond = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (r, r))
+        n, lab = cv2.connectedComponents(cv2.morphologyEx((A > 128).astype(np.uint8), cv2.MORPH_OPEN, rond))
         cy, cx = int(principal[1] + principal[3] / 2), int(principal[0] + principal[2] / 2)
         k = lab[min(cy, lab.shape[0] - 1), min(cx, lab.shape[1] - 1)]
         if k == 0:
             raise ValueError("le visage n'est pas dans le détourage")
-        garde = cv2.dilate((lab == k).astype(np.uint8), np.ones((5, 5), np.uint8))
+        garde = cv2.dilate((lab == k).astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (r + 4, r + 4)))
         A = A * garde
         m = Image.fromarray(A.astype(np.uint8))
     qualite = {
