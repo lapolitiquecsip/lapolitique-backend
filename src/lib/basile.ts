@@ -42,7 +42,7 @@ const MODELES_GRATUITS = (process.env.LLM_FREE_MODELS || "gemini-3.6-flash,gemin
 const lireJSON = (t: string) => { try { return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)); } catch { return null; } };
 
 /** Gemini gratuit (modèle après modèle), puis DeepSeek V4-Pro payant en secours (coût inscrit au budget). */
-async function ecrire(system: string, user: string, schema: any, detail: string): Promise<{ json: any | null; usd: number; modele: string }> {
+export async function ecrire(system: string, user: string, schema: any, detail: string): Promise<{ json: any | null; usd: number; modele: string }> {
   if (GRATUIT) {
     const client = new OpenAI({ apiKey: GRATUIT, baseURL: process.env.LLM_FREE_BASE_URL || "https://generativelanguage.googleapis.com/v1beta/openai/" });
     const consigne = `${system}
@@ -98,9 +98,11 @@ function sourceDe(titres: (string | null)[], theme: string) {
  * `parTheme` propositions par thème, mot pour mot, pour qu'il choisisse les 2-3 plus parlantes.
  */
 /** Consignes d'Hippolyte : celle du post en cours (prioritaire) et ses leçons passées (« Modifier »). */
-export type Consignes = { maintenant?: string; lecons?: string[] };
+/** `dejaPublie` : les posts du compte sur le même sujet (Noémie, instagram-historique.ts), à ne pas répéter. */
+export type Consignes = { maintenant?: string; lecons?: string[]; dejaPublie?: string[] };
 const consignes = (k?: Consignes) => {
   const t = [
+    k?.dejaPublie?.length ? `DÉJÀ PUBLIÉ SUR NOTRE COMPTE SUR CE SUJET (anciens posts, pour information seulement : n'en reprends ni l'accroche ni les mêmes propositions, mets en avant ce qui est nouveau ; leurs chiffres ne sont pas des faits utilisables) :\n${k.dejaPublie.slice(0, 4).map(l => `- ${l}`).join("\n")}` : "",
     k?.lecons?.length ? `LEÇONS D'HIPPOLYTE (ses corrections passées, à respecter) :\n${k.lecons.slice(0, 15).map(l => `- ${l}`).join("\n")}` : "",
     k?.maintenant ? `CONSIGNE D'HIPPOLYTE POUR CE POST (prioritaire) : ${k.maintenant}` : "",
   ].filter(Boolean).join("\n\n");

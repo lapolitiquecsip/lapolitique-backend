@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { supabase } from "../../config/supabase.js";
 import { redigerActu, redigerProgramme, type Consignes } from "../../lib/basile.js";
 import { publierCarrousel, publierStory } from "../../lib/instagram.js";
+import { historique, jugerIdees, postsDuCandidat, resumePost, themeCite, type PostPasse } from "../../lib/instagram-historique.js";
 import { aExecuter, aRevoir, demander, echec, encoreValidee, executee, noter, passage } from "../../lib/qg.js";
 import { affiche, carrouselActu, paletteDuPost, type NomPalette } from "../../lib/visuels/charte.js";
 import { capturesSite, DOSSIER_ASSETS, rendrePages, rendreProgramme } from "../../lib/visuels/rendu.js";
@@ -18,6 +19,9 @@ import { capturesSite, DOSSIER_ASSETS, rendrePages, rendreProgramme } from "../.
  *     Noémie choisit le sujet (programme d'un candidat pour la série, sinon la meilleure idée de
  *     Lucie : ce qui paraît sur le site + l'actu politique), Basile écrit, Rose met en page (palette
  *     suivante de la rotation), puis Hippolyte reçoit le post sur WhatsApp avec ses sources.
+ *     Avant de choisir, Noémie relit tout ce qui est déjà paru sur le compte, posts faits à la main
+ *     compris (instagram-historique.ts) : pas deux fois le même candidat en 21 jours, pas un thème déjà
+ *     cité, pas une actu déjà expliquée sans fait nouveau ; une « suite » est permise, Basile est prévenu.
  *   --publier (toutes les 15 min) : ✏️ → Basile et Rose refont le post avec la consigne (gardée comme
  *     leçon) et le renvoient ; ✅ → publication à l'heure du créneau (ou tout de suite si l'heure est
  *     passée), avec la story pour les programmes.
@@ -47,7 +51,9 @@ function aujourdhuiA(heure: string) {
 }
 
 type Creneau = { format: string; heure: string; contenu: string };
-type Sujet = { type: "programme"; slug: string; nom: string; themes: string[] } | { type: "actu"; cle: string };
+/** `deja` : les anciens posts du compte sur le même sujet ; `controle` : le verdict de Noémie, montré à Hippolyte. */
+type Sujet = ({ type: "programme"; slug: string; nom: string; themes: string[] } | { type: "actu"; cle: string }) & { deja?: string[]; controle?: string };
+const ATTENTE_CANDIDAT_JOURS = 21;
 
 /** Les carrousels du jour selon la stratégie active (et la montée en charge de décembre). */
 async function creneauxDuJour(): Promise<Creneau[]> {
@@ -63,7 +69,7 @@ async function creneauxDuJour(): Promise<Creneau[]> {
 }
 
 /** La série « programme » : le candidat le moins récemment traité qui a un portrait validé, ses 4 grands thèmes pas encore faits. */
-async function choisirProgramme(): Promise<Sujet | null> {
+async function choisirProgramme(passe: PostPasse[]): Promise<Sujet | null> {
   const { data: fichiers } = await B.list("portraits", { limit: 1000 });
   const avecPortrait = new Set((fichiers ?? []).filter(f => f.name.endsWith(".png")).map(f => f.name.replace(/\.png$/, "")));
   const { data: gens } = await supabase.from("presidential_candidates").select("id, slug, full_name").eq("status", "declared");
@@ -75,29 +81,59 @@ async function choisirProgramme(): Promise<Sujet | null> {
     if (!dernier.has(fi.slug)) dernier.set(fi.slug, f.cree_le);
     for (const t of fi.themes ?? []) (themesFaits.get(fi.slug) ?? themesFaits.set(fi.slug, new Set()).get(fi.slug))!.add(t);
   }
-  const candidats = (gens ?? []).filter((g: any) => avecPortrait.has(g.slug)).sort((a: any, b: any) => (dernier.get(a.slug) ?? "").localeCompare(dernier.get(b.slug) ?? ""));
-  for (const g of candidats as any[]) {
+  // Dernier passage = le plus récent entre la chaîne (fiches) et le compte (posts faits à la main compris).
+  const candidats = (gens ?? []).filter((g: any) => avecPortrait.has(g.slug)).map((g: any) => {
+    const posts = postsDuCandidat(passe, g.slug, g.full_name);
+    const quand = Math.max(Date.parse(dernier.get(g.slug) ?? "") || 0, ...posts.map(p => Date.parse(p.date) || 0));
+    return { g, posts, quand };
+  }).sort((a, b) => a.quand - b.quand);
+  for (const { g, posts, quand } of candidats as any[]) {
+    if (quand && Date.now() - quand < ATTENTE_CANDIDAT_JOURS * 86400_000) {
+      console.log(`${g.full_name} : déjà traité le ${new Date(quand).toISOString().slice(0, 10)}, pas avant ${ATTENTE_CANDIDAT_JOURS} jours.`);
+      continue;
+    }
     const { data: props } = await supabase.from("candidate_proposals").select("theme").eq("candidate_id", g.id).limit(1000);
     const compte = new Map<string, number>();
     for (const p of props ?? []) compte.set(p.theme, (compte.get(p.theme) ?? 0) + 1);
     const deja = themesFaits.get(g.slug) ?? new Set();
-    const themes = [...compte.entries()].filter(([t, n]) => n >= 3 && t.length < 60 && !deja.has(t)).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([t]) => t);
-    if (themes.length >= 2) return { type: "programme", slug: g.slug, nom: g.full_name, themes };
+    const themes = [...compte.entries()].filter(([t, n]) => n >= 3 && t.length < 60 && !deja.has(t) && !themeCite(t, posts)).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([t]) => t);
+    if (themes.length >= 2) {
+      const controle = posts.length
+        ? `Déjà paru sur ${g.full_name} : ${posts.slice(0, 2).map(p => resumePost(p, 0).replace(/ :\s*$/, "")).join(", ")} ; thèmes retenus non encore traités.`
+        : `${g.full_name} jamais traité sur le compte (${passe.filter(p => p.publie).length} posts relus).`;
+      return { type: "programme", slug: g.slug, nom: g.full_name, themes, deja: posts.slice(0, 3).map(p => resumePost(p)), controle };
+    }
   }
   return null;
 }
 
 /** La meilleure idée récente de Lucie (site + actu), pas encore utilisée ; « chiffre » privilégie les chiffres officiels. */
-async function choisirActu(indice: string): Promise<Sujet | null> {
+async function choisirActu(indice: string, passe: PostPasse[]): Promise<Sujet | null> {
   const depuis = new Date(Date.now() - 2 * 86400_000).toISOString().slice(0, 10);
-  const { data } = await supabase.from("veille_posts").select("cle, importance").eq("statut", "pret").gte("jour", depuis)
+  const { data } = await supabase.from("veille_posts").select("cle, importance, titre, faits").eq("statut", "pret").gte("jour", depuis)
     .not("faits", "is", null).order("importance", { ascending: false }).order("detecte_le", { ascending: false }).limit(80);
   const { data: utilisees } = await supabase.from("instagram_fiches").select("fiche").gte("cree_le", new Date(Date.now() - 14 * 86400_000).toISOString());
   const deja = new Set((utilisees ?? []).map((f: any) => f.fiche?.idee).filter(Boolean));
   const ok = (data ?? []).filter((i: any) => !EXCLUS.has(i.cle.split(":")[0]) && !deja.has(i.cle) && i.importance >= 4);
-  const chiffre = /chiffre/i.test(indice) ? ok.find((i: any) => i.cle.startsWith("indicateur:")) : null;
-  const choix = chiffre ?? ok[0];
-  return choix ? { type: "actu", cle: choix.cle } : null;
+  // « chiffre » : les chiffres officiels d'abord. Puis Noémie écarte ce qui est déjà paru sur le compte.
+  const ordre = /chiffre/i.test(indice) ? [...ok.filter((i: any) => i.cle.startsWith("indicateur:")), ...ok.filter((i: any) => !i.cle.startsWith("indicateur:"))] : ok;
+  const tete = ordre.slice(0, 8);
+  const verdicts = await jugerIdees(tete, passe);
+  for (const v of verdicts) {
+    if (v.verdict === "doublon") { console.log(`Écartée (doublon${v.proche ? ` du ${v.proche.date.slice(0, 10)}` : ""}) : ${tete.find((i: any) => i.cle === v.cle)?.titre} — ${v.raison}`); continue; }
+    const controle = v.verdict === "suite" && v.proche
+      ? `Suite du post du ${resumePost(v.proche, 0).replace(/ :\s*$/, "")} : ${v.raison}`
+      : `Sujet pas encore traité (vérifié contre ${passe.filter(p => p.publie).length} posts du compte).`;
+    return { type: "actu", cle: v.cle, deja: v.proche && v.verdict === "suite" ? [resumePost(v.proche)] : undefined, controle };
+  }
+  return null;
+}
+
+/** Les posts préparés mais pas encore publiés : le 2e créneau du jour ne reprend pas le sujet du 1er. */
+async function enAttente(): Promise<PostPasse[]> {
+  const { data } = await supabase.from("qg_demandes").select("id, apercu, cree_le").eq("action", ACTION)
+    .in("statut", ["a_valider", "validee", "a_modifier"]).gte("cree_le", new Date(Date.now() - 3 * 86400_000).toISOString());
+  return (data ?? []).map((d: any) => ({ id: `qg:${d.id}`, date: d.apercu?.heure ?? d.cree_le, format: "carrousel", texte: d.apercu?.legende ?? "", lien: null, slug: d.apercu?.sujet?.slug ?? null, publie: false }));
 }
 
 async function lecons(): Promise<string[]> {
@@ -166,17 +202,17 @@ async function deposer(sujet: Sujet, c: Creneau, heureIso: string, version = 1, 
   const { count } = await supabase.from("instagram_fiches").select("ref", { count: "exact", head: true }).eq("fiche->>gabarit", "programme");
   const palette = paletteDuPost(count ?? 0);
   const ref = `ref:${createHash("md5").update(`${jourIso()}|${c.heure}|${JSON.stringify(sujet)}`).digest("hex").slice(0, 16)}`;
-  const r = await fabriquer(sujet, palette, ref, { lecons: await lecons(), ...k });
+  const r = await fabriquer(sujet, palette, ref, { lecons: await lecons(), dejaPublie: sujet.deja, ...k });
   if (ESSAI) return;
   await supabase.from("instagram_fiches").upsert({ ref, fiche: { ...r.fiche, prepare_le: new Date().toISOString(), heure: c.heure, version } });
   const titre = sujet.type === "programme" ? `Programme de ${sujet.nom}` : String(r.fiche.accroche ?? "Actu");
   await demander({
     agent: NOEMIE, equipe: "marketing", action: ACTION, cle: `ig-${jourIso()}-${c.heure}${version > 1 ? `-v${version}` : ""}`,
     titre: `Post Instagram ${c.heure} : ${titre}${version > 1 ? ` (v${version})` : ""}`,
-    resume: `${r.slides.length} slides${r.story ? " + story" : ""} · publication à ${c.heure}${r.aVerifier.length ? ` · ⚠️ À vérifier : ${r.aVerifier.slice(0, 3).join(" ; ")}` : " · rien à vérifier"}`,
+    resume: `${r.slides.length} slides${r.story ? " + story" : ""} · publication à ${c.heure}${r.aVerifier.length ? ` · ⚠️ À vérifier : ${r.aVerifier.slice(0, 3).join(" ; ")}` : " · rien à vérifier"}${sujet.controle ? ` · 🔁 ${sujet.controle}` : ""}`,
     apercu: {
       image: r.slides[0], images: r.slides, story: r.story,
-      texte: `${r.legende}\n\nSOURCES\n${r.sources.join("\n")}${r.aVerifier.length ? `\n\nÀ VÉRIFIER\n${r.aVerifier.join("\n")}` : ""}`,
+      texte: `${r.legende}\n\nSOURCES\n${r.sources.join("\n")}${r.aVerifier.length ? `\n\nÀ VÉRIFIER\n${r.aVerifier.join("\n")}` : ""}${sujet.controle ? `\n\nDÉJÀ PUBLIÉ ?\n${sujet.controle}` : ""}`,
       legende: r.legende, heure: heureIso, ref, sujet, creneau: c, version,
     },
     risque: r.aVerifier.length ? "normal" : "faible",
@@ -198,8 +234,11 @@ async function preparer() {
     if (c.format !== "carrousel") continue;
     const deja = !ESSAI && (await supabase.from("qg_demandes").select("id").eq("cle", `ig-${jourIso()}-${c.heure}`).maybeSingle()).data;
     if (deja) { console.log(`Déjà préparé : ${c.heure}.`); continue; }
-    const sujet = /programme|candidat/i.test(c.contenu) ? (await choisirProgramme()) ?? (await choisirActu(c.contenu)) : (await choisirActu(c.contenu)) ?? (await choisirProgramme());
+    // Tout ce qui est paru (ou prévu) sur le compte, relu à chaque créneau.
+    const passe = [...(await historique()), ...(ESSAI ? [] : await enAttente())];
+    const sujet = /programme|candidat/i.test(c.contenu) ? (await choisirProgramme(passe)) ?? (await choisirActu(c.contenu, passe)) : (await choisirActu(c.contenu, passe)) ?? (await choisirProgramme(passe));
     if (!sujet) { console.log(`::warning::Aucun sujet pour ${c.heure}.`); continue; }
+    console.log(`Sujet ${c.heure} : ${sujet.type === "programme" ? sujet.nom : sujet.cle} — ${sujet.controle ?? ""}`);
     try {
       await deposer(sujet, c, aujourdhuiA(c.heure));
     } catch (e) {
