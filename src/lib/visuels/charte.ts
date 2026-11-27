@@ -300,18 +300,34 @@ export function affiche(d: DonneesAffiche): Page {
   // Le cartouche rétrécit seul pour tenir sur une ligne (Anton ≈ 0,45 em par signe, 930 px utiles) :
   // la question garde sa taille.
   const tailleTheme = Math.min(168 * t, Math.floor(930 / (Math.max(d.theme.length, 4) * 0.45)));
+  // La question doit finir AU-DESSUS de la tête du portrait (27/11 : « Nicolas Dupont-Aignan » sur
+  // 3 lignes poussait le sous-titre sur son visage). On compte les lignes (coupure aux espaces, Anton
+  // ≈ 0,45 em par signe sur 930 px) et on réduit la taille jusqu'à tenir dans la hauteur libre.
+  const lignes = (texte: string, s: number) => {
+    let n = 1, l = 0;
+    for (const mot of texte.split(/\s+/)) {
+      const w = mot.length * 0.45 * s;
+      if (l && l + 0.25 * s + w > 930 * t) { n++; l = w; } else l += (l ? 0.25 * s : 0) + w;
+    }
+    return n;
+  };
+  const libre = story ? 640 : 470;
+  let taille = 168 * t;
+  const hauteur = (s: number) => (lignes("Que propose", s) + lignes(d.nom, s) + (d.liaison ? lignes(d.liaison, s) : 0)) * s * 1.04 + Math.min(s, tailleTheme) * 1.3;
+  while (taille > 90 * t && hauteur(taille) > libre) taille -= 4;
+  const theme = Math.min(tailleTheme, taille);
   return {
     nom: story ? "affiche-story" : "affiche-fil", format: d.format, html: cadre(d.palette, d.format, `
 <div class="tete"><div class="marque">${logo(c.accent, c.surAccent)}<div class="A nom" style="font-size:${64 * t}px">La politique<br>c’est simple</div></div></div>
 <div class="corps">
   <div class="serie" style="font-size:${32 * t}px;margin-top:${54 * t}px">Les programmes en détail</div>
-  <div class="A question" data-ajuster style="font-size:${168 * t}px">Que propose<br>${echapper(d.nom)}<br>${d.liaison ? `${echapper(d.liaison)}<br>` : ""}<span class="cartouche arrondi" style="font-size:${tailleTheme}px">${echapper(d.theme)}</span></div>
+  <div class="A question" data-ajuster style="font-size:${taille}px">Que propose<br>${echapper(d.nom).split(" ").map(m => `<span style="white-space:nowrap">${m}</span>`).join(" ")}<br>${d.liaison ? `${echapper(d.liaison)}<br>` : ""}<span class="cartouche arrondi" style="font-size:${theme}px">${echapper(d.theme)}</span></div>
   ${d.contexte ? `<div class="contexte" style="font-size:${32 * t}px">${echapper(d.contexte)}</div>` : ""}
 </div>
 ${eclat(c.accent, "eclat")}
 <style>.pal-${d.palette}.${d.format} .eclat { left: ${story ? 250 : 175}px; bottom: ${story ? 700 : 485}px; }</style>
 <img class="objet" src="${d.objet}" style="left:70px;right:auto;bottom:${story ? 240 : 150}px;width:${story ? 400 : 300}px">
-<img class="portrait" src="${d.portrait}" style="width:${story ? 780 : 560}px;height:${story ? 1180 : 760}px">
+<img class="portrait" src="${d.portrait}" style="width:${story ? 760 : 560}px;height:${story ? 880 : 760}px">
 <div class="site-bas" style="font-size:${38 * t}px">lapolitiquecestsimple.fr</div>
 ${d.creditPhoto ? `<div class="credit" style="right:24px;bottom:18px">${echapper(d.creditPhoto)}</div>` : ""}`),
   };
