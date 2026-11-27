@@ -38,7 +38,8 @@ def env():
 
 
 E = env()
-URL, CLE = E["SUPABASE_URL"].rstrip("/"), E["SUPABASE_SERVICE_ROLE_KEY"]
+# .strip() : le secret GitHub SUPABASE_URL se termine par un retour à la ligne (Node le tolère, urllib non).
+URL, CLE = E["SUPABASE_URL"].strip().rstrip("/"), E["SUPABASE_SERVICE_ROLE_KEY"].strip()
 
 
 def rest(chemin, methode="GET", corps=None):
